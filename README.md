@@ -1,10 +1,27 @@
-# dietyaar
+# Dietyaar
 
-_What this product does and for whom goes here: the "What it is" paragraph from `docs/PRD.md`.
-It is written in the first agent session (`AGENTS.md` › Before the first feature)._
+A diet adherence companion for people who already follow a diet. Bring the plan you have (in any
+language, including menu-style plans with several options per meal), log what you actually ate by
+text or photo, correct the AI's estimate, and see how each day compares with the plan. The next
+morning a short, factual paragraph reflects on yesterday and sets one focus for today. English UI,
+mobile-first web app, one plan per user, no coaching, no diet generation.
 
 Next.js 16 · React 19 · Tailwind CSS 4 · Prisma 6 · PostgreSQL. One locale profile (see
 "Locale and direction" below). Rules for coding agents are in `AGENTS.md` and `CLAUDE.md`.
+
+## Product documents
+
+| Document                                       | Owns                                                                        |
+| ---------------------------------------------- | --------------------------------------------------------------------------- |
+| [`docs/PRD.md`](docs/PRD.md)                   | Short living reference: what exists today (routes, models, actions)         |
+| [`docs/product-spec.md`](docs/product-spec.md) | Product behaviour, rules, acceptance criteria (v1.7)                        |
+| [`docs/design-scope.md`](docs/design-scope.md) | Screen inventory: what each page shows and does, user journeys J1–J14       |
+| [`docs/design.md`](docs/design.md)             | Visual treatment: palette, type, spacing, motion                            |
+| [`docs/tech-spec.md`](docs/tech-spec.md)       | How it is built, run and verified (v1.2): data model, actions, deploy, jobs |
+| [`docs/decisions/`](docs/decisions/)           | Why the big choices were made (001–007 boilerplate, 008–018 Dietyaar)       |
+| [`docs/runbook.md`](docs/runbook.md)           | Setup checklist results and operating notes                                 |
+
+Where documents disagree: the product spec wins on behaviour, the tech spec on construction.
 
 ## Quick start
 
@@ -28,10 +45,9 @@ Every environment variable is documented in `.env.example` and validated at boot
 ## Your first feature
 
 Open your coding agent in the project root (Claude Code reads `CLAUDE.md`; other agents read
-`AGENTS.md`). While `docs/PRD.md` still holds its placeholders the agent will first ask what the
-product is, write the answers into the PRD, this README and `src/lib/app-config.ts`, and match your
-requirements against what the repository ships (`AGENTS.md` › "Before the first feature" and
-"What ships, what does not"). Then describe the feature in product terms:
+`AGENTS.md`). The product is defined in `docs/`; the agent matches each feature against
+`AGENTS.md` › "What ships, what does not" and `docs/tech-spec.md` before building. Describe the
+feature in product terms, pointing at the spec section it implements:
 
 > Add an **invoices** module. An invoice has a number, a customer name, an amount, a status
 > (draft / sent / paid) and a due date. Admins create and edit invoices; every signed-in user can

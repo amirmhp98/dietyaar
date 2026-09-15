@@ -1,4 +1,4 @@
-# CLAUDE.md — dietyaar
+# CLAUDE.md — Dietyaar
 
 @AGENTS.md
 
@@ -7,14 +7,17 @@ This file adds the workflow Claude Code follows and the tooling it should reach 
 
 ## Workflow
 
-- If `docs/PRD.md` › _What it is_ still holds its placeholder comment, the product is not defined yet:
-  follow `AGENTS.md` › "Before the first feature" (requirements → PRD, README intro, `APP_DESCRIPTION`
-  → match against "What ships, what does not") before scaffolding or building anything.
+- The product is specified in `docs/`: `product-spec.md` (behaviour), `design-scope.md` (screens and
+  journeys), `design.md` (visual), `tech-spec.md` (construction). Before building a feature, read the
+  spec sections it implements and check `AGENTS.md` › "What ships, what does not" and
+  `tech-spec.md` § 4 (module boundaries) for where the code goes. Where the tech spec deviates from
+  a boilerplate rule, a decision record under `docs/decisions/` (008+) says so.
 - Keep changes scoped to what was asked. If you discover related work, mention it rather than doing it.
 - Before reporting done: `npm run lint:all`, `npm run test`, `npm run build`; exercise the change in the
   browser (Playwright MCP) or add an e2e spec. Say what you tested.
-- `docs/PRD.md` describes what the product is and does. When a change adds a route, module, or
-  user-visible behaviour, update it in a sentence or two. It is a living reference, not a changelog.
+- `docs/PRD.md` is the short reference of what exists today. When a change adds a route, module,
+  or user-visible behaviour, update it in a sentence or two. It is a living reference, not a
+  changelog; the full specs stay authoritative for what is planned.
 
 ### Optional: issue tracking with beads
 
@@ -58,7 +61,7 @@ Each vendored skill has a `SOURCE.md` with upstream repo, commit and license, an
 ### Decision flow
 
 ```
-PRD still has its placeholder?     → AGENTS.md "Before the first feature" — define the product first
+Which spec section is this?        → docs/product-spec.md for behaviour, docs/tech-spec.md for construction
 Spec mentions something new?       → AGENTS.md "What ships, what does not" — is it here, and where would it go
 New feature?                       → npm run new:module <name>, then follow AGENTS.md "How a feature is built"
 Touching a route or layout?        → next-best-practices, then bundled Next docs

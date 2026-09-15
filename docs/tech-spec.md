@@ -14,12 +14,12 @@ Target platform: Hamravesh Darkube (Kubernetes PaaS), Docker image deployment. D
 
 These were given after product spec v1.6 and are binding. Product spec v1.7 and the design scope have been updated to match; section 22 records what changed.
 
-| Decision | Date | Effect |
-| --- | --- | --- |
-| No password recovery in V1 | September 16, 2026 | No recovery email, no forgot-password form, no reset page, no email of any kind. A lost password loses the account. |
-| Supabase free tier for database and file storage | September 16, 2026 | Section 13. |
-| No plan versions | September 16, 2026 | One plan per user, edited in place. Editing or replacing the plan changes how every day, past and future, is compared, and the UI says so. No version history, no per-day plan assignment, no effective dates, no re-activation of old versions. Section 5 and section 6. |
-| Keep features minimal | September 16, 2026 | Where this document offered a cache, a history table, or a second mechanism, the simpler one is now the only one. |
+| Decision                                         | Date               | Effect                                                                                                                                                                                                                                                                    |
+| ------------------------------------------------ | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| No password recovery in V1                       | September 16, 2026 | No recovery email, no forgot-password form, no reset page, no email of any kind. A lost password loses the account.                                                                                                                                                       |
+| Supabase free tier for database and file storage | September 16, 2026 | Section 13.                                                                                                                                                                                                                                                               |
+| No plan versions                                 | September 16, 2026 | One plan per user, edited in place. Editing or replacing the plan changes how every day, past and future, is compared, and the UI says so. No version history, no per-day plan assignment, no effective dates, no re-activation of old versions. Section 5 and section 6. |
+| Keep features minimal                            | September 16, 2026 | Where this document offered a cache, a history table, or a second mechanism, the simpler one is now the only one.                                                                                                                                                         |
 
 Where this document and the product spec still disagree on something not covered above, the product spec wins and this document is wrong.
 
@@ -45,16 +45,16 @@ Anything in product spec section 3 "Deferred", plus: plan history, multi-region,
 
 ### Constraints
 
-| Constraint | Source | Consequence |
-| --- | --- | --- |
-| Hosting on Darkube, Iran-based cluster | Owner | Docker image deploy; shared IPv4 egress; Docker Hub only through `hub.hamdocker.ir`; no privileged containers; no native cron; reachability of every foreign API verified from the cluster before product code is written |
-| Supabase free tier | Owner | 500 MB database, 1 GB files, 5 GB egress per month, 50 MB per file, no provider backups, project paused after 7 idle days, database reachable over IPv4 only through the Supavisor pooler; Data API must be disabled |
-| Unpaid first release, single developer | Product spec | One replica; no managed queue; AI cost caps |
-| English UI, Gregorian dates, any-language input | Product spec | `en` locale profile; per-user IANA time zone in the profile; original text stored verbatim |
-| DeepSeek as AI provider | Owner | Adapter isolates the provider; JSON mode without schema enforcement; every response validated with zod |
-| Mobile-first web app | Product spec | Bottom tab shell replaces the boilerplate sidebar; Playwright runs a mobile project |
-| Health data privacy | Product spec section 15 | Private bucket; photo bytes reach the browser only through an owner-checked route; logger and error-tracker redaction; no health content in analytics |
-| No password recovery, no email | Owner | Sign-up is username and password only |
+| Constraint                                      | Source                  | Consequence                                                                                                                                                                                                               |
+| ----------------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Hosting on Darkube, Iran-based cluster          | Owner                   | Docker image deploy; shared IPv4 egress; Docker Hub only through `hub.hamdocker.ir`; no privileged containers; no native cron; reachability of every foreign API verified from the cluster before product code is written |
+| Supabase free tier                              | Owner                   | 500 MB database, 1 GB files, 5 GB egress per month, 50 MB per file, no provider backups, project paused after 7 idle days, database reachable over IPv4 only through the Supavisor pooler; Data API must be disabled      |
+| Unpaid first release, single developer          | Product spec            | One replica; no managed queue; AI cost caps                                                                                                                                                                               |
+| English UI, Gregorian dates, any-language input | Product spec            | `en` locale profile; per-user IANA time zone in the profile; original text stored verbatim                                                                                                                                |
+| DeepSeek as AI provider                         | Owner                   | Adapter isolates the provider; JSON mode without schema enforcement; every response validated with zod                                                                                                                    |
+| Mobile-first web app                            | Product spec            | Bottom tab shell replaces the boilerplate sidebar; Playwright runs a mobile project                                                                                                                                       |
+| Health data privacy                             | Product spec section 15 | Private bucket; photo bytes reach the browser only through an owner-checked route; logger and error-tracker redaction; no health content in analytics                                                                     |
+| No password recovery, no email                  | Owner                   | Sign-up is username and password only                                                                                                                                                                                     |
 
 ## 2. System architecture — Inherited, extended
 
@@ -80,17 +80,17 @@ The app runs in Iran; the data runs on Supabase outside Iran. Every request that
 
 ### Request paths
 
-| Path | Mechanism | Why |
-| --- | --- | --- |
-| Reads for pages | Server components call services | Boilerplate rule |
-| Mutations | Server actions returning `ActionResult` | Boilerplate rule; typed, same-origin |
-| Photo upload | Route handler `POST /api/uploads`, multipart | Server actions cap bodies at 2 MB; validation and re-encoding happen in one pass |
-| Plan import | Job row in Postgres, run by the scheduler, polled by the client through a server action | No queue; survives navigation; resumable |
-| Meal analysis | Server action with one overall deadline | Bounded wait; draft is server-held so nothing is lost |
-| Reflection | Server action that claims generation, with a client poll for concurrent visitors | One canonical paragraph per user per day |
-| Data export | Route handler `GET /api/export` streaming a zip | Binary download |
-| Photo view | Route handler `GET /api/photos/[id]?s=<session-tag>` streams the object | Bucket stays private; the browser never contacts Supabase; the cache key is account-bound |
-| Health | `GET /api/health` (readiness), `GET /api/live` (liveness) | Section 13 |
+| Path            | Mechanism                                                                               | Why                                                                                       |
+| --------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Reads for pages | Server components call services                                                         | Boilerplate rule                                                                          |
+| Mutations       | Server actions returning `ActionResult`                                                 | Boilerplate rule; typed, same-origin                                                      |
+| Photo upload    | Route handler `POST /api/uploads`, multipart                                            | Server actions cap bodies at 2 MB; validation and re-encoding happen in one pass          |
+| Plan import     | Job row in Postgres, run by the scheduler, polled by the client through a server action | No queue; survives navigation; resumable                                                  |
+| Meal analysis   | Server action with one overall deadline                                                 | Bounded wait; draft is server-held so nothing is lost                                     |
+| Reflection      | Server action that claims generation, with a client poll for concurrent visitors        | One canonical paragraph per user per day                                                  |
+| Data export     | Route handler `GET /api/export` streaming a zip                                         | Binary download                                                                           |
+| Photo view      | Route handler `GET /api/photos/[id]?s=<session-tag>` streams the object                 | Bucket stays private; the browser never contacts Supabase; the cache key is account-bound |
+| Health          | `GET /api/health` (readiness), `GET /api/live` (liveness)                               | Section 13                                                                                |
 
 ### Process model
 
@@ -100,28 +100,28 @@ Single replica. The scheduler, the login throttle, and the rate limits are in-pr
 
 Everything below comes from the boilerplate and is kept. Reasons are in its `docs/decisions/001` to `007`.
 
-| Layer | Choice | Notes for this project |
-| --- | --- | --- |
-| Runtime | Node LTS on `hub.hamdocker.ir/library/node:lts-slim` | Darkube mirror and `library/` prefix |
-| Framework | Next.js 16 App Router, React 19, React Compiler | `src/proxy.ts` is the request gate |
-| Styling | Tailwind 4, locally owned shadcn kit behind one barrel, logical CSS utilities | Persian names render inside the English layout |
-| Data | Supabase Postgres, Prisma 6, committed migrations | `url` is the transaction pooler, `directUrl` the session pooler; every `DateTime` column carries `@db.Timestamptz(3)` |
-| Validation | zod 4 with `t()` messages | Also validates every AI response |
-| Auth | Cookie sessions with hashed tokens, bcrypt 12 rounds | Extended in section 8 |
-| Tests | Vitest 5 with deep-mocked Prisma, Playwright | Extended in section 15, plus a real-Postgres integration project |
-| Lint | ESLint layering rules, Prettier, `tsc` | Section 4 adds rules; section 9 keeps one narrow RTL check |
-| Ops | Multi-stage Dockerfile, standalone output, migrations on start, health route, pino | Adapted in section 13 |
+| Layer      | Choice                                                                             | Notes for this project                                                                                                |
+| ---------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Runtime    | Node LTS on `hub.hamdocker.ir/library/node:lts-slim`                               | Darkube mirror and `library/` prefix                                                                                  |
+| Framework  | Next.js 16 App Router, React 19, React Compiler                                    | `src/proxy.ts` is the request gate                                                                                    |
+| Styling    | Tailwind 4, locally owned shadcn kit behind one barrel, logical CSS utilities      | Persian names render inside the English layout                                                                        |
+| Data       | Supabase Postgres, Prisma 6, committed migrations                                  | `url` is the transaction pooler, `directUrl` the session pooler; every `DateTime` column carries `@db.Timestamptz(3)` |
+| Validation | zod 4 with `t()` messages                                                          | Also validates every AI response                                                                                      |
+| Auth       | Cookie sessions with hashed tokens, bcrypt 12 rounds                               | Extended in section 8                                                                                                 |
+| Tests      | Vitest 5 with deep-mocked Prisma, Playwright                                       | Extended in section 15, plus a real-Postgres integration project                                                      |
+| Lint       | ESLint layering rules, Prettier, `tsc`                                             | Section 4 adds rules; section 9 keeps one narrow RTL check                                                            |
+| Ops        | Multi-stage Dockerfile, standalone output, migrations on start, health route, pino | Adapted in section 13                                                                                                 |
 
 ### Added dependencies
 
-| Package | Purpose | Alternative rejected |
-| --- | --- | --- |
-| `@aws-sdk/client-s3` | Supabase Storage and Hamravesh Object Storage through one S3 adapter | Vendor SDKs: two clients for one protocol |
-| `sharp` | Re-encode uploads to JPEG, strip metadata, resize | Jimp: too slow for 10 MB inputs |
-| `heic-to` (browser only) | Convert HEIC to JPEG on the device | Server-side HEIC: prebuilt sharp has no HEIC decoder |
-| `@date-fns/tz` | Time-zone-aware day boundaries on the boilerplate's `date-fns` 4 | Luxon: a second date library |
-| `archiver` | Streaming zip for data export | Manual zip |
-| `@sentry/nextjs` | Error tracking to Hamravesh Sentry | Rolling our own |
+| Package                  | Purpose                                                              | Alternative rejected                                 |
+| ------------------------ | -------------------------------------------------------------------- | ---------------------------------------------------- |
+| `@aws-sdk/client-s3`     | Supabase Storage and Hamravesh Object Storage through one S3 adapter | Vendor SDKs: two clients for one protocol            |
+| `sharp`                  | Re-encode uploads to JPEG, strip metadata, resize                    | Jimp: too slow for 10 MB inputs                      |
+| `heic-to` (browser only) | Convert HEIC to JPEG on the device                                   | Server-side HEIC: prebuilt sharp has no HEIC decoder |
+| `@date-fns/tz`           | Time-zone-aware day boundaries on the boilerplate's `date-fns` 4     | Luxon: a second date library                         |
+| `archiver`               | Streaming zip for data export                                        | Manual zip                                           |
+| `@sentry/nextjs`         | Error tracking to Hamravesh Sentry                                   | Rolling our own                                      |
 
 No AI SDK. The DeepSeek adapter uses `fetch` with `AbortSignal`, because the surface used is small and a raw client gives exact control over deadlines.
 
@@ -173,16 +173,16 @@ Implemented as `no-restricted-imports`, type-only imports allowed:
 
 ### Module inventory
 
-| Module | Owns |
-| --- | --- |
-| `account` | sign-up, password change, deletion |
-| `profile` | onboarding steps and resume, profile, preferences, AI notice flags |
-| `plan` | the one plan, import job, draft review, confirm, targets, rules, notes |
-| `meal` | drafts, analysis, confirmed meals, food items, photos, slot link |
-| `day` | completeness, skipped slots, comparison, history summaries |
-| `reflection` | morning message, staleness, fallbacks |
-| `export` | data export zip |
-| `user` (boilerplate) | admin user management |
+| Module               | Owns                                                                   |
+| -------------------- | ---------------------------------------------------------------------- |
+| `account`            | sign-up, password change, deletion                                     |
+| `profile`            | onboarding steps and resume, profile, preferences, AI notice flags     |
+| `plan`               | the one plan, import job, draft review, confirm, targets, rules, notes |
+| `meal`               | drafts, analysis, confirmed meals, food items, photos, slot link       |
+| `day`                | completeness, skipped slots, comparison, history summaries             |
+| `reflection`         | morning message, staleness, fallbacks                                  |
+| `export`             | data export zip                                                        |
+| `user` (boilerplate) | admin user management                                                  |
 
 ## 5. Data model — Added
 
@@ -297,22 +297,22 @@ All calculations are pure functions in `lib/rubric` and `lib/time` over plain ob
 7. Nutrition subtotals sum every meal once, including "Other".
 8. Rules with `tracking = TRACK` produce observations over their period; they never enter the score.
 
-| Function | Spec source |
-| --- | --- |
-| `localDateFor(instant, zone)`, `dayBounds(localDate, zone)`, `isLateNightWindow(now, zone)` | section 14, section 7 |
-| `matchSlot(combinedItems, option)` → `{status, reason, missing[], added[], mixed}` | section 8 matching |
-| `portionResult(combinedItems, option)` → per-item bands and the mean | 15% and 30%, inclusive |
-| `energyResult(subtotal, target)` → band and signed difference | 10%, inclusive |
-| `timeResult(slotTime, window)` and `orderResult(slotsOfDay, plannedOrder)` | 60 and 120 minutes; order rule |
-| `scoreSlot(components)` → `{score, weightsUsed, excluded[]}` | 50/30/20 with exclusion |
+| Function                                                                                                 | Spec source                         |
+| -------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| `localDateFor(instant, zone)`, `dayBounds(localDate, zone)`, `isLateNightWindow(now, zone)`              | section 14, section 7               |
+| `matchSlot(combinedItems, option)` → `{status, reason, missing[], added[], mixed}`                       | section 8 matching                  |
+| `portionResult(combinedItems, option)` → per-item bands and the mean                                     | 15% and 30%, inclusive              |
+| `energyResult(subtotal, target)` → band and signed difference                                            | 10%, inclusive                      |
+| `timeResult(slotTime, window)` and `orderResult(slotsOfDay, plannedOrder)`                               | 60 and 120 minutes; order rule      |
+| `scoreSlot(components)` → `{score, weightsUsed, excluded[]}`                                             | 50/30/20 with exclusion             |
 | `scoreDay(slotScores, nutritionComponent)` → `{dayScore, showNumber, band, coverage, completeByDefault}` | 90/10, normalization, two-meal rule |
-| `nutritionSubtotals(meals)` → per nutrient `{value, complete}` | unknown never zero |
-| `compareTarget(subtotal, target, dayPhase, logComplete)` | section 8 target table |
-| `ruleObservation(rule, daysInPeriod)` → progress or final status | variety and frequency rules |
-| `restrictionHits(items, restrictions)` → item names matched by normalized token | section 7 reminder |
-| `reflectionFacts(dayView, plan, profile)` → `[{id, kind, text}]` | section 11 inputs |
-| `isReflectionStale(snapshotFacts, currentFacts, usedFactIds)` → bool | staleness rule |
-| `sevenDaySummary(dayViews)` → sentence key and denominators | section 10 |
+| `nutritionSubtotals(meals)` → per nutrient `{value, complete}`                                           | unknown never zero                  |
+| `compareTarget(subtotal, target, dayPhase, logComplete)`                                                 | section 8 target table              |
+| `ruleObservation(rule, daysInPeriod)` → progress or final status                                         | variety and frequency rules         |
+| `restrictionHits(items, restrictions)` → item names matched by normalized token                          | section 7 reminder                  |
+| `reflectionFacts(dayView, plan, profile)` → `[{id, kind, text}]`                                         | section 11 inputs                   |
+| `isReflectionStale(snapshotFacts, currentFacts, usedFactIds)` → bool                                     | staleness rule                      |
+| `sevenDaySummary(dayViews)` → sentence key and denominators                                              | section 10                          |
 
 Historical days use `DayRecord.timeZone`, not the current profile zone. A plan edit changes past comparisons by design (section 0.1); the confirm screen says "Past days will be compared against the updated plan."
 
@@ -324,66 +324,66 @@ Server actions return `ActionResult<T>`, authorize first, parse with zod, check 
 
 ### Account, profile, onboarding
 
-| Action | Auth | Input | Result | Notes |
-| --- | --- | --- | --- | --- |
-| `signUpAction` | none | username, password | session cookie, redirect to onboarding | 10 per IP per hour (tunable); the form says a forgotten password cannot be recovered |
-| `loginAction` | none | boilerplate | | boilerplate throttle |
-| `changePasswordAction` | user | current, new | `ok()` | revokes other sessions |
-| `requestAccountDeletionAction` | user | typed username | `ok()` | revokes all sessions, refuses login, cancels jobs, schedules purge in 7 days |
-| `deleteUnderageAccountAction` | user with `onboardingStep = AGE` | | `ok()` | immediate purge; no Profile row exists |
-| `saveOnboardingStepAction` | user | step, values | next step | age is validated and never stored when under 18 |
-| `updateProfileAction`, `updatePreferencesAction` | user | partial | profile | appearance also set in a cookie |
-| `acknowledgeAiNoticeAction`, `dismissTimeZoneHintAction`, `reportDeviceTimeZoneAction` | user | | | |
+| Action                                                                                 | Auth                             | Input              | Result                                 | Notes                                                                                |
+| -------------------------------------------------------------------------------------- | -------------------------------- | ------------------ | -------------------------------------- | ------------------------------------------------------------------------------------ |
+| `signUpAction`                                                                         | none                             | username, password | session cookie, redirect to onboarding | 10 per IP per hour (tunable); the form says a forgotten password cannot be recovered |
+| `loginAction`                                                                          | none                             | boilerplate        |                                        | boilerplate throttle                                                                 |
+| `changePasswordAction`                                                                 | user                             | current, new       | `ok()`                                 | revokes other sessions                                                               |
+| `requestAccountDeletionAction`                                                         | user                             | typed username     | `ok()`                                 | revokes all sessions, refuses login, cancels jobs, schedules purge in 7 days         |
+| `deleteUnderageAccountAction`                                                          | user with `onboardingStep = AGE` |                    | `ok()`                                 | immediate purge; no Profile row exists                                               |
+| `saveOnboardingStepAction`                                                             | user                             | step, values       | next step                              | age is validated and never stored when under 18                                      |
+| `updateProfileAction`, `updatePreferencesAction`                                       | user                             | partial            | profile                                | appearance also set in a cookie                                                      |
+| `acknowledgeAiNoticeAction`, `dismissTimeZoneHintAction`, `reportDeviceTimeZoneAction` | user                             |                    |                                        |                                                                                      |
 
 ### Plan
 
-| Action | Input | Result | Notes |
-| --- | --- | --- | --- |
-| `startPlanImportAction` | sourceText | jobId | stores text on `Plan.sourceText`, sets `DRAFT_PENDING`, inserts a `QUEUED` job, calls `after(runJobsNow)` |
-| `getPlanImportStatusAction` | | job status, whether `draftJson` is ready | polled every 3 s while pending |
-| `retryPlanImportAction`, `cancelPlanImportAction` | | | |
-| `startManualPlanAction` | structure, name | | writes an empty draft |
-| `updatePlanDraftAction` | section, payload, draftRevision | | edits `draftJson` |
-| `startPlanEditAction` | | | copies the active rows into `draftJson` |
-| `confirmPlanAction` | draftRevision | | applies the draft in one transaction, runs `PLAN_BASELINE` for changed items, returns the count of past linked meals affected |
-| `discardPlanDraftAction` | | | |
-| `deletePlanAction` | typed confirmation | | |
+| Action                                            | Input                           | Result                                   | Notes                                                                                                                         |
+| ------------------------------------------------- | ------------------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `startPlanImportAction`                           | sourceText                      | jobId                                    | stores text on `Plan.sourceText`, sets `DRAFT_PENDING`, inserts a `QUEUED` job, calls `after(runJobsNow)`                     |
+| `getPlanImportStatusAction`                       |                                 | job status, whether `draftJson` is ready | polled every 3 s while pending                                                                                                |
+| `retryPlanImportAction`, `cancelPlanImportAction` |                                 |                                          |                                                                                                                               |
+| `startManualPlanAction`                           | structure, name                 |                                          | writes an empty draft                                                                                                         |
+| `updatePlanDraftAction`                           | section, payload, draftRevision |                                          | edits `draftJson`                                                                                                             |
+| `startPlanEditAction`                             |                                 |                                          | copies the active rows into `draftJson`                                                                                       |
+| `confirmPlanAction`                               | draftRevision                   |                                          | applies the draft in one transaction, runs `PLAN_BASELINE` for changed items, returns the count of past linked meals affected |
+| `discardPlanDraftAction`                          |                                 |                                          |                                                                                                                               |
+| `deletePlanAction`                                | typed confirmation              |                                          |                                                                                                                               |
 
 ### Meal
 
-| Action | Input | Result | Notes |
-| --- | --- | --- | --- |
-| `createMealDraftAction` | clientRequestId, kind, text?, uploadIds[], date, time?, slotId?, optionId? | draft | idempotent on `clientRequestId` |
-| `analyzeMealDraftAction` | draftId, expectedRevision | draft with `analysisResult` or a typed failure | section 10 deadline; result persisted only if `analysisInputHash` still matches the draft's input at completion |
-| `updateMealDraftAction` | draftId, expectedRevision, edits | draft with rescaled totals | any edit to input fields changes `analysisInputHash`, so an in-flight analysis is discarded on return |
-| `saveMealAction` | draftId, expectedRevision | meal | refuses `OPTION_REQUIRED`, `FUTURE_TIME`; creates the meal and deletes the draft in one transaction; a repeat with the same `clientRequestId` returns the existing meal |
-| `updateMealAction` | mealId, expectedRevision, edits | meal or `CONFLICT` | |
-| `deleteMealAction` | mealId, expectedRevision | | |
-| `setMealLinkAction` | mealId, expectedRevision, slotId or null, optionId | meal | validates the option belongs to the slot and the slot to the meal's weekday |
-| `reuseMealAction` | mealId | new draft | |
-| `removeMealPhotoAction` | uploadId | | sets `REMOVED`, deletes the object |
-| `markSlotSkippedAction` | localDate, slotId, skipped | | `SLOT_HAS_MEAL` when a meal is linked |
-| `setDayCompletenessAction` | localDate, complete | | |
+| Action                     | Input                                                                      | Result                                         | Notes                                                                                                                                                                   |
+| -------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createMealDraftAction`    | clientRequestId, kind, text?, uploadIds[], date, time?, slotId?, optionId? | draft                                          | idempotent on `clientRequestId`                                                                                                                                         |
+| `analyzeMealDraftAction`   | draftId, expectedRevision                                                  | draft with `analysisResult` or a typed failure | section 10 deadline; result persisted only if `analysisInputHash` still matches the draft's input at completion                                                         |
+| `updateMealDraftAction`    | draftId, expectedRevision, edits                                           | draft with rescaled totals                     | any edit to input fields changes `analysisInputHash`, so an in-flight analysis is discarded on return                                                                   |
+| `saveMealAction`           | draftId, expectedRevision                                                  | meal                                           | refuses `OPTION_REQUIRED`, `FUTURE_TIME`; creates the meal and deletes the draft in one transaction; a repeat with the same `clientRequestId` returns the existing meal |
+| `updateMealAction`         | mealId, expectedRevision, edits                                            | meal or `CONFLICT`                             |                                                                                                                                                                         |
+| `deleteMealAction`         | mealId, expectedRevision                                                   |                                                |                                                                                                                                                                         |
+| `setMealLinkAction`        | mealId, expectedRevision, slotId or null, optionId                         | meal                                           | validates the option belongs to the slot and the slot to the meal's weekday                                                                                             |
+| `reuseMealAction`          | mealId                                                                     | new draft                                      |                                                                                                                                                                         |
+| `removeMealPhotoAction`    | uploadId                                                                   |                                                | sets `REMOVED`, deletes the object                                                                                                                                      |
+| `markSlotSkippedAction`    | localDate, slotId, skipped                                                 |                                                | `SLOT_HAS_MEAL` when a meal is linked                                                                                                                                   |
+| `setDayCompletenessAction` | localDate, complete                                                        |                                                |                                                                                                                                                                         |
 
 ### Reflection and history
 
-| Action | Input | Result | Notes |
-| --- | --- | --- | --- |
-| `getMorningMessageAction` | localDate | `{status, paragraph?, stale}` | section 10.3 claim protocol; client polls every 2 s while `GENERATING`, up to 15 s |
-| `updateReflectionAction` | localDate | | regenerates in place; the previous paragraph is not kept |
-| `setReflectionCollapsedAction` | localDate, collapsed | | |
-| `getDayAction`, `getSevenDayAction` | date | view models | computed on read |
+| Action                              | Input                | Result                        | Notes                                                                              |
+| ----------------------------------- | -------------------- | ----------------------------- | ---------------------------------------------------------------------------------- |
+| `getMorningMessageAction`           | localDate            | `{status, paragraph?, stale}` | section 10.3 claim protocol; client polls every 2 s while `GENERATING`, up to 15 s |
+| `updateReflectionAction`            | localDate            |                               | regenerates in place; the previous paragraph is not kept                           |
+| `setReflectionCollapsedAction`      | localDate, collapsed |                               |                                                                                    |
+| `getDayAction`, `getSevenDayAction` | date                 | view models                   | computed on read                                                                   |
 
 ### Route handlers
 
-| Route | Method | Auth | Contract |
-| --- | --- | --- | --- |
-| `/api/live` | GET | none | returns 200 with no dependencies; liveness only |
-| `/api/health` | GET | none | database `SELECT 1` through the pooler with a 3 s timeout; readiness |
-| `/api/uploads` | POST multipart `file` | user, `Origin` checked | accepts JPEG, PNG, WebP by magic bytes; rejects HEIC with `415`; 10 MB limit; at most 2 concurrent decodes per process (semaphore); sharp with `limitInputPixels: 40e6`, re-encode JPEG quality 82, max edge 2048, metadata stripped; writes `{prefix}uploads/{userId}/{uploadId}.jpg`; returns `{uploadId, width, height}` |
-| `/api/uploads/[id]` | DELETE | owner | staged only |
-| `/api/photos/[id]?s=<tag>` | GET | owner | `tag` is the first 12 hex chars of the SHA-256 of the session token; the handler verifies it matches the current session, then streams with `Cache-Control: private, max-age=86400`. Because the tag is part of the URL, another account on the same browser cannot hit the cached entry, and logout invalidates every cached URL |
-| `/api/export` | GET | user | streams `dietyaar-export-{date}.zip`: `profile.json`, `plan.json`, `meals.json`, `messages.json`, `photos/` |
+| Route                      | Method                | Auth                   | Contract                                                                                                                                                                                                                                                                                                                          |
+| -------------------------- | --------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/live`                | GET                   | none                   | returns 200 with no dependencies; liveness only                                                                                                                                                                                                                                                                                   |
+| `/api/health`              | GET                   | none                   | database `SELECT 1` through the pooler with a 3 s timeout; readiness                                                                                                                                                                                                                                                              |
+| `/api/uploads`             | POST multipart `file` | user, `Origin` checked | accepts JPEG, PNG, WebP by magic bytes; rejects HEIC with `415`; 10 MB limit; at most 2 concurrent decodes per process (semaphore); sharp with `limitInputPixels: 40e6`, re-encode JPEG quality 82, max edge 2048, metadata stripped; writes `{prefix}uploads/{userId}/{uploadId}.jpg`; returns `{uploadId, width, height}`       |
+| `/api/uploads/[id]`        | DELETE                | owner                  | staged only                                                                                                                                                                                                                                                                                                                       |
+| `/api/photos/[id]?s=<tag>` | GET                   | owner                  | `tag` is the first 12 hex chars of the SHA-256 of the session token; the handler verifies it matches the current session, then streams with `Cache-Control: private, max-age=86400`. Because the tag is part of the URL, another account on the same browser cannot hit the cached entry, and logout invalidates every cached URL |
+| `/api/export`              | GET                   | user                   | streams `dietyaar-export-{date}.zip`: `profile.json`, `plan.json`, `meals.json`, `messages.json`, `photos/`                                                                                                                                                                                                                       |
 
 `/api/*` is outside the proxy matcher; each handler calls `requireAuth()` itself.
 
@@ -430,11 +430,11 @@ Models: `AI_MODEL_TEXT` and `AI_MODEL_VISION`, both default `deepseek-flash` (ve
 
 One deadline per user-visible operation, shared by every stage and retry inside it.
 
-| Operation | Deadline | Stages | Profile fields sent |
-| --- | --- | --- | --- |
+| Operation       | Deadline    | Stages                                                                                                                                                       | Profile fields sent      |
+| --------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------ |
 | Plan import job | 120 s total | `PLAN_IMPORT` per weekday chunk for `BY_WEEKDAY` (up to 7 calls, each with the remaining budget divided by remaining chunks), then `PLAN_BASELINE` per chunk | age, sex, height, weight |
-| Meal analysis | 45 s total | one `MEAL_TEXT` or `MEAL_PHOTO` call; at 15 s the UI shows the calm status and the manual option | none |
-| Reflection | 15 s total | one `REFLECTION` call; on failure the deterministic fallback is written | age, sex, height, weight |
+| Meal analysis   | 45 s total  | one `MEAL_TEXT` or `MEAL_PHOTO` call; at 15 s the UI shows the calm status and the manual option                                                             | none                     |
+| Reflection      | 15 s total  | one `REFLECTION` call; on failure the deterministic fallback is written                                                                                      | age, sex, height, weight |
 
 Output schemas (zod) are the same as version 1.1: import returns slots, options, items, targets, rules, notes, and uncertainties per chunk; meal analysis returns items with nutrition, a suggested slot and option, and grouped questions; reflection returns `{ paragraph, usedFactIds[] }`. Every `usedFactId` must exist in the supplied fact list or the response is `SCHEMA_REJECTED` and the fallback is used. The paragraph must be 40 to 110 words.
 
@@ -488,13 +488,13 @@ A row count of 1 means this process holds the lease for the next 60 s. The heart
 
 ### Tasks
 
-| Task | Cadence | Work and recovery |
-| --- | --- | --- |
-| `runPlanImportJobs` | every 10 s while `QUEUED` or reclaimable jobs exist, plus `after()` from the start action | Claim: `UPDATE "PlanImportJob" SET status='RUNNING', attempt=attempt+1, heartbeatAt=now(), startedAt=now() WHERE id = (SELECT id FROM "PlanImportJob" WHERE status='QUEUED' OR (status='RUNNING' AND heartbeatAt < now() - interval '3 minutes') ORDER BY "createdAt" LIMIT 1) RETURNING id, attempt`. No transaction is held during the AI calls; `heartbeatAt` is updated every 20 s by the task. Finalize: `UPDATE … SET status='DONE', … WHERE id=$1 AND attempt=$2 AND status='RUNNING'`, and `Plan.draftJson` is written in the same statement's transaction only if that update affected one row. An obsolete attempt therefore cannot commit. After 3 failed attempts the job is `FAILED` and Today shows "We couldn't prepare your plan". |
-| `cleanupStagedUploads` | hourly | delete expired `STAGED` uploads and expired drafts (object first, then row) |
-| `purgeDeletedAccounts` | hourly | for users past `deletionScheduledFor`: delete objects under the user's prefix, then the `User` row |
-| `pruneOperational` | daily | `AiCall` and `AnalyticsEvent` older than 90 days; `FoodDataCache` older than 30 days |
-| `backupToHamravesh` | daily at 03:00 UTC | `pg_dump --format=custom` against `DIRECT_DATABASE_URL`, gzip, upload to the Hamravesh Object Storage backup bucket as `db/{date}.dump.gz`; then copy every `ATTACHED` upload object whose key is not yet in the backup bucket to `photos/{key}`; keep the newest `BACKUP_RETENTION_COUNT` dumps (default 14); log bytes and duration; alert on failure through the section 16 metric |
+| Task                   | Cadence                                                                                   | Work and recovery                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ---------------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `runPlanImportJobs`    | every 10 s while `QUEUED` or reclaimable jobs exist, plus `after()` from the start action | Claim: `UPDATE "PlanImportJob" SET status='RUNNING', attempt=attempt+1, heartbeatAt=now(), startedAt=now() WHERE id = (SELECT id FROM "PlanImportJob" WHERE status='QUEUED' OR (status='RUNNING' AND heartbeatAt < now() - interval '3 minutes') ORDER BY "createdAt" LIMIT 1) RETURNING id, attempt`. No transaction is held during the AI calls; `heartbeatAt` is updated every 20 s by the task. Finalize: `UPDATE … SET status='DONE', … WHERE id=$1 AND attempt=$2 AND status='RUNNING'`, and `Plan.draftJson` is written in the same statement's transaction only if that update affected one row. An obsolete attempt therefore cannot commit. After 3 failed attempts the job is `FAILED` and Today shows "We couldn't prepare your plan". |
+| `cleanupStagedUploads` | hourly                                                                                    | delete expired `STAGED` uploads and expired drafts (object first, then row)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `purgeDeletedAccounts` | hourly                                                                                    | for users past `deletionScheduledFor`: delete objects under the user's prefix, then the `User` row                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `pruneOperational`     | daily                                                                                     | `AiCall` and `AnalyticsEvent` older than 90 days; `FoodDataCache` older than 30 days                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `backupToHamravesh`    | daily at 03:00 UTC                                                                        | `pg_dump --format=custom` against `DIRECT_DATABASE_URL`, gzip, upload to the Hamravesh Object Storage backup bucket as `db/{date}.dump.gz`; then copy every `ATTACHED` upload object whose key is not yet in the backup bucket to `photos/{key}`; keep the newest `BACKUP_RETENTION_COUNT` dumps (default 14); log bytes and duration; alert on failure through the section 16 metric                                                                                                                                                                                                                                                                                                                                                              |
 
 Tasks check a `shouldStop` flag between units of work and never run more than 10 minutes.
 
@@ -512,28 +512,28 @@ GitHub Actions extending the boilerplate `ci.yml`: `quality` (lint, typecheck, u
 
 ### Darkube app
 
-| Setting | Value |
-| --- | --- |
-| App type | Docker image from `registry.hamdocker.ir/<org>/dietyaar` |
-| Port | `3000`, name `http` |
-| Command | default (`docker-entrypoint.sh`: `prisma migrate deploy` then `node server.js`) |
-| Readiness probe (general settings) | `/api/health` |
-| Plan | 1000 millicore, 1024 MB, 1 replica (tunable) |
-| Disk | none |
-| Custom config | `strategy.rollingUpdate {maxSurge: 1, maxUnavailable: 0}`; `readinessProbe httpGet /api/health, initialDelaySeconds 10, periodSeconds 10, failureThreshold 3`; `livenessProbe httpGet /api/live, periodSeconds 20, failureThreshold 3` |
-| Domain | `<name>.darkube.app`, HTTPS redirect on; custom domain later via CNAME |
-| Env | section 14, secrets as secret envs |
-| Logs | Loki from stdout |
-| Errors | Hamravesh Sentry, `tracesSampleRate 0.05`, `beforeSend` drops request bodies and any field named `text`, `description`, `paragraph`, `originalName`, `originalText`, `sourceText`, `notes` |
+| Setting                            | Value                                                                                                                                                                                                                                  |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| App type                           | Docker image from `registry.hamdocker.ir/<org>/dietyaar`                                                                                                                                                                               |
+| Port                               | `3000`, name `http`                                                                                                                                                                                                                    |
+| Command                            | default (`docker-entrypoint.sh`: `prisma migrate deploy` then `node server.js`)                                                                                                                                                        |
+| Readiness probe (general settings) | `/api/health`                                                                                                                                                                                                                          |
+| Plan                               | 1000 millicore, 1024 MB, 1 replica (tunable)                                                                                                                                                                                           |
+| Disk                               | none                                                                                                                                                                                                                                   |
+| Custom config                      | `strategy.rollingUpdate {maxSurge: 1, maxUnavailable: 0}`; `readinessProbe httpGet /api/health, initialDelaySeconds 10, periodSeconds 10, failureThreshold 3`; `livenessProbe httpGet /api/live, periodSeconds 20, failureThreshold 3` |
+| Domain                             | `<name>.darkube.app`, HTTPS redirect on; custom domain later via CNAME                                                                                                                                                                 |
+| Env                                | section 14, secrets as secret envs                                                                                                                                                                                                     |
+| Logs                               | Loki from stdout                                                                                                                                                                                                                       |
+| Errors                             | Hamravesh Sentry, `tracesSampleRate 0.05`, `beforeSend` drops request bodies and any field named `text`, `description`, `paragraph`, `originalName`, `originalText`, `sourceText`, `notes`                                             |
 
 ### Database: Supabase Postgres, free tier
 
 One project in the region chosen by section 19 item 1. Only Postgres is used; the Data API is disabled (section 8).
 
-| Purpose | Host and port | Mode | Prisma field |
-| --- | --- | --- | --- |
-| Application | `aws-0-<region>.pooler.supabase.com:6543` | Supavisor transaction | `url`, `?pgbouncer=true&connection_limit=5` (tunable) |
-| Migrations, `pg_dump` | `aws-0-<region>.pooler.supabase.com:5432` | Supavisor session | `directUrl` |
+| Purpose               | Host and port                             | Mode                  | Prisma field                                          |
+| --------------------- | ----------------------------------------- | --------------------- | ----------------------------------------------------- |
+| Application           | `aws-0-<region>.pooler.supabase.com:6543` | Supavisor transaction | `url`, `?pgbouncer=true&connection_limit=5` (tunable) |
+| Migrations, `pg_dump` | `aws-0-<region>.pooler.supabase.com:5432` | Supavisor session     | `directUrl`                                           |
 
 The direct host is IPv6-only on the free tier and Darkube egress is IPv4, so it is never used. Transaction mode forbids prepared statements, session advisory locks, `LISTEN/NOTIFY`, and temp tables; nothing here uses them.
 
@@ -558,22 +558,22 @@ Supabase Storage through `https://<ref>.storage.supabase.co/storage/v1/s3`, `for
 
 Validated in `src/lib/env.ts`. Boilerplate variables stay.
 
-| Variable | Required | Notes |
-| --- | --- | --- |
-| `APP_URL` | yes | CSRF and CSP |
-| `DATABASE_URL`, `DIRECT_DATABASE_URL` | yes | section 13 |
-| `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_KEY_PREFIX` | yes | Supabase Storage |
-| `BACKUP_S3_ENDPOINT`, `BACKUP_S3_REGION`, `BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY` | yes in production | Hamravesh Object Storage |
-| `BACKUP_ENABLED`, `BACKUP_RETENTION_COUNT` | no, `true`, `14` | |
-| `STORAGE_SOFT_LIMIT_BYTES` | no, 700 MB | |
-| `DEEPSEEK_API_KEY` | yes | |
-| `AI_MODEL_TEXT`, `AI_MODEL_VISION` | no, `deepseek-flash` | |
-| `AI_DAILY_TOKEN_BUDGET` | no, 5,000,000 | |
-| `PHOTO_LOGGING_ENABLED` | no, `false` | the photo flag; a Darkube env change and restart, no deploy |
-| `USDA_LOOKUP_ENABLED`, `USDA_API_KEY` | no, `false` | |
-| `SENTRY_DSN` | no | |
-| `SCHEDULER_ENABLED` | no, `true` | `false` in e2e |
-| `SESSION_MAX_AGE_DAYS` | boilerplate, 90 | |
+| Variable                                                                                                               | Required             | Notes                                                       |
+| ---------------------------------------------------------------------------------------------------------------------- | -------------------- | ----------------------------------------------------------- |
+| `APP_URL`                                                                                                              | yes                  | CSRF and CSP                                                |
+| `DATABASE_URL`, `DIRECT_DATABASE_URL`                                                                                  | yes                  | section 13                                                  |
+| `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_KEY_PREFIX`                   | yes                  | Supabase Storage                                            |
+| `BACKUP_S3_ENDPOINT`, `BACKUP_S3_REGION`, `BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY` | yes in production    | Hamravesh Object Storage                                    |
+| `BACKUP_ENABLED`, `BACKUP_RETENTION_COUNT`                                                                             | no, `true`, `14`     |                                                             |
+| `STORAGE_SOFT_LIMIT_BYTES`                                                                                             | no, 700 MB           |                                                             |
+| `DEEPSEEK_API_KEY`                                                                                                     | yes                  |                                                             |
+| `AI_MODEL_TEXT`, `AI_MODEL_VISION`                                                                                     | no, `deepseek-flash` |                                                             |
+| `AI_DAILY_TOKEN_BUDGET`                                                                                                | no, 5,000,000        |                                                             |
+| `PHOTO_LOGGING_ENABLED`                                                                                                | no, `false`          | the photo flag; a Darkube env change and restart, no deploy |
+| `USDA_LOOKUP_ENABLED`, `USDA_API_KEY`                                                                                  | no, `false`          |                                                             |
+| `SENTRY_DSN`                                                                                                           | no                   |                                                             |
+| `SCHEDULER_ENABLED`                                                                                                    | no, `true`           | `false` in e2e                                              |
+| `SESSION_MAX_AGE_DAYS`                                                                                                 | boilerplate, 90      |                                                             |
 
 Feature flags are environment variables, not a table.
 
@@ -599,12 +599,12 @@ Inherited: Vitest with `prismaMock`, Playwright with `t()` locators, coverage th
 
 Targets are product spec section 16. Engineering budget per operation, given a cross-border round trip `R` measured in setup step 2:
 
-| Operation | Query budget | Design |
-| --- | --- | --- |
-| Today | 3 queries in parallel (day with meals and items, skipped slots and plan slots for the weekday, message) | one `R` |
-| Save meal | 1 transaction: insert meal and items with `createMany`, update uploads, delete draft, upsert day | one to two `R` |
-| Analyze | 1 read, AI call, 1 conditional write | AI-bound |
-| History 7 days | 2 queries (days with meals and items in one range query, plan slots) | one `R` |
+| Operation      | Query budget                                                                                            | Design         |
+| -------------- | ------------------------------------------------------------------------------------------------------- | -------------- |
+| Today          | 3 queries in parallel (day with meals and items, skipped slots and plan slots for the weekday, message) | one `R`        |
+| Save meal      | 1 transaction: insert meal and items with `createMany`, update uploads, delete draft, upsert day        | one to two `R` |
+| Analyze        | 1 read, AI call, 1 conditional write                                                                    | AI-bound       |
+| History 7 days | 2 queries (days with meals and items in one range query, plan slots)                                    | one `R`        |
 
 If `R` measured in setup exceeds 150 ms, the save path is reviewed before launch. Composer lookups (recent meals, today's slots) are cached per user in memory for 60 s.
 
@@ -612,19 +612,19 @@ Target workload for the first release, used for capacity statements and the sect
 
 ## 18. Decision records to add
 
-| # | Decision |
-| --- | --- |
-| 008 | Self-service sign-up with username and password only; no recovery; the Users module stays as an ops tool |
-| 009 | Per-user time zone and week start; the locale profile's zone is never read |
+| #   | Decision                                                                                                     |
+| --- | ------------------------------------------------------------------------------------------------------------ |
+| 008 | Self-service sign-up with username and password only; no recovery; the Users module stays as an ops tool     |
+| 009 | Per-user time zone and week start; the locale profile's zone is never read                                   |
 | 010 | In-process scheduler under a heartbeat lease row; rate-limit stores move to a table at more than one replica |
-| 011 | Photos converted and downscaled on the device; the server accepts JPEG, PNG, WebP |
-| 012 | AI adapters return validated data and persist nothing; prompts are versioned constants |
-| 013 | Comparisons are computed on read; no cache, no stored score; rubric changes apply to all history |
-| 014 | Darkube deployment from a CI-built image |
-| 015 | Feature flags are environment variables |
-| 016 | Supabase free tier for Postgres and Storage through the pooler; photos proxied through the app |
-| 017 | One plan per user, edited in place through a draft; no versions |
-| 018 | Backups go to Hamravesh Object Storage, including photos |
+| 011 | Photos converted and downscaled on the device; the server accepts JPEG, PNG, WebP                            |
+| 012 | AI adapters return validated data and persist nothing; prompts are versioned constants                       |
+| 013 | Comparisons are computed on read; no cache, no stored score; rubric changes apply to all history             |
+| 014 | Darkube deployment from a CI-built image                                                                     |
+| 015 | Feature flags are environment variables                                                                      |
+| 016 | Supabase free tier for Postgres and Storage through the pooler; photos proxied through the app               |
+| 017 | One plan per user, edited in place through a draft; no versions                                              |
+| 018 | Backups go to Hamravesh Object Storage, including photos                                                     |
 
 ## 19. Owner decisions with defaults
 
@@ -642,17 +642,17 @@ Target workload for the first release, used for capacity statements and the sect
 
 ## 20. Risks
 
-| Risk | Likelihood | Impact | Mitigation |
-| --- | --- | --- | --- |
-| Supabase unreachable from Iran or account restricted | Medium | Blocks everything | Setup step 2 first; appendix A fallback; backups already off-provider |
-| Cross-border latency inflates page and save times | High | Medium | Query budgets in section 17; measured `R`; review gate |
-| Free-tier ceilings | Medium over time | Medium | Pruning, soft limit, size gauge, upgrade trigger |
-| No provider backups | Certain | High | Nightly dump and photo copy to Hamravesh; restore rehearsal in setup step 5 |
-| Free project paused after 7 idle days | Low while deployed | High | Heartbeat is activity; runbook step to unpause if replicas were zero |
-| DeepSeek unreachable or Persian parsing below threshold | Medium | High | Setup step 2; evaluation harness; manual paths |
-| Ingress timeout below 45 s | Unknown | Medium | Measured in setup step 2; if lower, meal analysis moves to the job pattern with polling |
-| Plan edit changes past comparisons unexpectedly | Certain by design | Low | Confirm screen states it; decision 017 |
-| Migration lock blocks the old pod | Low | Medium | `lock_timeout 5s`; backward-compatible migrations |
+| Risk                                                    | Likelihood         | Impact            | Mitigation                                                                              |
+| ------------------------------------------------------- | ------------------ | ----------------- | --------------------------------------------------------------------------------------- |
+| Supabase unreachable from Iran or account restricted    | Medium             | Blocks everything | Setup step 2 first; appendix A fallback; backups already off-provider                   |
+| Cross-border latency inflates page and save times       | High               | Medium            | Query budgets in section 17; measured `R`; review gate                                  |
+| Free-tier ceilings                                      | Medium over time   | Medium            | Pruning, soft limit, size gauge, upgrade trigger                                        |
+| No provider backups                                     | Certain            | High              | Nightly dump and photo copy to Hamravesh; restore rehearsal in setup step 5             |
+| Free project paused after 7 idle days                   | Low while deployed | High              | Heartbeat is activity; runbook step to unpause if replicas were zero                    |
+| DeepSeek unreachable or Persian parsing below threshold | Medium             | High              | Setup step 2; evaluation harness; manual paths                                          |
+| Ingress timeout below 45 s                              | Unknown            | Medium            | Measured in setup step 2; if lower, meal analysis moves to the job pattern with polling |
+| Plan edit changes past comparisons unexpectedly         | Certain by design  | Low               | Confirm screen states it; decision 017                                                  |
+| Migration lock blocks the old pod                       | Low                | Medium            | `lock_timeout 5s`; backward-compatible migrations                                       |
 
 ## 21. Acceptance scenarios
 

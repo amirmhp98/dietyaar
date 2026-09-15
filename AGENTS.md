@@ -1,43 +1,38 @@
-# AGENTS.md — dietyaar
+# AGENTS.md — Dietyaar
 
 Rules for any coding agent (Claude Code, Cursor, Codex, Copilot) working in this repository.
 `CLAUDE.md` adds the Claude-specific workflow and tooling on top of this file.
 
 ## What this is
 
-A locale-profile-driven web application built on Next.js 16 (App Router), React 19, Tailwind CSS 4,
-Prisma 6 and PostgreSQL. One language: English / LTR / Gregorian.
-Cookie sessions, no external auth provider. `docs/PRD.md` describes the product; read it before
-making product decisions. `docs/decisions/` records why the big choices were made.
+**Dietyaar** is a diet adherence companion: a mobile-first web app for people who already follow a
+diet. Users import the plan they have (any language, menu-style options per meal, weekday plans),
+log what they actually ate by text or photo, review the AI's estimate, and see how each day compares
+with the plan. A short morning paragraph reflects on yesterday. English UI; DeepSeek is the AI
+provider; one plan per user, edited in place; no password recovery and no email in V1.
+
+Built on the `mhp-nextjs-boilerplate` (commit `a622806`, `--locale en`): Next.js 16 (App Router),
+React 19, Tailwind CSS 4, Prisma 6 and PostgreSQL. One language: English / LTR / Gregorian.
+Cookie sessions, no external auth provider. `docs/decisions/` records why the big choices were made.
 
 Framework docs matching the installed Next.js version are bundled at
 `node_modules/next/dist/docs/`. Prefer them over training data.
 
-## Before the first feature
+## Product documents
 
-While `docs/PRD.md` › _What it is_ still holds its placeholder comment, the product is not defined and
-the docs still describe the template. Do not scaffold, model or build anything yet. The first session
-does this instead:
+| Document                 | Owns                                                                                 |
+| ------------------------ | ------------------------------------------------------------------------------------ |
+| `docs/product-spec.md`   | Product behaviour, rules, states, acceptance criteria. Wins on behaviour.            |
+| `docs/design-scope.md`   | Screen inventory (what each page shows and does) and journeys J1–J14.                |
+| `docs/design.md`         | Visual treatment: palette, typography, spacing, motion.                              |
+| `docs/tech-spec.md`      | Construction: data model, actions, module boundaries, AI, jobs, deploy, tests.       |
+| `docs/PRD.md`            | Short living reference of what exists in the code today. Update it as features land. |
+| `docs/decisions/008+.md` | Where Dietyaar deviates from or extends a boilerplate rule.                          |
+| `docs/runbook.md`        | Results of the one-time setup checklist (tech spec § 13) and operating notes.        |
 
-1. **Get the requirements from the user**, in their words: what the product does and for whom; the
-   main entities and how they relate; who may do what (are `ADMIN` / `USER` enough?); external
-   systems (email, SMS, payment, files, other APIs); what must exist for a first release.
-2. **Match them against "What ships, what does not" below.** Name every gap before building it;
-   a gap that changes a rule gets a note in `docs/decisions/`.
-3. **Write the product down** so nothing still reads as the template: fill _What it is_, _Users_,
-   _Data model_ (planned) and _Roadmap_ in `docs/PRD.md`, replacing the lines its header flags as template defaults; replace the placeholder paragraph at the top
-   of `README.md`; set `APP_DESCRIPTION` in `src/lib/app-config.ts`.
-4. **Remove what the product will not use.** Keep the Users module: it is the reference pattern
-   and working admin user management. Remind the user to change the seeded admin password
-   (`admin` / `admin123`).
-   - the placeholder dashboard `src/app/(app)/page.tsx` — replace it
-   - the gallery `src/app/(app)/components/page.tsx` — keep only as a reference
-   - `.claude/` — if Claude Code is not used
-5. **Delete this section and the pointers to it**: the first bullet under _Workflow_ and the first
-   row of the decision flow in `CLAUDE.md`, and the sentence under _Your first feature_ in
-   `README.md` that describes this session (`grep -n 'Before the first feature' README.md CLAUDE.md`
-   must come back empty). From here on the PRD is the product and the rest of this file is the
-   engineering contract.
+Read the spec sections a feature implements before designing it. Tech spec § 4 fixes where code
+goes (module inventory and the layering rules added to this file's table); § 5 the schema; § 7 the
+action contract; § 21 the acceptance scenarios that become tests.
 
 ## What ships, what does not
 
@@ -78,6 +73,7 @@ src/
     locale.ts         Locale profile (lang, dir, calendar, numerals, tz, currency) — source of truth
     t.ts              t() / tp() message lookup; strings live in src/messages/
     format.ts         Intl formatting: numbers, currency, dates, relative time, lists, plural, sort
+    text/             normalize.ts: parsing copies of user text (digits, Arabic→Persian forms); originals stay verbatim
     validations/      zod schemas per module, shared by server and client
     env.ts            Validated environment (server-only)
     auth.ts           getSession / requireAuth / requireAdmin (server-only)
@@ -189,50 +185,17 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:ca08a54f -->
 
-## Beads Issue Tracker
+## Beads issue tracker
 
-This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
-
-### Quick Reference
+This project uses **bd (beads)** for issue tracking; `bd prime` prints the full command reference.
 
 ```bash
-bd ready              # Find available work
-bd show <id>          # View issue details
-bd update <id> --claim  # Claim work
-bd close <id>         # Complete work
+bd ready                # work with no blockers
+bd show <id>            # issue details
+bd update <id> --claim  # mark in_progress
+bd close <id>           # after the user confirms
 ```
 
-### Rules
-
-- Use `bd` for ALL task tracking — do NOT use TodoWrite, TaskCreate, or markdown TODO lists
-- Run `bd prime` for detailed command reference and session close protocol
-- Use `bd remember` for persistent knowledge — do NOT use MEMORY.md files
-
-## Session Completion
-
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
-
-**MANDATORY WORKFLOW:**
-
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
-   ```bash
-   git pull --rebase
-   bd dolt push
-   git push
-   git status  # MUST show "up to date with origin"
-   ```
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
-
-**CRITICAL RULES:**
-
-- Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
-- If push fails, resolve and retry until it succeeds
+Track tasks in `bd` rather than markdown TODO lists. Pushing to a remote is the user's call.
 
 <!-- END BEADS INTEGRATION -->
