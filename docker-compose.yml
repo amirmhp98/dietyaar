@@ -1,0 +1,40 @@
+# Local stack. `npm run db:up` starts only Postgres for `npm run dev`;
+# `docker compose up --build` runs the whole thing the way production does.
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: 'dietyaar-db'
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: app
+    ports:
+      - '5432:5432'
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d app']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: 'dietyaar'
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    env_file:
+      - .env
+    environment:
+      # Inside the compose network the database host is the service name.
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/app?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db-data:

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":semanticCommits"],
+  "timezone": "Asia/Tehran",
+  "schedule": ["before 6am on saturday"],
+  "rangeStrategy": "bump",
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on the first day of the month"]
+  },
+  "packageRules": [
+    {
+      "description": "Minor and patch updates: one grouped PR, auto-merged when checks pass",
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "non-major dependencies",
+      "automerge": true
+    },
+    {
+      "description": "Majors: one PR per package, manual review",
+      "matchUpdateTypes": ["major"],
+      "automerge": false
+    },
+    {
+      "description": "Keep Next.js, React, and the React compiler moving together",
+      "matchPackageNames": [
+        "next",
+        "eslint-config-next",
+        "react",
+        "react-dom",
+        "@types/react",
+        "@types/react-dom",
+        "babel-plugin-react-compiler"
+      ],
+      "groupName": "next + react"
+    },
+    {
+      "description": "Keep Prisma client and CLI on the same version",
+      "matchPackageNames": ["prisma", "@prisma/client"],
+      "groupName": "prisma"
+    },
+    {
+      "description": "Keep all Radix packages in lockstep",
+      "matchPackageNames": ["/^@radix-ui\\//"],
+      "groupName": "radix-ui"
+    },
+    {
+      "description": "Node: follow the LTS line only (even majors)",
+      "matchDatasources": ["docker", "node-version"],
+      "matchPackageNames": ["node"],
+      "allowedVersions": "/^(2[2468]|[3-9][02468])\\./"
+    }
+  ]
+}

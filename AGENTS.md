@@ -165,7 +165,7 @@ Type-only imports are always allowed. `npm run lint` fails on violations.
 | `npm run dev`                                            | Dev server on :3000                                                                        |
 | `npm run db:up` / `db:migrate` / `db:deploy` / `db:seed` | Postgres via docker compose / create a migration / apply migrations / seed the first admin |
 | `npm run new:module <name>`                              | Scaffold a module in the reference shape                                                   |
-| `npm run lint:all`                                       | ESLint, typecheck, Prettier                                                     |
+| `npm run lint:all`                                       | ESLint, typecheck, Prettier                                                                |
 | `npm run test` / `test:coverage`                         | Vitest unit tests                                                                          |
 | `npm run test:e2e`                                       | Playwright (needs Postgres; `PORT=3001` to run beside another dev server)                  |
 | `npm run build`                                          | Production build (needs a syntactically valid `DATABASE_URL`)                              |
@@ -188,6 +188,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 <!-- END:nextjs-agent-rules -->
 
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:ca08a54f -->
+
 ## Beads Issue Tracker
 
 This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
@@ -228,8 +229,10 @@ bd close <id>         # Complete work
 7. **Hand off** - Provide context for next session
 
 **CRITICAL RULES:**
+
 - Work is NOT complete until `git push` succeeds
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
+
 <!-- END BEADS INTEGRATION -->
