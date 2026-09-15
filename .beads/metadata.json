@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "server",
+  "dolt_database": "Dietyaar",
+  "project_id": "688d344f-a014-4c0f-bb2d-470642a58eec"
+}

@@ -1,0 +1,54 @@
+# ─── Dependencies ────────────────────────────────────────────
+/node_modules
+/.pnp
+.pnp.*
+
+# ─── Build output ────────────────────────────────────────────
+/.next/
+/out/
+/build
+next-env.d.ts
+*.tsbuildinfo
+.next-docs/
+
+# ─── Tests ───────────────────────────────────────────────────
+/coverage
+/playwright-report
+/test-results
+/e2e/.auth
+.playwright-mcp/
+.vitest/
+
+# ─── Environment ─────────────────────────────────────────────
+# .env.example IS committed. Real secrets never are.
+.env
+.env.*
+!.env.example
+
+# ─── Prisma (only if generator output is customised) ─────────
+/src/generated/prisma
+
+# ─── Claude Code ─────────────────────────────────────────────
+# .claude/settings.json and .claude/skills/ are committed on purpose.
+.claude/settings.local.json
+.claude/worktrees/
+
+# ─── Beads / Dolt runtime ────────────────────────────────────
+.dolt/
+.beads-credential-key
+
+# ─── Editors & OS ────────────────────────────────────────────
+.idea/
+.DS_Store
+
+# ─── Misc ────────────────────────────────────────────────────
+*.pem
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.vercel
+
+# Beads / Dolt files (added by bd init)
+*.db
