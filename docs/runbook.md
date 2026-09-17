@@ -30,6 +30,25 @@ Development does not wait for these: the default in the last column applies unti
 | DeepSeek field that disables thinking   |                                                                      | `services/ai/deepseek.ts`                                   | `thinking: { type: 'disabled' }`                        |
 | Supabase Postgres major version         | 17 (17.6.1)                                                          | `Dockerfile` (`postgresql-client` version)                  | 17                                                      |
 
+### Real-provider smoke (implementation plan task 5.0)
+
+`DEEPSEEK_API_BASE_URL=https://api.deepseek.com npx tsx --conditions=react-server scripts/ai-smoke.ts`
+with a real `DEEPSEEK_API_KEY` in `.env`. Run on 2026-09-17 from a developer machine (not yet from
+Darkube): 10/10 calls passed the schemas. Latency and tokens (prompt+completion):
+
+| Call                              | Latency | Tokens        |
+| --------------------------------- | ------- | ------------- |
+| PLAN_IMPORT menu plan (5 slots)   | 14.0 s  | 3458 + 5117   |
+| PLAN_BASELINE menu plan           | 12.7 s  | 4130 + 4509   |
+| PLAN_IMPORT weekday plan (7 days) | 33.2 s  | 22529 + 11612 |
+| PLAN_BASELINE weekday plan        | 22.9 s  | 8401 + 8298   |
+| MEAL_TEXT (five Persian meals)    | 1.8–2.5 s | ~1790 + ~600 |
+| REFLECTION                        | 1.1 s   | 840 + 85      |
+
+Finding: one baseline call for a 35-slot plan overflowed the 6,000-token output cap
+(`INVALID_JSON`); `estimatePlanBaseline` now batches 20 items per call inside the operation
+deadline.
+
 ## Environments
 
 | Name         | Where                  | Database                                  | Storage                                    | Notes                                  |

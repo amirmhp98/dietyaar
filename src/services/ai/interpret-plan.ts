@@ -16,7 +16,12 @@ import {
   type PlanBaselineOutput,
   type PlanImportOutput,
 } from '@/services/ai/schemas';
-import type { AiResult, EstimateBaselineInput, InterpretPlanInput } from '@/services/ai/types';
+import type {
+  BaselineItemInput,
+  AiResult,
+  EstimateBaselineInput,
+  InterpretPlanInput,
+} from '@/services/ai/types';
 
 /**
  * Plan import (tech spec § 10.2): BY_WEEKDAY text is split at weekday
@@ -215,6 +220,9 @@ export async function interpretPlan(
   };
 }
 
+/** Items per baseline call: a 35-slot weekday plan (~90 items) overflowed the output budget in one call. */
+export const BASELINE_BATCH_SIZE = 20;
+
 export async function estimatePlanBaseline(
   input: EstimateBaselineInput,
 ): Promise<AiResult<PlanBaselineOutput>> {
@@ -228,25 +236,40 @@ export async function estimatePlanBaseline(
       durationMs: 0,
     };
   }
-  const result = await complete({
-    kind: 'PLAN_BASELINE',
-    system: planBaselineSystemPrompt(),
-    user: planBaselineUserMessage(input.items),
-    schema: planBaselineOutputSchema,
-    deadlineAt: input.deadlineAt,
-    maxTokens: PLAN_BASELINE_MAX_TOKENS,
-    userTag: input.userTag,
-  });
-  if (!result.ok) return result;
-  const requested = new Set(input.items.map((item) => item.index));
-  const items = result.data.items
-    .filter((item) => requested.has(item.index))
-    .map((item) => ({
-      index: item.index,
-      nutrition:
-        item.nutrition === null
-          ? null
-          : { ...item.nutrition, source: 'AI_ESTIMATE' as const, isEstimate: true },
-    }));
-  return { ...result, data: { items } };
+  const batches: BaselineItemInput[][] = [];
+  for (let i = 0; i < input.items.length; i += BASELINE_BATCH_SIZE) {
+    batches.push(input.items.slice(i, i + BASELINE_BATCH_SIZE));
+  }
+  const results: Array<AiResult<PlanBaselineOutput>> = [];
+  const items: PlanBaselineOutput['items'] = [];
+  let model = '';
+  for (const [i, batch] of batches.entries()) {
+    // Divide what is left of the operation deadline over the remaining batches.
+    const remaining = Math.max(0, input.deadlineAt - Date.now());
+    const deadlineAt = Date.now() + Math.floor(remaining / (batches.length - i));
+    const result = await complete({
+      kind: 'PLAN_BASELINE',
+      system: planBaselineSystemPrompt(),
+      user: planBaselineUserMessage(batch),
+      schema: planBaselineOutputSchema,
+      deadlineAt,
+      maxTokens: PLAN_BASELINE_MAX_TOKENS,
+      userTag: input.userTag,
+    });
+    results.push(result);
+    if (!result.ok) return { ...result, ...mergeMeta(results) };
+    model = result.model;
+    const requested = new Set(batch.map((item) => item.index));
+    for (const item of result.data.items) {
+      if (!requested.has(item.index)) continue;
+      items.push({
+        index: item.index,
+        nutrition:
+          item.nutrition === null
+            ? null
+            : { ...item.nutrition, source: 'AI_ESTIMATE' as const, isEstimate: true },
+      });
+    }
+  }
+  return { ok: true, data: { items }, model, ...mergeMeta(results) };
 }
