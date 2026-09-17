@@ -37,6 +37,8 @@ const schema = z
 
     // ── Auth ────────────────────────────────────────────────────────────
     SESSION_MAX_AGE_DAYS: z.coerce.number().int().positive().default(90),
+    /** Sign-ups per IP per hour (tech spec § 8: 10). Raised in e2e so suites stay re-runnable. */
+    SIGNUP_RATE_LIMIT: z.coerce.number().int().positive().default(10),
     /** Bypass login and run without a database. Development only. */
     SKIP_AUTH: booleanString('false'),
 

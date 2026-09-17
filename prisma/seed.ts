@@ -31,6 +31,26 @@ async function main() {
   });
 
   console.log(`Admin user ready: ${admin.username} (${admin.id})`);
+
+  // Outside production the admin is onboarded too, so the ops e2e specs can sign in
+  // and open /admin/users without walking through onboarding first.
+  if (process.env.NODE_ENV !== 'production') {
+    await prisma.user.update({ where: { id: admin.id }, data: { onboardingStep: 'DONE' } });
+    await prisma.profile.upsert({
+      where: { userId: admin.id },
+      update: {},
+      create: {
+        userId: admin.id,
+        ageYears: 35,
+        sex: 'MALE',
+        heightCm: 178,
+        weightKg: 76,
+        weightMeasuredAt: new Date().toISOString().slice(0, 10),
+        timeZone: 'Asia/Tehran',
+        completedAt: new Date(),
+      },
+    });
+  }
   if (password === 'admin123') {
     console.warn(
       'Default password in use. Change it after first login (Admin → Users → reset password).',

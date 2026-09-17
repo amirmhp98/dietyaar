@@ -15,6 +15,43 @@ export const en = {
   'shell.collapseSidebar': 'Collapse sidebar',
   'shell.adminBadge': 'Admin',
   'shell.adminRole': 'System administrator',
+  'shell.logMeal': 'Log meal',
+  'shell.profile': 'Settings and profile',
+  'meal.compose.title': 'Log meal',
+  'settings.account.title': 'Account',
+  'settings.account.username': 'Username',
+  'settings.tools.title': 'Tools',
+
+  // ── Shared product components ───────────────────────────────
+  'aiNotice.title': 'Before we continue',
+  'aiNotice.plan':
+    "We'll send your plan text to an AI service to read it. Food names stay as you wrote them.",
+  'aiNotice.meal':
+    "We'll send this description (or photo) to an AI service to estimate it. You can enter details yourself instead.",
+  'aiNotice.continue': 'Continue',
+  'aiNotice.setUpManually': 'Set up manually',
+  'aiNotice.enterManually': 'Enter manually',
+  'import.pending': "We're still preparing your plan. You can log meals in the meantime.",
+  'import.ready': 'Your plan is ready to review.',
+  'import.failed': "We couldn't prepare your plan. Try again or set it up manually.",
+  'import.reviewNow': 'Review now',
+  'import.tryAgain': 'Try again',
+  'import.setUpManually': 'Set up manually',
+  'day.completeness.label': "I've logged everything for this day",
+  'day.completeness.helper': "Uncheck this if you haven't recorded everything.",
+  'score.title': 'Your plan today',
+  'score.inProgress': 'In progress',
+  'score.notEnough': 'Not enough information yet',
+  'score.band.closely': 'Closely followed',
+  'score.band.mostly': 'Mostly followed',
+  'score.band.different': 'Different from your plan',
+  'score.coverage.one': 'Based on {count} of {total} prescribed meals',
+  'score.coverage.other': 'Based on {count} of {total} prescribed meals',
+  'score.skipped.one': '{count} skipped',
+  'score.skipped.other': '{count} skipped',
+  'score.completeByDefault': 'log complete by default',
+  'day.completeness.gaps':
+    "{recorded} of {total} meals recorded. Mark the rest skipped if you didn't eat them.",
 
   // ── Navigation (sidebar) ───────────────────────────────────
   'nav.menuTitle': 'Navigation menu',

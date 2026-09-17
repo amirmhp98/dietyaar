@@ -4,6 +4,7 @@
  * shadcn CLI in RTL mode (logical classes) and adapted to the locale profile.
  */
 export * from '@/components/ui/alert';
+export * from '@/components/ui/alert-dialog';
 export * from '@/components/ui/avatar';
 export * from '@/components/ui/badge';
 export * from '@/components/ui/bidi';
@@ -12,6 +13,7 @@ export * from '@/components/ui/button';
 export * from '@/components/ui/calendar';
 export * from '@/components/ui/card';
 export * from '@/components/ui/checkbox';
+export * from '@/components/ui/collapsible';
 export * from '@/components/ui/date-picker';
 export * from '@/components/ui/dialog';
 export * from '@/components/ui/direction';

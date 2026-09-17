@@ -1,5 +1,7 @@
 'use client';
 
+import { ProductGallery } from './product-gallery';
+
 import { useState, useRef } from 'react';
 import {
   // Layout & Display
@@ -243,6 +245,7 @@ const SECTIONS = [
 function ShowcaseSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-3">
+      <ProductGallery />
       <h3 className="text-sm font-semibold text-muted-foreground border-b border-border/40 pb-2">
         {title}
       </h3>

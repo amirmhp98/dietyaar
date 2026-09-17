@@ -49,6 +49,11 @@ function round1(n: number) {
   return Math.round(n * 10) / 10;
 }
 
+/** Inches keep two decimals so cm → ft/in → cm round-trips exactly. */
+function round2(n: number) {
+  return Math.round(n * 100) / 100;
+}
+
 function listTimeZones(): string[] {
   try {
     const zones = Intl.supportedValuesOf('timeZone');
@@ -396,7 +401,7 @@ function HeightScreen({
       if (Number.isFinite(n) && cm !== '') {
         const totalIn = n / CM_PER_INCH;
         setFt(String(Math.floor(totalIn / 12)));
-        setInch(String(round1(totalIn % 12)));
+        setInch(String(round2(totalIn % 12)));
       }
     } else {
       const n = Number(normalizeDigits(ft)) * 12 + Number(normalizeDigits(inch || '0'));

@@ -4,6 +4,7 @@ import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { type ActionResult, fromError, fromZodError, ok } from '@/lib/action-result';
 import { requireAuth } from '@/lib/auth';
+import { env } from '@/lib/env';
 import { ServiceError } from '@/lib/errors';
 import { APPEARANCE_COOKIE, appearanceCookieOptions } from '@/lib/theme-cookie';
 import { SESSION_COOKIE, sessionCookieOptions } from '@/lib/session-cookie';
@@ -14,7 +15,6 @@ import { isRateLimited } from '@/services/rate-limit.service';
 
 export type SignUpState = { error?: string } | null;
 
-const SIGNUP_LIMIT = 10;
 const SIGNUP_WINDOW_MS = 60 * 60 * 1000;
 
 /** Bound to `useActionState` in the sign-up form. 10 per IP per hour (tech spec § 8). */
@@ -26,7 +26,7 @@ export async function signUpAction(_prev: SignUpState, formData: FormData): Prom
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? t('validation.invalid') };
 
   const ip = (await headers()).get('x-real-ip') ?? 'unknown';
-  if (isRateLimited(`signup:${ip}`, SIGNUP_LIMIT, SIGNUP_WINDOW_MS)) {
+  if (isRateLimited(`signup:${ip}`, env.SIGNUP_RATE_LIMIT, SIGNUP_WINDOW_MS)) {
     return { error: t('signup.errors.rateLimited') };
   }
 

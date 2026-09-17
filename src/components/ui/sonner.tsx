@@ -2,20 +2,20 @@
 
 import { Toaster as Sonner, toast } from 'sonner';
 
-import { useTheme } from '@/lib/theme';
+import { useAppearance } from '@/lib/theme';
 import { useDir } from '@/components/ui/direction';
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme } = useTheme();
+  const { appearance } = useAppearance();
   const dir = useDir();
 
   return (
     <Sonner
-      theme={theme}
+      theme={appearance}
+      position={dir === 'rtl' ? 'top-left' : 'top-right'}
       dir={dir}
-      position={dir === 'rtl' ? 'bottom-left' : 'bottom-right'}
       className="toaster group"
       toastOptions={{
         classNames: {

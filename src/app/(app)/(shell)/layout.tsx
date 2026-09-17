@@ -1,39 +1,36 @@
 import type { ReactNode } from 'react';
-import { cookies } from 'next/headers';
-import { Header } from '@/components/layout/Header';
-import { Sidebar } from '@/components/layout/Sidebar';
-import { SidebarProvider } from '@/components/layout/SidebarContext';
+import { BottomNav } from '@/components/layout/BottomNav';
+import { TopBar } from '@/components/layout/TopBar';
 import { requireAuth } from '@/lib/auth';
-import { SIDEBAR_COLLAPSED_COOKIE } from '@/lib/preferences';
 import { t } from '@/lib/t';
+import { ShellActions } from './shell-actions';
 
 /**
- * Authenticated area. Every route under (app) gets the shell and a verified
- * user. Pages still call requireAuth()/requireAdmin() before fetching data,
- * because Next.js renders layouts and pages in parallel; the call is cached
- * per request so it costs nothing.
+ * Product shell: bottom tabs (top row on md+), top bar with the profile
+ * button, and the persistent Log meal button. Product pages call
+ * requireOnboarded() themselves; admin pages keep their own guards.
  */
-export default async function AppLayout({ children }: { children: ReactNode }) {
-  const [, cookieStore] = await Promise.all([requireAuth(), cookies()]);
-  const sidebarCollapsed = cookieStore.get(SIDEBAR_COLLAPSED_COOKIE)?.value === 'true';
-
+export default async function ShellLayout({ children }: { children: ReactNode }) {
+  await requireAuth();
   return (
-    <SidebarProvider defaultCollapsed={sidebarCollapsed}>
+    <>
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:start-4 focus:top-4 focus:z-[200] focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground focus:shadow-lg"
       >
         {t('shell.skipToContent')}
       </a>
-      <div className="flex min-h-screen">
-        <Sidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <Header />
-          <main id="main-content" className="flex-1">
-            {children}
-          </main>
-        </div>
+      <div className="flex min-h-screen flex-col md:pt-14">
+        <TopBar />
+        <main
+          id="main-content"
+          className="mx-auto w-full max-w-3xl flex-1 px-4 pb-[calc(9rem+env(safe-area-inset-bottom))] pt-4 md:pb-24"
+        >
+          {children}
+        </main>
+        <BottomNav />
+        <ShellActions />
       </div>
-    </SidebarProvider>
+    </>
   );
 }

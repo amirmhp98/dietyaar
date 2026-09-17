@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { t } from '../src/lib/t';
+import { ADMIN, login } from './helpers/auth';
 
 /**
  * Exercises the reference Users module end-to-end as the seeded admin.
@@ -20,7 +21,14 @@ function rowMenu(page: Page, rowLocator = row(page)) {
   return rowLocator.getByRole('button', { name: t('users.rowActions', { name: '' }).trim() });
 }
 
+// The stored state belongs to the demo user; this suite signs in as the admin itself.
+test.use({ storageState: { cookies: [], origins: [] } });
+
 test.describe.serial('admin › users', () => {
+  test.beforeEach(async ({ page }) => {
+    await login(page, ADMIN.username, ADMIN.password);
+  });
+
   test('the users page lists the seeded admin', async ({ page }) => {
     await page.goto('/admin/users');
     await expect(page.getByRole('heading', { name: t('users.title') })).toBeVisible();

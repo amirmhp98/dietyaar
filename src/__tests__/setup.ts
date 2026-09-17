@@ -12,6 +12,7 @@ vi.mock('@/lib/env', () => ({
     DATABASE_URL: 'postgresql://test:test@localhost:5432/test',
     DIRECT_DATABASE_URL: 'postgresql://test:test@localhost:5432/test',
     SESSION_MAX_AGE_DAYS: 90,
+    SIGNUP_RATE_LIMIT: 10,
     SKIP_AUTH: false,
     LOG_LEVEL: 'silent',
     PRISMA_LOG_QUERIES: false,
