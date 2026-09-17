@@ -21,7 +21,7 @@ export default async function OnboardingPlanPage() {
       <p className="text-sm text-muted-foreground">{t('onboarding.plan.placeholderBody')}</p>
       <form action={skipPlanAction}>
         <Button type="submit" className="h-11 w-full">
-          {t('onboarding.plan.continueToToday')}
+          {t('onboarding.plan.noPlanYet')}
         </Button>
       </form>
     </main>

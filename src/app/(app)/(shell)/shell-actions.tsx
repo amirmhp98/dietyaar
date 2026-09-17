@@ -6,7 +6,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/UiCom
 import { t } from '@/lib/t';
 
 /** Mounts the Log meal button and the composer sheet (filled in phase 6). */
-export function ShellActions() {
+/** STUB composer: the meal agent replaces this with the real MealComposer island. */
+export function ShellActions(_props: { timeZone: string; photoEnabled: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <>

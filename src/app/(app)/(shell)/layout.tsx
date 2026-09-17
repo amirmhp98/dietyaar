@@ -2,8 +2,11 @@ import type { ReactNode } from 'react';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { TopBar } from '@/components/layout/TopBar';
 import { requireAuth } from '@/lib/auth';
+import { env } from '@/lib/env';
 import { t } from '@/lib/t';
+import { ReflectionTrigger } from './reflection-trigger';
 import { ShellActions } from './shell-actions';
+import { getProfile } from '@/services/profile.service';
 
 /**
  * Product shell: bottom tabs (top row on md+), top bar with the profile
@@ -11,7 +14,9 @@ import { ShellActions } from './shell-actions';
  * requireOnboarded() themselves; admin pages keep their own guards.
  */
 export default async function ShellLayout({ children }: { children: ReactNode }) {
-  await requireAuth();
+  const user = await requireAuth();
+  const profile = user.onboardingStep === 'DONE' ? await getProfile(user.id) : null;
+  const photoEnabled = env.PHOTO_LOGGING_ENABLED;
   return (
     <>
       <a
@@ -29,7 +34,12 @@ export default async function ShellLayout({ children }: { children: ReactNode })
           {children}
         </main>
         <BottomNav />
-        <ShellActions />
+        {profile ? (
+          <>
+            <ShellActions timeZone={profile.timeZone} photoEnabled={photoEnabled} />
+            <ReflectionTrigger timeZone={profile.timeZone} />
+          </>
+        ) : null}
       </div>
     </>
   );
