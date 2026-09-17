@@ -77,6 +77,151 @@ Notes from setup:
 - **If the Supabase project was paused** (replicas were zero for 7 days): unpause it in the
   dashboard, then restart the app.
 
+## Deploy and rollback
+
+CI (`.github/workflows/ci.yml`) runs `quality`, `integration`, `e2e` (desktop and mobile
+Playwright projects against the stub AI server) and `migrations` (`scripts/check-migrations.mjs`);
+`docker` builds the image, smoke-tests `/api/health`, `/api/live` and `pg_dump --version`, and on a
+push to `main` pushes `registry.hamdocker.ir/<org>/dietyaar:<short sha>`; `deploy` then runs
+`darkube deploy` inside the `hamravesh.hamdocker.ir/public/darkube-cli:v1.1` container.
+
+GitHub secrets: `HAMDOCKER_ORG`, `HAMDOCKER_USERNAME`, `HAMDOCKER_PASSWORD` (container registry
+page of the Hamravesh console), `DARKUBE_DEPLOY_TOKEN`, `DARKUBE_APP_ID` (app profile page).
+
+**Rollback.** Every release image stays in the registry under its short SHA. To go back:
+
+```sh
+docker run --rm hamravesh.hamdocker.ir/public/darkube-cli:v1.1 \
+  darkube deploy --ref main --token "$DARKUBE_DEPLOY_TOKEN" --app-id "$DARKUBE_APP_ID" \
+  --image-tag <previous short sha> --job-id manual-rollback --stateless-app true
+```
+
+Safe because migrations are backward compatible with the previous release (tech spec § 13: add
+nullable, backfill, tighten later) and the migration gate refuses `DROP` / `ALTER … TYPE` without
+a decision record. The rolled-back pod does not undo the newer migration; if that migration must
+go, restore from the last dump instead (below). _Verify once the first deploy has run:_ the exact
+`darkube deploy` flags and the `--stateless-app` value against the Darkube console; the same
+`PUT https://api.console.hamravesh.ir/api/v1/darkube/apps/update_from_cli/` endpoint with
+`{ "trigger_deploy_token", "app_id", "image_tag" }` is the documented `curl` alternative.
+
+## Backups
+
+Nightly at 03:00 UTC the in-process `backup` task (`src/services/jobs/backup.job.ts`,
+decision 018) copies every `ATTACHED` photo the backup bucket lacks to `photos/{key}`, then
+runs `pg_dump --format=custom` against `DIRECT_DATABASE_URL`, gzips it, encrypts it with
+`openssl enc -aes-256-cbc -pbkdf2 -pass env:BACKUP_ENCRYPTION_KEY` and uploads
+`db/{YYYY-MM-DD}.dump.gz.enc` to the Hamravesh bucket `dietyaar-backup`. Dumps older than
+`BACKUP_RETENTION_DAYS` (30) are deleted; the newest is always kept. The account purge deletes a
+user's `photos/{key}` copies, so with the 30-day retention every trace of a deleted account is gone
+from the backups within 30 days (product spec § 15). Success logs one `backup finished` line with
+`dumpBytes` and `durationMs`; failure logs `backup_failed` (alert on it in Grafana, § 16).
+
+**Encryption key.** `BACKUP_ENCRYPTION_KEY` is a long random passphrase generated once
+(`openssl rand -base64 48`), stored as a Darkube secret env and in the owner's password manager.
+Losing it makes every dump unreadable; rotating it does not re-encrypt old dumps, so keep the
+previous key until those have expired.
+
+**Manual backup** (before a destructive migration, or for the rehearsal):
+
+```sh
+DOTENV_CONFIG_PATH=.env.production.local npm run db:backup   # needs pg_dump 17, gzip, openssl on PATH
+```
+
+Prints the result JSON (`dumpKey`, `dumpBytes`, `photosCopied`, `dumpsDeleted`) and exits 1 on
+failure. The same command works from the Darkube web terminal with the app's env already set.
+
+**Restore** (setup checklist step 5, and the incident path):
+
+```sh
+# 1. Fetch the dump (any S3 client with the BACKUP_S3_* key), then decrypt and unpack.
+BACKUP_ENCRYPTION_KEY=... openssl enc -d -aes-256-cbc -pbkdf2 -pass env:BACKUP_ENCRYPTION_KEY \
+  -in 2026-09-17.dump.gz.enc | gunzip -c > 2026-09-17.dump
+pg_restore --list 2026-09-17.dump | head          # sanity: the table list
+
+# 2. Into an empty database (the second Supabase project, or local Postgres):
+pg_restore --no-owner --no-privileges --dbname "$TARGET_DIRECT_DATABASE_URL" 2026-09-17.dump
+
+# 3. Photos: copy the backup bucket's photos/{key} objects back to the photo bucket under
+#    the same key (without the photos/ prefix); the Upload rows in the dump reference them.
+```
+
+Then point a local app at the restored database, sign in as a test user, open the plan, open a
+restored photo and confirm a day's totals. Record the time taken in checklist step 5.
+
+## Postgres major version
+
+Supabase runs Postgres 17 (17.6.1, "Measured values"). The image installs
+`postgresql-client-17` from `apt.postgresql.org` (Dockerfile `ARG PG_MAJOR=17`) because
+`pg_dump` must be at least the server's major version. When Supabase upgrades the project, bump
+`PG_MAJOR`, rebuild, and update the "Measured values" row.
+
+## Weekly analytics SQL
+
+Content-free events (`analytics_events.name` from `src/services/analytics.service.ts`) and the
+AI ledger (`ai_calls`). Run against the session pooler as `postgres`:
+
+```sql
+-- Activation: accounts that both confirmed a plan and saved a meal, last 7 days.
+select count(*) as activated
+from (
+  select "userId"
+  from analytics_events
+  where "createdAt" >= now() - interval '7 days' and "userId" is not null
+  group by "userId"
+  having bool_or(name = 'plan_confirmed') and bool_or(name = 'meal_save_succeeded')
+) activated_accounts;
+
+-- Onboarding abandonment by step.
+select properties->>'step' as step, count(*) as abandoned
+from analytics_events
+where name = 'onboarding_abandoned' and "createdAt" >= now() - interval '7 days'
+group by 1 order by 2 desc;
+
+-- Save outcomes: success, failure and conflict counts.
+select name, count(*)
+from analytics_events
+where name in ('meal_save_succeeded', 'meal_save_failed', 'meal_save_conflict')
+  and "createdAt" >= now() - interval '7 days'
+group by 1;
+
+-- Reflection: opened, regenerated, fallback rate.
+select name, count(*)
+from analytics_events
+where name in ('reflection_opened', 'reflection_updated', 'reflection_fallback')
+  and "createdAt" >= now() - interval '7 days'
+group by 1;
+
+-- Weekly return use: distinct accounts with any event this week and last week.
+select
+  count(distinct "userId") filter (where "createdAt" >= now() - interval '7 days')  as this_week,
+  count(distinct "userId") filter (where "createdAt" <  now() - interval '7 days')  as last_week
+from analytics_events
+where "createdAt" >= now() - interval '14 days';
+
+-- AI outcome and latency by kind (ai_calls), last 7 days.
+select kind, outcome, count(*) as calls,
+  percentile_cont(0.5) within group (order by "durationMs") as p50_ms,
+  percentile_cont(0.95) within group (order by "durationMs") as p95_ms,
+  sum(coalesce("promptTokens", 0) + coalesce("completionTokens", 0)) as tokens
+from ai_calls
+where "createdAt" >= now() - interval '7 days'
+group by 1, 2 order by 1, 2;
+
+-- Size gauges against the § 19.10 upgrade trigger (400 MB database, 700 MB storage).
+select pg_size_pretty(pg_database_size(current_database())) as database_size,
+  (select pg_size_pretty(coalesce(sum(bytes), 0)) from uploads where status <> 'REMOVED') as photo_bytes;
+```
+
+## Observability
+
+- **Logs.** pino JSON on stdout → Loki. `task`, `event` and `durationMs` fields carry the § 16
+  metrics: `backup finished` / `backup_failed`, `prune finished`, `purge finished`.
+- **Sentry: deferred.** `@sentry/nextjs` is not installed. `SENTRY_DSN` is accepted by
+  `src/lib/env.ts` and ignored. When it is added: `tunnelRoute: '/monitoring'` (the CSP is
+  `connect-src 'self'`, decision O9), `tracesSampleRate 0.05`, and a `beforeSend` that drops
+  request bodies and every field named `text`, `description`, `paragraph`, `originalName`,
+  `originalText`, `sourceText`, `notes` (tech spec § 13).
+
 ## Incidents
 
 _None yet. Add a dated entry per incident: what happened, what was done, what changed._

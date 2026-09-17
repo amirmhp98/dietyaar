@@ -67,7 +67,7 @@ describe('createUserAction', () => {
 
     const result = await createUserAction(validCreate);
 
-    expect(result).toEqual({ ok: false, error: 'تکراری' });
+    expect(result).toEqual({ ok: false, error: 'تکراری', code: 'USERNAME_TAKEN' });
   });
 
   it('hides unexpected errors behind a generic message', async () => {

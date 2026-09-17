@@ -48,6 +48,8 @@ describe('scaleNutrition', () => {
     });
     expect(ok.flag).toBe('SCALED');
     expect(ok.nutrition?.values.ENERGY_KCAL).toBe(336);
+    expect(ok.nutrition?.basis).toBe('PER_RECORDED_PORTION');
+    expect(ok.nutrition?.basisQuantity).toBe(2);
     const refused = scaleNutrition({
       nutrition: per100,
       fromQuantity: 100,

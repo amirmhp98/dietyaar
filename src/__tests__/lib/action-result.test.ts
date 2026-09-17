@@ -34,9 +34,24 @@ describe('ActionResult helpers', () => {
   });
 
   it('fromError exposes ServiceError messages but hides everything else', () => {
-    expect(fromError(new ServiceError('پیام', 'CODE'))).toEqual({ ok: false, error: 'پیام' });
+    expect(fromError(new ServiceError('پیام', 'CODE'))).toEqual({
+      ok: false,
+      error: 'پیام',
+      code: 'CODE',
+    });
     const generic = fromError(new Error('ECONNREFUSED'));
     expect(generic.ok).toBe(false);
     if (!generic.ok) expect(generic.error).not.toContain('ECONNREFUSED');
+  });
+
+  it('fromError copies the ServiceError details for the client to act on', () => {
+    const result = fromError(new ServiceError('stale', 'CONFLICT', { currentRevision: 4 }));
+    expect(result).toEqual({
+      ok: false,
+      error: 'stale',
+      code: 'CONFLICT',
+      details: { currentRevision: 4 },
+    });
+    expect(fromError(new Error('x'))).not.toHaveProperty('code');
   });
 });

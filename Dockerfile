@@ -1,9 +1,15 @@
 # syntax=docker/dockerfile:1.7
 
+# Darkube pulls only through the Hamravesh mirror (decision 014). Override on a
+# machine that cannot reach it: --build-arg NODE_IMAGE=node:lts-slim
+ARG NODE_IMAGE=hub.hamdocker.ir/library/node:lts-slim
+
 # ─── Base ─────────────────────────────────────────────────────────────────
-FROM node:lts-slim AS base
+FROM ${NODE_IMAGE} AS base
 WORKDIR /app
-ENV NEXT_TELEMETRY_DISABLED=1 \
+# Every date the app derives comes from the user's zone; the process clock is UTC.
+ENV TZ=UTC \
+    NEXT_TELEMETRY_DISABLED=1 \
     npm_config_fetch_retries=5 \
     npm_config_fetch_retry_mintimeout=20000 \
     npm_config_fetch_retry_maxtimeout=120000 \
@@ -15,7 +21,7 @@ ENV NEXT_TELEMETRY_DISABLED=1 \
 #   RUN sed -i 's|deb.debian.org|mirror.arvancloud.ir|g' /etc/apt/sources.list.d/debian.sources
 #   (alternatives: mirror.iranserver.com, repo.iut.ac.ir, mirror.pars.host)
 RUN apt-get -o Acquire::Check-Valid-Until=false update -y \
-    && apt-get install -y --no-install-recommends openssl \
+    && apt-get install -y --no-install-recommends openssl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # ─── Builder ──────────────────────────────────────────────────────────────
@@ -47,12 +53,37 @@ ENV NODE_ENV=production \
     PORT=3000 \
     HOSTNAME=0.0.0.0
 
+# `pg_dump` for the nightly backup (tech spec § 12/§ 13, decision 018) at the
+# Supabase server's major version (runbook "Measured values": 17). Debian's own
+# package is older, so it comes from the PostgreSQL apt repository. gzip is in
+# the base image; openssl came with the base stage.
+ARG PG_MAJOR=17
+RUN apt-get -o Acquire::Check-Valid-Until=false update -y \
+    && apt-get install -y --no-install-recommends curl gnupg \
+    && install -d /usr/share/postgresql-common/pgdg \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+         -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+    && . /etc/os-release \
+    && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+         > /etc/apt/sources.list.d/pgdg.list \
+    && apt-get update -y \
+    && apt-get install -y --no-install-recommends "postgresql-client-${PG_MAJOR}" \
+    && apt-get purge -y --auto-remove curl gnupg \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 nextjs
 
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# sharp is in `serverExternalPackages`, so the standalone tracer only copies
+# what it can see; copy the package, its prebuilt binaries (`@img/*`) and its
+# two runtime dependencies explicitly so photo decoding never depends on tracing.
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/sharp ./node_modules/sharp
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@img ./node_modules/@img
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/detect-libc ./node_modules/detect-libc
 
 # Schema + migrations + the standalone Prisma CLI.
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma

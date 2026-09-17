@@ -13,7 +13,16 @@ import { t } from '@/lib/t';
 export type FieldErrors = Record<string, string[]>;
 
 export type ActionResult<T = void> =
-  { ok: true; data: T } | { ok: false; error: string; fieldErrors?: FieldErrors };
+  | { ok: true; data: T }
+  | {
+      ok: false;
+      error: string;
+      /** Tech spec § 7 error code when the failure came from a `ServiceError`. */
+      code?: string;
+      fieldErrors?: FieldErrors;
+      /** Structured context from the `ServiceError` (e.g. `{ currentRevision }` on CONFLICT). */
+      details?: unknown;
+    };
 
 export function ok(): ActionResult<void>;
 export function ok<T>(data: T): ActionResult<T>;
@@ -35,9 +44,13 @@ export function fromZodError(error: ZodError): ActionResult<never> {
   return fail(error.issues[0]?.message ?? t('validation.invalid'), fieldErrors);
 }
 
-/** ServiceError → its (already localised) message. Anything else is logged and replaced by a generic one. */
+/** ServiceError → its (already localised) message, code and details. Anything else is logged and replaced by a generic one. */
 export function fromError(error: unknown): ActionResult<never> {
-  if (error instanceof ServiceError) return fail(error.message);
+  if (error instanceof ServiceError) {
+    return error.details === undefined
+      ? { ok: false, error: error.message, code: error.code }
+      : { ok: false, error: error.message, code: error.code, details: error.details };
+  }
   logger.error({ err: error }, 'Unhandled error in server action');
   return fail(t('errors.unexpected'));
 }

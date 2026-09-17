@@ -9,6 +9,7 @@
 import { ai } from './sections/ai';
 import { day } from './sections/day';
 import { meal } from './sections/meal';
+import { photo } from './sections/photo';
 import { plan } from './sections/plan';
 import { reflection } from './sections/reflection';
 import { settings } from './sections/settings';
@@ -26,6 +27,7 @@ export const en = {
   ...reflection,
   ...settings,
   ...ai,
+  ...photo,
 
   // ── App shell ──────────────────────────────────────────────
   'shell.skipToContent': 'Skip to main content',

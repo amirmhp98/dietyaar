@@ -65,7 +65,17 @@ export function scaleNutrition(input: ScaleInput): ScaleResult {
     const grams = toGrams(toQuantity, toUnit, density);
     if (grams === null) return { nutrition, flag: 'NOT_EVALUATED' };
     const values = scaleValues(nutrition.values, grams / 100);
-    return { nutrition: { ...nutrition, values }, flag: 'SCALED' };
+    // The result describes the recorded portion, so the basis changes with it.
+    return {
+      nutrition: {
+        ...nutrition,
+        basis: 'PER_RECORDED_PORTION',
+        basisQuantity: toQuantity,
+        basisUnit: toUnit,
+        values,
+      },
+      flag: 'SCALED',
+    };
   }
 
   // PER_RECORDED_PORTION

@@ -1,0 +1,379 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Prisma, type FoodItem } from '@prisma/client';
+import { prismaMock, resetPrismaMock } from '@/__tests__/helpers/prisma-mock';
+import {
+  dayRecordFactory,
+  foodItemFactory,
+  mealFactory,
+  profileFactory,
+} from '@/__tests__/factories';
+import { buildMenuPlan } from '@/__tests__/fixtures/plans/menu-plan';
+import type { RubricPlanItem, RubricSlot } from '@/lib/rubric/types';
+import { weekBounds } from '@/lib/time/local-date';
+
+// plan.service → reflection.service → day-view.service → plan.service is a cycle, so the
+// mock cannot load the original module; `slotsForWeekday` is restated here.
+vi.mock('@/services/plan.service', () => ({
+  getActivePlan: vi.fn(),
+  slotsForWeekday: (plan: { slots: RubricSlot[] }, weekday: number) =>
+    plan.slots
+      .filter((s) => s.weekday === 7 || s.weekday === weekday)
+      .sort((a, b) => a.position - b.position),
+}));
+vi.mock('@/services/profile.service', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/profile.service')>()),
+  getProfile: vi.fn(),
+}));
+
+import { getActivePlan, type ActivePlan } from '@/services/plan.service';
+import { getProfile, toProfileView } from '@/services/profile.service';
+import {
+  dayRowState,
+  getDayView,
+  getRuleProgress,
+  getSevenDayView,
+} from '@/services/day-view.service';
+
+resetPrismaMock();
+
+const OWNER = 'user-1';
+const ZONE = 'Asia/Tehran';
+/** 2026-09-16 is a Wednesday; the profile's week starts on Saturday (6). */
+const DATE = '2026-09-16';
+/** 2026-09-17 12:00 Tehran. */
+const NOW = new Date('2026-09-17T08:30:00Z');
+
+function activePlan(overrides: Partial<ActivePlan> = {}) {
+  const p = buildMenuPlan();
+  const plan: ActivePlan = {
+    id: 'plan-1',
+    status: 'ACTIVE',
+    structure: 'SAME_EVERY_DAY',
+    name: null,
+    sourceNote: null,
+    confirmedAt: new Date('2026-09-01T00:00:00Z'),
+    slots: p.slots,
+    targets: p.targets.map((t, i) => ({ ...t, id: `target-${i}`, weekday: null })),
+    rules: [],
+    notes: [],
+    draft: null,
+    ...overrides,
+  };
+  return { plan, ...p };
+}
+
+/** A recorded item copying a plan item at the prescribed amount. */
+function itemFrom(planItem: RubricPlanItem, mealId: string, quantity?: number): FoodItem {
+  return foodItemFactory.build({
+    mealId,
+    originalName: planItem.originalName,
+    englishLabel: planItem.englishLabel,
+    quantity: new Prisma.Decimal(quantity ?? planItem.quantity ?? 0),
+    unit: planItem.unit,
+    category: planItem.category,
+    matchedPlanItemId: planItem.id,
+    nutrition: planItem.nutrition
+      ? { ...planItem.nutrition, values: { ...planItem.nutrition.values } }
+      : null,
+  });
+}
+
+function mealRow(
+  id: string,
+  planSlotId: string | null,
+  planOptionId: string | null,
+  time: string | null,
+  items: FoodItem[],
+  dayRecordId = 'day-1',
+) {
+  return {
+    ...mealFactory.build({ id, planSlotId, planOptionId, consumedLocalTime: time, dayRecordId }),
+    items,
+    uploads: [],
+  };
+}
+
+function dayRow(localDate: string, meals: ReturnType<typeof mealRow>[], overrides = {}) {
+  return {
+    ...dayRecordFactory.build({ id: 'day-1', localDate, timeZone: ZONE, ...overrides }),
+    meals,
+    skippedSlots: [],
+  };
+}
+
+beforeEach(() => {
+  vi.mocked(getProfile).mockResolvedValue(
+    toProfileView(profileFactory.build({ userId: OWNER, timeZone: ZONE, weekStart: 6 })),
+  );
+  prismaMock.dayRecord.findMany.mockResolvedValue([]);
+});
+
+describe('getDayView', () => {
+  it('lunch in two sittings → one slot score, coverage 1 of 5, nutrition counts both (TS-§21.3)', async () => {
+    const { plan, lunch } = activePlan();
+    vi.mocked(getActivePlan).mockResolvedValue(plan);
+    const opt = lunch.options[0];
+    prismaMock.dayRecord.findUnique.mockResolvedValue(
+      dayRow(DATE, [
+        mealRow('m1', lunch.id, opt.id, '13:00', [itemFrom(opt.items[0], 'm1')]),
+        mealRow('m2', lunch.id, opt.id, '14:30', [
+          itemFrom(opt.items[1], 'm2'),
+          itemFrom(opt.items[3], 'm2'),
+        ]),
+      ]) as never,
+    );
+
+    const result = await getDayView(OWNER, DATE, NOW);
+    const slot = result.view.slots[2];
+    expect(slot.state).toBe('RECORDED');
+    expect(slot.mealIds).toEqual(['m1', 'm2']);
+    expect(slot.match?.status).toBe('MATCHED');
+    expect(result.view.score.coverage).toMatchObject({ prescribed: 5, recorded: 1, scored: 1 });
+    expect(result.view.nutrition.find((n) => n.nutrient === 'ENERGY_KCAL')?.subtotal.value).toBe(
+      435,
+    );
+    expect(result.view.contributing).toEqual([
+      { mealId: 'm1', revision: 1 },
+      { mealId: 'm2', revision: 1 },
+    ]);
+    expect(result.meals).toHaveLength(2);
+    expect(result.meals[0]).toMatchObject({
+      id: 'm1',
+      slot: { englishLabel: 'Lunch' },
+      energyKcal: 195,
+    });
+    expect(result.zone).toBe(ZONE);
+  });
+
+  it('different options in two sittings → NEEDS_REVIEW, excluded from the score (TS-§21.4)', async () => {
+    const { plan, lunch } = activePlan();
+    vi.mocked(getActivePlan).mockResolvedValue(plan);
+    const [o1, o2] = lunch.options;
+    prismaMock.dayRecord.findUnique.mockResolvedValue(
+      dayRow(DATE, [
+        mealRow('m1', lunch.id, o1.id, '13:00', [itemFrom(o1.items[0], 'm1')]),
+        mealRow('m2', lunch.id, o2.id, '14:00', [itemFrom(o2.items[0], 'm2')]),
+      ]) as never,
+    );
+
+    const { view } = await getDayView(OWNER, DATE, NOW);
+    expect(view.slots[2].state).toBe('NEEDS_REVIEW');
+    expect(view.slots[2].score).toBeNull();
+    expect(view.score.coverage.needsReview).toBe(1);
+    expect(view.score.coverage.scored).toBe(0);
+  });
+
+  it('midnight without edits: 23:59 is In progress, 00:01 is a past day with nutrition applied (TS-§21.5)', async () => {
+    const { plan, lunch } = activePlan();
+    vi.mocked(getActivePlan).mockResolvedValue(plan);
+    const opt = lunch.options[0];
+    const row = dayRow(DATE, [
+      mealRow(
+        'm1',
+        lunch.id,
+        opt.id,
+        '13:00',
+        opt.items.filter((i) => i.quantity !== null).map((i) => itemFrom(i, 'm1')),
+      ),
+    ]);
+    prismaMock.dayRecord.findUnique.mockResolvedValue(row as never);
+
+    // 2026-09-16 23:59 Tehran (UTC+3:30) = 20:29Z; 2026-09-17 00:01 Tehran = 20:31Z.
+    const before = await getDayView(OWNER, DATE, new Date('2026-09-16T20:29:00Z'));
+    const after = await getDayView(OWNER, DATE, new Date('2026-09-16T20:31:00Z'));
+    const energy = (v: typeof before) => v.view.nutrition.find((n) => n.nutrient === 'ENERGY_KCAL');
+    expect(before.view.dayPhase).toBe('ONGOING');
+    expect(before.view.score.nutritionComponent).toBeNull();
+    expect(energy(before)?.status).toBe('PROGRESS');
+    expect(after.view.dayPhase).toBe('PAST');
+    expect(after.view.score.nutritionComponent).not.toBeNull();
+    expect(energy(after)?.status).toBe('BELOW_RANGE');
+  });
+
+  it('past day, checked, 2 of 5 → complete by default and out of the trend denominator', async () => {
+    const { plan, breakfast, lunch } = activePlan();
+    vi.mocked(getActivePlan).mockResolvedValue(plan);
+    const b = breakfast.options[0];
+    const l = lunch.options[0];
+    prismaMock.dayRecord.findUnique.mockResolvedValue(
+      dayRow(DATE, [
+        mealRow('m1', breakfast.id, b.id, '08:00', [itemFrom(b.items[0], 'm1')]),
+        mealRow('m2', lunch.id, l.id, '13:00', [itemFrom(l.items[0], 'm2')]),
+      ]) as never,
+    );
+
+    const { view } = await getDayView(OWNER, DATE, NOW);
+    expect(view.dayPhase).toBe('PAST');
+    expect(view.logComplete).toBe(true);
+    expect(view.score.completeByDefault).toBe(true);
+    expect(view.score.coverage).toMatchObject({ recorded: 2, prescribed: 5, notRecorded: 3 });
+    expect(view.trendEligible).toBe(false);
+    expect(dayRowState(view)).toBe('COMPLETE_BY_DEFAULT');
+  });
+
+  it('a date without a row is an empty day in the profile zone', async () => {
+    vi.mocked(getActivePlan).mockResolvedValue(activePlan().plan);
+    prismaMock.dayRecord.findUnique.mockResolvedValue(null);
+
+    const result = await getDayView(OWNER, DATE, NOW);
+    expect(result.view.hasRecord).toBe(false);
+    expect(result.view.mealCount).toBe(0);
+    expect(result.view.logComplete).toBe(true);
+    expect(result.view.slots.every((s) => s.state === 'NOT_RECORDED')).toBe(true);
+    expect(result.zone).toBe(ZONE);
+    expect(dayRowState(result.view)).toBe('NO_MEALS');
+  });
+
+  it('a stored day keeps its own zone; no plan → no slots', async () => {
+    vi.mocked(getActivePlan).mockResolvedValue(null);
+    prismaMock.dayRecord.findUnique.mockResolvedValue(
+      dayRow(DATE, [], { timeZone: 'Europe/Berlin' }) as never,
+    );
+
+    const result = await getDayView(OWNER, DATE, NOW);
+    expect(result.zone).toBe('Europe/Berlin');
+    expect(result.profileZone).toBe(ZONE);
+    expect(result.view.planStructure).toBeNull();
+    expect(result.view.slots).toEqual([]);
+    expect(result.plan).toBeNull();
+  });
+
+  it('assembles a weekly rule from the anchored week in one range query', async () => {
+    const { plan, lunch, dinner } = activePlan();
+    const fishRule: ActivePlan['rules'][number] = {
+      id: 'rule-fish',
+      kind: 'SERVING_COUNT',
+      tracking: 'TRACK',
+      period: 'WEEK',
+      definition: {
+        food: { originalName: 'ماهی', englishLabel: 'grilled fish', synonyms: ['fish'] },
+        count: 2,
+        comparator: 'AT_LEAST',
+      },
+      originalText: 'fish twice a week',
+      sourceExcerpt: '',
+      isConflicting: false,
+      unsupportedReason: null,
+    };
+    vi.mocked(getActivePlan).mockResolvedValue({ ...plan, rules: [fishRule] });
+    const fish = lunch.options[2].items[0];
+    const today = dayRow(DATE, [
+      mealRow('m1', lunch.id, lunch.options[2].id, '13:00', [itemFrom(fish, 'm1')]),
+    ]);
+    const monday = {
+      ...dayRecordFactory.build({ id: 'day-2', localDate: '2026-09-14', timeZone: ZONE }),
+      meals: [
+        mealRow('m2', dinner.id, dinner.options[0].id, '20:00', [itemFrom(fish, 'm2')], 'day-2'),
+      ],
+      skippedSlots: [],
+    };
+    prismaMock.dayRecord.findUnique.mockResolvedValue(today as never);
+    prismaMock.dayRecord.findMany.mockResolvedValue([today, monday] as never);
+
+    const { view } = await getDayView(OWNER, DATE, NOW);
+    const { start, end } = weekBounds(DATE, 6);
+    expect(start).toBe('2026-09-12');
+    expect(end).toBe('2026-09-18');
+    expect(prismaMock.dayRecord.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: OWNER, localDate: { gte: start, lte: end } },
+      }),
+    );
+    const obs = view.rules.find((r) => r.ruleId === 'rule-fish');
+    expect(obs).toMatchObject({ status: 'PROGRESS', count: 2, required: 2, periodEnded: false });
+  });
+
+  it('skips the week query when no weekly rule is tracked', async () => {
+    vi.mocked(getActivePlan).mockResolvedValue(activePlan().plan);
+    prismaMock.dayRecord.findUnique.mockResolvedValue(null);
+    await getDayView(OWNER, DATE, NOW);
+    expect(prismaMock.dayRecord.findMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('getSevenDayView', () => {
+  it('summarises seven days from one range query and flags a plan confirmed inside the window', async () => {
+    const { plan, lunch } = activePlan({ confirmedAt: new Date('2026-09-13T10:00:00Z') });
+    vi.mocked(getActivePlan).mockResolvedValue(plan);
+    const opt = lunch.options[0];
+    const rows = ['2026-09-12', '2026-09-13', '2026-09-14'].map((date, i) => ({
+      ...dayRecordFactory.build({ id: `day-${i}`, localDate: date, timeZone: ZONE }),
+      meals: [
+        mealRow(
+          `m-${i}`,
+          lunch.id,
+          opt.id,
+          '13:00',
+          [itemFrom(opt.items[0], `m-${i}`)],
+          `day-${i}`,
+        ),
+      ],
+      skippedSlots: [],
+    }));
+    prismaMock.dayRecord.findMany.mockResolvedValue(rows as never);
+
+    const result = await getSevenDayView(OWNER, '2026-09-17', NOW);
+    expect(result.startDate).toBe('2026-09-11');
+    expect(prismaMock.dayRecord.findMany).toHaveBeenCalledTimes(1);
+    expect(prismaMock.dayRecord.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: OWNER, localDate: { gte: '2026-09-11', lte: '2026-09-17' } },
+      }),
+    );
+    expect(result.rows).toHaveLength(7);
+    expect(result.rows.map((r) => r.localDate)).toEqual([
+      '2026-09-11',
+      '2026-09-12',
+      '2026-09-13',
+      '2026-09-14',
+      '2026-09-15',
+      '2026-09-16',
+      '2026-09-17',
+    ]);
+    expect(result.rows[6].state).toBe('IN_PROGRESS');
+    expect(result.rows[0].state).toBe('NO_MEALS');
+    // Three checked days with unrecorded slots: complete by default, so not trend-eligible.
+    expect(result.rows[1].state).toBe('COMPLETE_BY_DEFAULT');
+    expect(result.summary).toMatchObject({ kind: 'NOT_ENOUGH', completeDays: 0 });
+    expect(result.planChangedInWindow).toBe(true);
+  });
+
+  it('does not flag a plan confirmed before the window', async () => {
+    vi.mocked(getActivePlan).mockResolvedValue(activePlan().plan);
+    const result = await getSevenDayView(OWNER, '2026-09-17', NOW);
+    expect(result.planChangedInWindow).toBe(false);
+    expect(result.weeklyRules).toEqual([]);
+  });
+});
+
+describe('getRuleProgress', () => {
+  it('returns nothing without tracked rules and current-period progress otherwise', async () => {
+    vi.mocked(getActivePlan).mockResolvedValue(activePlan().plan);
+    expect(await getRuleProgress(OWNER, NOW)).toEqual([]);
+
+    const { plan } = activePlan();
+    vi.mocked(getActivePlan).mockResolvedValue({
+      ...plan,
+      rules: [
+        {
+          id: 'rule-groups',
+          kind: 'DISTINCT_GROUPS',
+          tracking: 'TRACK',
+          period: 'WEEK',
+          definition: { groups: ['FRUIT', 'DAIRY'], minimum: 2 },
+          originalText: 'a different fruit each day',
+          sourceExcerpt: '',
+          isConflicting: false,
+          unsupportedReason: null,
+        },
+      ],
+    });
+    const progress = await getRuleProgress(OWNER, NOW);
+    expect(progress).toHaveLength(1);
+    expect(progress[0]).toMatchObject({
+      periodStart: '2026-09-12',
+      periodEnd: '2026-09-18',
+      observation: { status: 'PROGRESS', count: 0, required: 2 },
+    });
+  });
+});
