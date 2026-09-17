@@ -9,6 +9,10 @@ import { createOnboardedUser } from './helpers/onboard';
  * "meals affected" line, and Delete plan with the typed name empties the page.
  */
 
+// Imports run through the single in-process job runner; a SLOW scenario ahead in the queue
+// can hold a test for a while, so these specs get a long budget.
+test.describe.configure({ timeout: 180_000 });
+
 test.beforeEach(async ({ page }) => {
   await page.context().clearCookies();
 });
@@ -25,6 +29,9 @@ async function reviewToConfirm(page: Page) {
   });
   await page.getByRole('button', { name: t('plan.review.looksRight') }).click();
   await expect(page.getByRole('heading', { name: t('plan.review.rulesTitle') })).toBeVisible();
+  // No recorded meals are linked to these slots, so the "N meals affected" line is omitted.
+  await expect(page.getByText(t('plan.review.changeLater'))).toBeVisible();
+  await expect(page.getByTestId('affected-meals')).toHaveCount(0);
   await page.getByTestId('confirm-plan').click();
 }
 
@@ -44,7 +51,8 @@ test('targets-only plan confirms with no slot (onboarding)', async ({ page }) =>
   await page.getByRole('button', { name: t('plan.manual.review') }).click();
 
   await expect(page.getByRole('heading', { name: t('plan.review.targetsTitle') })).toBeVisible();
-  await expect(page.getByText(t('plan.review.noSlots')).or(page.getByText('1,800–2,000 kcal'))).toBeVisible();
+  await expect(page.getByText('1,800–2,000 kcal')).toBeVisible();
+  await expect(page.getByText(t('plan.target.explicit'))).toBeVisible();
   await page.getByRole('button', { name: t('plan.review.looksRight') }).click();
   await expect(page.getByRole('heading', { name: t('plan.review.rulesTitle') })).toBeVisible();
   await expect(page.getByText(t('plan.review.noRules'))).toBeVisible();
@@ -82,11 +90,16 @@ test('same-every-day manual plan: My plan, edit, delete', async ({ page }) => {
   await page.getByRole('button', { name: t('plan.manual.continue') }).click();
 
   // Items for each slot, one screen per slot.
-  for (const [name, label, qty] of [
-    ['نان سنگک', 'Sangak bread', '80'],
-    ['برنج', 'Rice', '۱۵۰'],
+  for (const [slotName, name, label, qty] of [
+    ['صبحانه', 'نان سنگک', 'Sangak bread', '80'],
+    ['Lunch', 'برنج', 'Rice', '۱۵۰'],
   ]) {
-    await expect(page.getByRole('heading', { name: /What's in/ })).toBeVisible();
+    // Wait for this slot's own screen: the previous one stays mounted while its save is in flight.
+    await expect(
+      page.getByRole('heading', {
+        name: t('plan.manual.itemsTitle', { slot: `\u2068${slotName}\u2069` }),
+      }),
+    ).toBeVisible();
     await page.getByLabel(t('plan.review.itemName')).fill(name);
     await page.getByLabel(t('plan.review.itemEnglish')).fill(label);
     await page.getByLabel(t('plan.review.quantity')).fill(qty);
@@ -111,10 +124,12 @@ test('same-every-day manual plan: My plan, edit, delete', async ({ page }) => {
   await page.waitForURL(/\/plan$/);
 
   await expect(page.getByText('Simple plan')).toBeVisible();
-  await expect(page.getByText(t('plan.page.source', { note: 'nutrition specialist' }))).toBeVisible();
+  await expect(
+    page.getByText(t('plan.page.source', { note: 'nutrition specialist' })),
+  ).toBeVisible();
   await expect(page.getByText('Sangak bread')).toBeVisible();
   await expect(page.getByText('Rice')).toBeVisible();
-  await expect(page.getByText('150 g').or(page.getByText('150'))).toBeVisible();
+  await expect(page.getByText(/^150( g)?$/)).toBeVisible();
 
   // Edit → review → confirm: no meals are linked, so the affected line is omitted.
   await page.getByTestId('plan-edit').click();
@@ -122,7 +137,6 @@ test('same-every-day manual plan: My plan, edit, delete', async ({ page }) => {
   await expect(page.getByRole('heading', { name: t('plan.review.mealsTitle') })).toBeVisible();
   await reviewToConfirm(page);
   await page.waitForURL(/\/plan$/);
-  await expect(page.getByTestId('affected-meals')).toHaveCount(0);
   await expect(page.getByText('Simple plan')).toBeVisible();
 
   // Delete plan: the typed confirmation must match the plan name.

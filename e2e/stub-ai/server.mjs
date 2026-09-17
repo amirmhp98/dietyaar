@@ -596,7 +596,10 @@ function respond(req, res, body) {
   };
   if (scenario === 'SLOW') {
     const timer = setTimeout(send, SLOW_MS);
-    req.on('close', () => clearTimeout(timer));
+    // `req` emits 'close' as soon as its body is consumed; only an aborted response cancels the wait.
+    res.on('close', () => {
+      if (!res.writableFinished) clearTimeout(timer);
+    });
   } else {
     send();
   }

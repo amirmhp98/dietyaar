@@ -52,3 +52,7 @@ yarn-error.log*
 
 # Beads / Dolt files (added by bd init)
 *.db
+
+# agent scratch
+.scratch/
+.playwright-mcp/

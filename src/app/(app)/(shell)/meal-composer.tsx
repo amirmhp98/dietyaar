@@ -30,6 +30,7 @@ import {
   prepareImage,
   uploadImage,
 } from '@/components/product/photo-input';
+import type { ActionResult } from '@/lib/action-result';
 import { formatDate, formatTime } from '@/lib/format';
 import type { MatchResult, RubricSlot } from '@/lib/rubric/types';
 import { t } from '@/lib/t';
@@ -167,6 +168,15 @@ function sanitizeItems(items: DraftFoodItem[]): DraftFoodItem[] {
       position,
       englishLabel: item.englishLabel.trim() || item.originalName.trim(),
     }));
+}
+
+/** A server action call that cannot reach the server (offline) becomes a failed result. */
+async function safely<T>(call: () => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
+  try {
+    return await call();
+  } catch {
+    return { ok: false, error: t('photo.errors.network'), code: 'NETWORK' };
+  }
 }
 
 function linkOf(comp: Composition): { planSlotId: string | null; planOptionId: string | null } {
@@ -341,21 +351,23 @@ export function MealComposerIsland({
     setSync('pending');
     let okResult = false;
     const flight = (async () => {
-      const result = await updateMealDraftAction({
-        draftId: current.draftId,
-        expectedRevision: current.revision,
-        edits: {
-          text: current.state?.text ?? null,
-          localDate: current.state?.localDate,
-          time: current.state?.time ?? null,
-          planSlotId: link.planSlotId,
-          planOptionId: link.planOptionId,
-          notes: current.state?.notes ?? null,
-          items: current.state ? sanitizeItems(current.state.items) : undefined,
-          questions: current.state?.questions,
-          uploadIds: current.state?.uploadIds,
-        },
-      });
+      const result = await safely(() =>
+        updateMealDraftAction({
+          draftId: current.draftId,
+          expectedRevision: current.revision,
+          edits: {
+            text: current.state?.text ?? null,
+            localDate: current.state?.localDate,
+            time: current.state?.time ?? null,
+            planSlotId: link.planSlotId,
+            planOptionId: link.planOptionId,
+            notes: current.state?.notes ?? null,
+            items: current.state ? sanitizeItems(current.state.items) : undefined,
+            questions: current.state?.questions,
+            uploadIds: current.state?.uploadIds,
+          },
+        }),
+      );
       if (result.ok) {
         okResult = true;
         if (editSeqRef.current === seq) {
@@ -440,19 +452,21 @@ export function MealComposerIsland({
       const link = linkOf(current);
       const uploadIds = current.photos.map((p) => p.uploadId);
       if (current.draftId) {
-        const result = await updateMealDraftAction({
-          draftId: current.draftId,
-          expectedRevision: current.revision,
-          edits: {
-            text: current.text.trim() ? current.text : null,
-            uploadIds,
-            localDate: current.localDate,
-            time: current.time,
-            planSlotId: link.planSlotId,
-            planOptionId: link.planOptionId,
-            notes: current.notes.trim() ? current.notes : null,
-          },
-        });
+        const result = await safely(() =>
+          updateMealDraftAction({
+            draftId: current.draftId,
+            expectedRevision: current.revision,
+            edits: {
+              text: current.text.trim() ? current.text : null,
+              uploadIds,
+              localDate: current.localDate,
+              time: current.time,
+              planSlotId: link.planSlotId,
+              planOptionId: link.planOptionId,
+              notes: current.notes.trim() ? current.notes : null,
+            },
+          }),
+        );
         if (!result.ok) {
           if (result.code === 'CONFLICT') setConflict(true);
           toast.error(result.error);
@@ -460,17 +474,19 @@ export function MealComposerIsland({
         }
         return result.data.draft;
       }
-      const created = await createMealDraftAction({
-        clientRequestId: current.clientRequestId,
-        kind,
-        text: current.text.trim() ? current.text : undefined,
-        uploadIds,
-        localDate: current.localDate,
-        time: current.time,
-        planSlotId: link.planSlotId,
-        planOptionId: link.planOptionId,
-        copiedFromMealId: extra.copiedFromMealId ?? null,
-      });
+      const created = await safely(() =>
+        createMealDraftAction({
+          clientRequestId: current.clientRequestId,
+          kind,
+          text: current.text.trim() ? current.text : undefined,
+          uploadIds,
+          localDate: current.localDate,
+          time: current.time,
+          planSlotId: link.planSlotId,
+          planOptionId: link.planOptionId,
+          copiedFromMealId: extra.copiedFromMealId ?? null,
+        }),
+      );
       if (!created.ok) {
         toast.error(created.error);
         return null;
@@ -481,11 +497,13 @@ export function MealComposerIsland({
       }
       let draft = created.data.draft;
       if (current.notes.trim()) {
-        const noted = await updateMealDraftAction({
-          draftId: draft.id,
-          expectedRevision: draft.revision,
-          edits: { notes: current.notes },
-        });
+        const noted = await safely(() =>
+          updateMealDraftAction({
+            draftId: draft.id,
+            expectedRevision: draft.revision,
+            edits: { notes: current.notes },
+          }),
+        );
         if (noted.ok) draft = noted.data.draft;
       }
       return draft;
@@ -512,10 +530,12 @@ export function MealComposerIsland({
     const slowTimer = setTimeout(() => {
       if (analysisRunRef.current === run) setAnalysis('slow');
     }, SLOW_MS);
-    const result = await analyzeMealDraftAction({
-      draftId: draft.id,
-      expectedRevision: draft.revision,
-    });
+    const result = await safely(() =>
+      analyzeMealDraftAction({
+        draftId: draft.id,
+        expectedRevision: draft.revision,
+      }),
+    );
     clearTimeout(slowTimer);
     setBusy(false);
     const latest = compRef.current;
@@ -692,11 +712,13 @@ export function MealComposerIsland({
       if (!conflict) setSaveError(t('meal.errors.saveFailed'));
       return;
     }
-    const result = await saveMealAction({
-      draftId: latest.draftId,
-      expectedRevision: latest.revision,
-      clientRequestId: latest.clientRequestId,
-    });
+    const result = await safely(() =>
+      saveMealAction({
+        draftId: latest.draftId,
+        expectedRevision: latest.revision,
+        clientRequestId: latest.clientRequestId,
+      }),
+    );
     setSaving(false);
     if (result.ok) {
       finishAlreadySaved(result.data.id);
@@ -716,7 +738,7 @@ export function MealComposerIsland({
   const reload = useCallback(async () => {
     const current = compRef.current;
     if (!current?.draftId) return;
-    const result = await getMealDraftAction(current.draftId);
+    const result = await safely(() => getMealDraftAction(current.draftId));
     if (!result.ok) {
       toast.error(result.error);
       return;
@@ -765,7 +787,7 @@ export function MealComposerIsland({
         void loadRecent();
 
         if (request.draftId) {
-          const result = await getMealDraftAction(request.draftId);
+          const result = await safely(() => getMealDraftAction(request.draftId));
           if (result.ok) {
             replaceComp({
               ...newComposition(result.data.state.localDate, result.data.state.time),
@@ -789,11 +811,13 @@ export function MealComposerIsland({
           replaceComp(fresh);
           void loadDay(fresh.localDate);
           setBusy(true);
-          const result = await reuseMealAction({
-            mealId: request.reuseMealId,
-            clientRequestId: fresh.clientRequestId,
-            localDate: fresh.localDate,
-          });
+          const result = await safely(() =>
+            reuseMealAction({
+              mealId: request.reuseMealId,
+              clientRequestId: fresh.clientRequestId,
+              localDate: fresh.localDate,
+            }),
+          );
           setBusy(false);
           if (!result.ok) {
             toast.error(result.error);
@@ -825,7 +849,7 @@ export function MealComposerIsland({
             replaceComp(restored);
             void loadDay(restored.localDate);
             if (restored.draftId) {
-              const result = await getMealDraftAction(restored.draftId);
+              const result = await safely(() => getMealDraftAction(restored.draftId));
               if (result.ok && result.data.revision > restored.revision) {
                 // Another device (or a finished analysis) moved on: take the server's version.
                 adoptDraft(

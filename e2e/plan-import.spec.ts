@@ -23,6 +23,10 @@ async function startImport(page: Page, text: string) {
   await expect(page.getByRole('heading', { name: t('plan.preparing.title') })).toBeVisible();
 }
 
+// Imports run through the single in-process job runner; a SLOW scenario ahead in the queue
+// can hold a test for a while, so these specs get a long budget.
+test.describe.configure({ timeout: 180_000 });
+
 test.beforeEach(async ({ page }) => {
   await page.context().clearCookies();
 });
@@ -35,14 +39,18 @@ test('J1: paste a Persian plan, review 8a–8c, confirm, ready, today', async ({
   await expect(page.getByRole('heading', { name: t('plan.review.mealsTitle') })).toBeVisible({
     timeout: 60_000,
   });
-  await expect(page.getByText(t('plan.review.slotProgress', { current: 1, total: 5 }))).toBeVisible();
+  await expect(
+    page.getByText(t('plan.review.slotProgress', { current: 1, total: 5 })),
+  ).toBeVisible();
   await expect(page.getByText(t('plan.sourceExcerpt'))).toBeVisible();
   await expect(page.getByText(t('plan.assumed')).first()).toBeVisible();
   // The stub asks one calorie-significant question on the first slot.
   await expect(page.getByText(t('plan.review.question'))).toBeVisible();
 
   for (let i = 1; i <= 5; i += 1) {
-    await expect(page.getByText(t('plan.review.slotProgress', { current: i, total: 5 }))).toBeVisible();
+    await expect(
+      page.getByText(t('plan.review.slotProgress', { current: i, total: 5 })),
+    ).toBeVisible();
     await page.getByRole('button', { name: t('plan.review.looksRight') }).click();
   }
 
