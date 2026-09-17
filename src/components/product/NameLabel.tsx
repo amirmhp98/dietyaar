@@ -41,7 +41,7 @@ export function NameLabel({
         className,
       )}
     >
-      <bdi className={cn('font-medium', sizes)}>{original}</bdi>
+      <bdi className={cn('font-medium [text-align:match-parent]', sizes)}>{original}</bdi>
       <span
         className={cn('text-muted-foreground', size === 'lg' ? 'text-sm' : 'text-xs')}
         dir="ltr"

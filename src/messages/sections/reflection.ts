@@ -56,4 +56,10 @@ export const reflection = {
     "There's still most of the day ahead; one meal at a time is enough.",
   'reflection.fallback.close.evening':
     "There's still time to log the rest of today; one meal at a time is enough.",
+
+  // ── Card island (task 8.2) ─────────────────────────────────
+  'reflection.updating': 'Updating…',
+  'reflection.updated': 'Reflection updated',
+  'reflection.stillPreparingBody':
+    "This is taking longer than usual. Your log and today's comparison keep working as usual.",
 } as const;

@@ -78,9 +78,6 @@ const schema = z
     USDA_LOOKUP_ENABLED: booleanString('false'),
     USDA_API_KEY: optionalString,
     SCHEDULER_ENABLED: booleanString('true'),
-
-    // ── Observability ───────────────────────────────────────────────────
-    SENTRY_DSN: optionalString,
   })
   .superRefine((value, ctx) => {
     const s3 = [

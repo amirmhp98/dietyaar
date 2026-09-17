@@ -470,7 +470,7 @@ describe('markStaleIfNeeded (TS-§21.13)', () => {
       }),
     );
 
-    await markStaleIfNeeded(OWNER, YESTERDAY);
+    await markStaleIfNeeded(OWNER, YESTERDAY, NOW);
 
     expect(prismaMock.morningMessage.findMany).toHaveBeenCalledWith({
       where: { userId: OWNER, localDate: { in: [TODAY] }, status: 'READY', stale: false },
@@ -483,20 +483,20 @@ describe('markStaleIfNeeded (TS-§21.13)', () => {
 
   it('a note edit (same facts) does not mark it stale', async () => {
     readyWith(facts(yesterdayView()), [lunchFact, 'coverage']);
-    await markStaleIfNeeded(OWNER, YESTERDAY);
+    await markStaleIfNeeded(OWNER, YESTERDAY, NOW);
     expect(prismaMock.morningMessage.updateMany).not.toHaveBeenCalled();
   });
 
   it('a change to a fact the paragraph did not use does not mark it stale', async () => {
     readyWith(facts(yesterdayView()), [lunchFact]);
     mockViews(yesterdayView({ skippedSlotIds: [] }));
-    await markStaleIfNeeded(OWNER, YESTERDAY);
+    await markStaleIfNeeded(OWNER, YESTERDAY, NOW);
     expect(prismaMock.morningMessage.updateMany).not.toHaveBeenCalled();
   });
 
   it('checks the next day’s message and today’s for an older date', async () => {
     prismaMock.morningMessage.findMany.mockResolvedValue([]);
-    await markStaleIfNeeded(OWNER, '2026-09-10');
+    await markStaleIfNeeded(OWNER, '2026-09-10', NOW);
     expect(prismaMock.morningMessage.findMany).toHaveBeenCalledWith({
       where: {
         userId: OWNER,

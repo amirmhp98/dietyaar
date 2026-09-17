@@ -26,9 +26,10 @@ import { removeUpload } from '@/services/upload.service';
  * operational metadata only: never food names, text or values.
  */
 
-function revalidateMealPages(mealId?: string): void {
+function revalidateMealPages(mealId?: string, localDate?: string): void {
   revalidatePath('/today');
   revalidatePath('/history');
+  if (localDate) revalidatePath(`/history/${localDate}`);
   if (mealId) revalidatePath(`/meals/${mealId}`);
 }
 
@@ -124,7 +125,7 @@ export async function saveMealAction(input: unknown): Promise<ActionResult<meals
       { kind: meal.inputKind, linked: meal.planSlotId !== null, items: meal.items.length },
       user.id,
     );
-    revalidateMealPages(meal.id);
+    revalidateMealPages(meal.id, meal.localDate);
     return ok(meal);
   } catch (error) {
     const code = codeOf(error);
@@ -149,7 +150,7 @@ export async function updateMealAction(input: unknown): Promise<ActionResult<mea
       parsed.data.edits,
       new Date(),
     );
-    revalidateMealPages(meal.id);
+    revalidateMealPages(meal.id, meal.localDate);
     return ok(meal);
   } catch (error) {
     if (codeOf(error) === 'CONFLICT') {
@@ -185,7 +186,7 @@ export async function setMealLinkAction(input: unknown): Promise<ActionResult<me
       parsed.data.planSlotId,
       parsed.data.planOptionId,
     );
-    revalidateMealPages(meal.id);
+    revalidateMealPages(meal.id, meal.localDate);
     return ok(meal);
   } catch (error) {
     return fromError(error);

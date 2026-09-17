@@ -411,9 +411,12 @@ function trackedFactIds(usedFactIds: string[]): string[] {
  * today's (its "today" facts). Stale only when a used fact changed
  * (§ 21.13); never throws.
  */
-export async function markStaleIfNeeded(ownerId: string, affectedDate: string): Promise<void> {
+export async function markStaleIfNeeded(
+  ownerId: string,
+  affectedDate: string,
+  now = new Date(),
+): Promise<void> {
   try {
-    const now = new Date();
     const owner = await loadOwner(ownerId);
     const today = localDateFor(now, owner.profile.timeZone);
     const candidates = [...new Set([addDays(affectedDate, 1), today])];

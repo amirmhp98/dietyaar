@@ -1,24 +1,28 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense } from 'react';
 import { LogMealButton } from '@/components/layout/LogMealButton';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/UiComponents';
-import { t } from '@/lib/t';
+import { openComposer } from '@/components/product/composer-bus';
+import { MealComposerIsland } from './meal-composer';
 
-/** Mounts the Log meal button and the composer sheet (filled in phase 6). */
-/** STUB composer: the meal agent replaces this with the real MealComposer island. */
-export function ShellActions(_props: { timeZone: string; photoEnabled: boolean }) {
-  const [open, setOpen] = useState(false);
+/**
+ * Mounts the persistent Log meal button and the composer island. The button
+ * and every other page open the composer through the composer bus; the
+ * island also opens on `?compose=1[&slot=<id>&option=<id>&date=YYYY-MM-DD]`.
+ */
+export function ShellActions({
+  timeZone,
+  photoEnabled,
+}: {
+  timeZone: string;
+  photoEnabled: boolean;
+}) {
   return (
     <>
-      <LogMealButton onClick={() => setOpen(true)} />
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="bottom" className="rounded-t-xl">
-          <SheetHeader>
-            <SheetTitle>{t('meal.compose.title')}</SheetTitle>
-          </SheetHeader>
-        </SheetContent>
-      </Sheet>
+      <LogMealButton onClick={() => openComposer()} />
+      <Suspense fallback={null}>
+        <MealComposerIsland timeZone={timeZone} photoEnabled={photoEnabled} />
+      </Suspense>
     </>
   );
 }
