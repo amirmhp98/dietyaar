@@ -2,8 +2,10 @@
 
 **Decision.** `Plan` has `userId` unique. The active plan is its slot, option, item, target, rule
 and note rows. A pending import, a manual setup or an edit lives entirely in `Plan.draftJson`
-until the user confirms; confirming applies the draft to the rows in one transaction, matching
-slots by `(weekday, position)` and options and items by position so ids and meal links survive.
+until the user confirms; confirming applies the draft to the rows in one transaction. An edit
+draft carries the existing row ids, so slots, options and items are updated in place, rows without
+an id are inserted and missing ones deleted; position is display order only, and meal links
+survive exactly (amended 2026-09-17).
 There is no version history, no per-day plan assignment, no effective dates and no re-activation.
 
 **Why.** Owner decision of September 16, 2026, superseding product spec v1.6. Plan versions

@@ -1,6 +1,6 @@
 # Dietyaar — Product Reference
 
-**Last updated:** 2026-09-16
+**Last updated:** 2026-09-17
 
 > The short reference of what the product is and what exists in the code today. Agents read it
 > before making product decisions and update it when a change is product-visible (new module,
@@ -121,9 +121,23 @@ where the row is versioned.
 - Quality gate: lint + typecheck + unit + build + e2e + Docker build in CI on every push. _(boilerplate)_ Integration project against real Postgres and a mobile Playwright project are planned (tech spec § 15).
 - AI: DeepSeek through a fetch-based adapter with one deadline per operation, zod-validated responses, per-user daily caps and a global token budget (tech spec § 10).
 
+## Defaults awaiting owner review
+
+Chosen at planning time (2026-09-17, `docs/implementation-plan.md` § 3) so development is not
+blocked; binding until the owner revises them.
+
+- Rubric v1 weights and thresholds and the three-block Today layout exactly as product-spec § 8–9.
+- Visual language: design.md tokens on the local shadcn kit, 44 px touch targets (decision 019).
+- Photo logging is built but ships with `PHOTO_LOGGING_ENABLED=false` until the evaluation passes.
+- Supabase region `eu-central-1`; domain `dietyaar.darkube.app`; session lifetime 90 days.
+- No numeric accuracy claim anywhere; nutrition values are labelled "Estimated".
+- `User.fullName` is optional (sign-up has no name field); greeting uses display name, then username.
+- Photo capacity: 1280 px uploads; on the free storage tier the photo flag is for a pilot of at most ~30 users; the target workload needs the storage upgrade.
+- Backups: encrypted dumps kept 30 days by age; a purged account's photo copies are deleted from the backup bucket.
+
 ## Roadmap
 
-Ordered by dependency; each step maps to spec sections and becomes one or more beads issues.
+Ordered by dependency; the task-level plan with files, tests and beads titles is `docs/implementation-plan.md` § 5.
 
 1. **Setup checklist** (tech spec § 13) — Supabase project, buckets, Darkube app, and the cross-border reachability and latency measurements, recorded in `docs/runbook.md`. Blocks everything that touches data from the cluster.
 2. **Foundations** — schema and migrations for § 5; `lib/time`, `lib/rubric`, `lib/text` with fixtures (§ 6, § 15); env additions (§ 14); added layering lint rules (§ 4).

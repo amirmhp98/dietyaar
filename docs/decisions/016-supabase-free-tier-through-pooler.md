@@ -18,3 +18,8 @@ Every request crosses the Iran–EU border; the setup checklist measures the rou
 `tech-spec.md` § 17 budgets queries per page. There are no provider backups (decision 018). If
 Supabase is unreachable from the cluster, appendix A of the tech spec switches to a Darkube
 PostgreSQL app with no code change. See `tech-spec.md` § 13.
+
+**Amended 2026-09-17.** Every `DateTime` column, including the boilerplate's `users` and
+`sessions`, is `timestamptz(3)`; migration `0002` performs that type change deliberately (the
+CI migration-safety check allows it with this note). The container runs `TZ=UTC` and local
+migrations run with `PGTZ=UTC` so the conversion is exact.

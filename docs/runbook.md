@@ -20,13 +20,15 @@ cluster before step 2 is recorded (tech spec § 1, constraints).
 
 ### Measured values
 
-| Value                                   | Result | Where it is used                                            |
-| --------------------------------------- | ------ | ----------------------------------------------------------- |
-| Cross-border round trip `R` (p50 / p95) |        | § 17 query budgets; review gate if `R` > 150 ms             |
-| Ingress request timeout                 |        | § 20: if below 45 s, meal analysis moves to the job pattern |
-| Ingress body limit                      |        | § 11                                                        |
-| DeepSeek field that disables thinking   |        | `services/ai/deepseek.ts`                                   |
-| Supabase Postgres major version         |        | `Dockerfile` (`postgresql-client` version)                  |
+Development does not wait for these: the default in the last column applies until the step is done.
+
+| Value                                   | Result | Where it is used                                            | Default until measured                                  |
+| --------------------------------------- | ------ | ----------------------------------------------------------- | ------------------------------------------------------- |
+| Cross-border round trip `R` (p50 / p95) |        | § 17 query budgets; review gate if `R` > 150 ms             | assume 150 ms; budgets as written                       |
+| Ingress request timeout                 |        | § 20: if below 45 s, meal analysis moves to the job pattern | assume ≥ 60 s; meal analysis stays a server action      |
+| Ingress body limit                      |        | § 11                                                        | assume ≥ 10 MB; device downscaling keeps uploads < 1 MB |
+| DeepSeek field that disables thinking   |        | `services/ai/deepseek.ts`                                   | `thinking: { type: 'disabled' }`                        |
+| Supabase Postgres major version         |        | `Dockerfile` (`postgresql-client` version)                  | 17                                                      |
 
 ## Environments
 

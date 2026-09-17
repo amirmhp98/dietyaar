@@ -1,10 +1,10 @@
 # 018 — Backups go to Hamravesh Object Storage, including photos
 
-**Decision.** A daily scheduler task runs `pg_dump --format=custom` against `directUrl`, gzips it
-and uploads it to a private Hamravesh Object Storage bucket as `db/{date}.dump.gz`, then copies
-every `ATTACHED` photo object not yet present to `photos/{key}`. The newest
-`BACKUP_RETENTION_COUNT` dumps (default 14) are kept; photos are kept until the account is
-deleted. Backups never live in the Supabase bucket. The same S3 adapter serves both targets.
+**Decision.** A daily scheduler task runs `pg_dump --format=custom` against `directUrl`, gzips and encrypts it (`openssl enc -aes-256-cbc -pbkdf2`, key in `BACKUP_ENCRYPTION_KEY`)
+and uploads it to a private Hamravesh Object Storage bucket as `db/{date}.dump.gz.enc`, after
+copying every `ATTACHED` photo object not yet present to `photos/{key}`. Dumps older than
+`BACKUP_RETENTION_DAYS` (default 30) are deleted, the newest always kept; photo copies are deleted
+when the account is purged (amended 2026-09-17). Backups never live in the Supabase bucket. The same S3 adapter serves both targets.
 
 **Why.** The Supabase free tier has no provider backups and pauses idle projects. Keeping the copy
 in Iran on a second provider means a lost or restricted Supabase account does not lose user data,

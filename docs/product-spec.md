@@ -1,7 +1,7 @@
 # Product specification — Diet adherence companion
 
-Version: 1.7 — owner decisions of September 16, 2026: no password recovery; one plan per user edited in place, no versions; cross-midnight meals follow the chosen date; corrected rubric examples  
-Date: September 16, 2026  
+Version: 1.7.1 — September 17, 2026: removed three leftover sentences about a password-reset email and one “plan-ended” state that v1.7 had already retired (implementation-plan.md § 3.1 C1, C2)  
+Date: September 17, 2026  
 Product language: English UI and English system copy; plan and meal input accepted in any language  
 Platform: mobile-first responsive web application
 
@@ -557,7 +557,7 @@ Never praise unusually low intake, use “good/bad food,” call eating “cheat
 
 On the first authenticated visit of each local calendar day, request that day's paragraph from the server and display it on Today. If a user opens a deep link to another task, preserve that destination and make the paragraph available on Today without an interrupting modal. The dashboard and meal logging remain usable while generation runs.
 
-There is no scheduled morning worker, push permission, reflection or reminder email, delivery-time setting, or external notification in V1; the only email the product sends is the transactional password-reset message. “Morning message” names the daily reflection; if the first visit happens in the afternoon or evening, use a time-appropriate greeting and refer to the remaining day. Do not instruct the user to begin with breakfast after it has passed. If no visit occurs, no paragraph needs to be generated for that day; do not create a backlog on return.
+There is no scheduled morning worker, push permission, reflection or reminder email, delivery-time setting, or external notification in V1; the product sends no email of any kind. “Morning message” names the daily reflection; if the first visit happens in the afternoon or evening, use a time-appropriate greeting and refer to the remaining day. Do not instruct the user to begin with breakfast after it has passed. If no visit occurs, no paragraph needs to be generated for that day; do not create a backlog on return.
 
 Use a user-confirmed IANA time zone and the local date, not the device's UTC date. Keep one canonical message per user/local date, with an input revision and generation timestamp. Reopening Today, refreshing, multiple tabs/devices, or retrying must return the same message rather than create duplicates. At local midnight, the next visit or foreground refresh requests the new date's message; it never interrupts a meal form.
 
@@ -704,7 +704,7 @@ Health profile, diet, meal descriptions, and photos are private user data. Befor
 
 Minimize payloads, strip unnecessary photo metadata, use private object storage and expiring access, encrypt transport, and keep secrets server-side. Do not send the username or complete profile history with a food-identification request.
 
-Passwords are stored only as salted hashes with a modern algorithm, sign-in attempts are rate limited, and a password change invalidates other sessions. The product is for adults; onboarding stops below 18 and stores no health data for that account. The recovery email, when supplied, is used only for password reset.
+Passwords are stored only as salted hashes with a modern algorithm, sign-in attempts are rate limited, and a password change invalidates other sessions. The product is for adults; onboarding stops below 18 and stores no health data for that account. No email address is collected; there is no recovery channel in this release.
 
 Proposed retention: discard abandoned uploads after 24 hours; retain confirmed sources/photos until the user deletes them or the account. Permit photo removal without deleting the confirmed food record. Clean up temporary image conversions and provider-uploaded files where the integration supports it. Document any provider retention outside the application's control in the privacy notice before launch.
 
@@ -760,13 +760,13 @@ Use content-free analytics events such as `plan_confirmed`, `meal_save_succeeded
 - [ ] Option matching (Matched, Partly matched, Different food, cross-slot, added calorie-significant item) behaves as section 8 defines, with fixtures from both reference plans; a meal under a plan slot is always evaluated and a meal under Other never is.
 - [ ] A planned meal with options cannot be saved without a chosen option, and the last-used option is only marked as a suggestion.
 - [ ] The AI-processing notice appears once before each first request kind (plan, meal text, meal photo), each with a manual alternative.
-- [ ] Today shows the import-pending, import-ready, import-failed, plan-ended, and time-zone-changed states as specified, and a restriction reminder appears in meal review when an item matches.
+- [ ] Today shows the import-pending, import-ready, import-failed, and time-zone-changed states as specified, and a restriction reminder appears in meal review when an item matches.
 - [ ] Persian and Arabic input renders correctly beside English labels across plan, review, Today, History, and the morning paragraph.
 - [ ] Today stays focused, with a persistent logging action and optional detail disclosure.
 - [ ] History explains incomplete-day denominators and plan changes.
 - [ ] Morning messages pass complete/partial/empty/first-day/no-plan tests and contain only supported facts.
 - [ ] First-visit generation, local dates, concurrent requests, fallback timing, and stale reflections work.
-- [ ] The first release contains no push notifications and no email other than the transactional password-reset message.
+- [ ] The first release contains no push notifications and no email of any kind.
 - [ ] Shared components, dark/light/system appearance, keyboard support, touch targets, and reduced motion are verified.
 - [ ] Server authorization prevents cross-account access to records and uploaded files.
 - [ ] AI processing disclosure, export, deletion, upload cleanup, and retention behavior match the implemented services.

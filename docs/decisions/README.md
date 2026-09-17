@@ -23,3 +23,4 @@ them. 001–007 come from the boilerplate; 008 onwards are Dietyaar's (see `tech
 | [016](016-supabase-free-tier-through-pooler.md)   | Supabase free tier through the pooler; photos proxied by the app  |
 | [017](017-one-plan-edited-in-place.md)            | One plan per user, edited in place through a draft; no versions   |
 | [018](018-backups-to-hamravesh-object-storage.md) | Backups go to Hamravesh Object Storage, including photos          |
+| [019](019-design-tokens-from-design-md.md)        | Visual language: design.md tokens on the local shadcn kit         |

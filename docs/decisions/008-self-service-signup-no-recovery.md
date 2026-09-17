@@ -14,3 +14,7 @@ product value for the pilot. Saying so on the sign-up form and in Settings is ho
 rate-limited per IP (10 per hour, tunable). The Users module keeps `ADMIN` for the operator and
 never shows health data. Adding recovery later means adding a contact channel first; the account
 model does not need to change for that. See `tech-spec.md` § 8.
+
+**Amended 2026-09-17.** Sign-up collects no name, so `User.fullName` becomes nullable; the
+greeting reads `Profile.displayName`, then the username. The admin Users module shows
+`fullName ?? username`. Admin and seed accounts are created with `onboardingStep = DONE`.
