@@ -9,7 +9,7 @@ import { SESSION_COOKIE } from '@/lib/session-cookie';
  * /login and / (the redirect loop the previous version had).
  */
 
-const PUBLIC_ROUTES = ['/login'];
+const PUBLIC_ROUTES = ['/login', '/signup'];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
