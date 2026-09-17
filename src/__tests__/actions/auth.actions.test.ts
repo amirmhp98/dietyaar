@@ -42,7 +42,14 @@ describe('loginAction', () => {
   it('sets an http-only session cookie and redirects home on success', async () => {
     const expiresAt = new Date(Date.now() + 1000);
     vi.mocked(authenticate).mockResolvedValue({
-      user: { id: 'u', username: 'admin', fullName: 'A', role: 'ADMIN', isActive: true },
+      user: {
+        id: 'u',
+        username: 'admin',
+        fullName: 'A',
+        role: 'ADMIN',
+        isActive: true,
+        onboardingStep: 'DONE',
+      },
       token: 'raw-token',
       expiresAt,
     });

@@ -8,12 +8,27 @@ vi.mock('server-only', () => ({}));
 vi.mock('@/lib/env', () => ({
   env: {
     NODE_ENV: 'test',
+    APP_URL: 'http://localhost:3000',
     DATABASE_URL: 'postgresql://test:test@localhost:5432/test',
-    SESSION_MAX_AGE_DAYS: 7,
+    DIRECT_DATABASE_URL: 'postgresql://test:test@localhost:5432/test',
+    SESSION_MAX_AGE_DAYS: 90,
     SKIP_AUTH: false,
     LOG_LEVEL: 'silent',
     PRISMA_LOG_QUERIES: false,
+    S3_KEY_PREFIX: '',
+    STORAGE_SOFT_LIMIT_BYTES: 734_003_200,
+    BACKUP_ENABLED: false,
+    BACKUP_RETENTION_DAYS: 30,
+    DEEPSEEK_API_KEY: 'test-key',
+    DEEPSEEK_API_BASE_URL: 'http://ai.test',
+    AI_MODEL_TEXT: 'deepseek-flash',
+    AI_MODEL_VISION: 'deepseek-flash',
+    AI_DAILY_TOKEN_BUDGET: 5_000_000,
+    PHOTO_LOGGING_ENABLED: false,
+    USDA_LOOKUP_ENABLED: false,
+    SCHEDULER_ENABLED: false,
   },
+  storageConfigured: false,
 }));
 
 vi.mock('next/navigation', () => ({

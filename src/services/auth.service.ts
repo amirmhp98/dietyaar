@@ -23,7 +23,13 @@ export const AUTH_USER_SELECT = {
   fullName: true,
   role: true,
   isActive: true,
+  onboardingStep: true,
 } as const;
+
+/** The one normalisation rule for case-insensitive usernames (sign-up, login, throttle, admin create, seed). */
+export function normalizeUsername(username: string): string {
+  return username.trim().toLowerCase();
+}
 
 /**
  * Compared against when the username does not exist, so an unknown user costs
@@ -96,17 +102,35 @@ export async function authenticate(
   username: string,
   password: string,
 ): Promise<AuthenticateResult | null> {
-  assertLoginAllowed(username);
+  const usernameLower = normalizeUsername(username);
+  assertLoginAllowed(usernameLower);
 
-  const user = await prisma.user.findUnique({ where: { username } });
+  const user = await prisma.user.findUnique({ where: { usernameLower } });
   const passwordHash = user?.passwordHash ?? (await dummyHash);
   const valid = await bcrypt.compare(password, passwordHash);
   if (!user || !valid || !user.isActive) {
-    recordLoginFailure(username);
+    recordLoginFailure(usernameLower);
     return null;
   }
-  clearLoginFailures(username);
+  clearLoginFailures(usernameLower);
 
+  return openSession(toAuthUser(user));
+}
+
+export function toAuthUser(user: {
+  id: string;
+  username: string;
+  fullName: string | null;
+  role: AuthUser['role'];
+  isActive: boolean;
+  onboardingStep: AuthUser['onboardingStep'];
+}): AuthUser {
+  const { id, username, fullName, role, isActive, onboardingStep } = user;
+  return { id, username, fullName, role, isActive, onboardingStep };
+}
+
+/** Create a session row for an already-verified user (login and sign-up share this). */
+export async function openSession(user: AuthUser): Promise<AuthenticateResult> {
   const token = randomBytes(32).toString('hex');
   const now = new Date();
   const expiresAt = new Date(now.getTime() + env.SESSION_MAX_AGE_DAYS * DAY_MS);
@@ -119,8 +143,7 @@ export async function authenticate(
     prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: now } }),
   ]);
 
-  const { id, fullName, role, isActive } = user;
-  return { user: { id, username: user.username, fullName, role, isActive }, token, expiresAt };
+  return { user, token, expiresAt };
 }
 
 /** Resolve a raw cookie token to its user, or null if missing, expired or deactivated. */
@@ -140,4 +163,11 @@ export async function revokeSession(rawToken: string): Promise<void> {
 /** Log a user out everywhere (deactivation, password reset). */
 export async function revokeAllSessions(userId: string): Promise<void> {
   await prisma.session.deleteMany({ where: { userId } });
+}
+
+/** Password change: every other device signs out, the current one stays. */
+export async function revokeOtherSessions(userId: string, keepRawToken: string): Promise<void> {
+  await prisma.session.deleteMany({
+    where: { userId, tokenHash: { not: hashSessionToken(keepRawToken) } },
+  });
 }

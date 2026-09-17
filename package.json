@@ -14,9 +14,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint:all": "npm run lint && npm run typecheck && npm run format:check",
-    "test": "vitest run",
+    "test": "vitest run --project unit",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "vitest run --project unit --coverage",
     "test:e2e": "playwright test --config=e2e/playwright.config.ts",
     "db:up": "docker compose up -d db",
     "db:generate": "prisma generate",
@@ -27,9 +27,11 @@
     "new:module": "node scripts/new-module.mjs",
     "deps:update": "npx npm-check-updates -u --target minor && npm install",
     "deps:update:major": "npx npm-check-updates -i",
-    "reinstall": "rm -rf node_modules package-lock.json && npm install"
+    "reinstall": "rm -rf node_modules package-lock.json && npm install",
+    "test:integration": "node scripts/test-integration.mjs"
   },
   "dependencies": {
+    "@date-fns/tz": "^1.5.0",
     "@hookform/resolvers": "^5.2.2",
     "@prisma/client": "^6.19.3",
     "@radix-ui/react-avatar": "^1.2.6",

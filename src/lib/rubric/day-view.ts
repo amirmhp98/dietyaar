@@ -1,0 +1,207 @@
+import { RUBRIC_VERSION } from '@/lib/rubric/constants';
+import { energyResult } from '@/lib/rubric/energy';
+import { matchSlot } from '@/lib/rubric/match-slot';
+import {
+  compareTarget,
+  dailyTargetFor,
+  nutritionComponent,
+  nutritionSubtotals,
+} from '@/lib/rubric/nutrition';
+import { portionResult } from '@/lib/rubric/portion';
+import { ruleObservation, type RuleDay } from '@/lib/rubric/rules';
+import { scoreDay, scoreSlot } from '@/lib/rubric/score';
+import { orderResult, timeResult, type OrderEntry } from '@/lib/rubric/timing';
+import type {
+  Coverage,
+  DayInput,
+  DayView,
+  RubricMeal,
+  RubricSlot,
+  SlotState,
+  SlotView,
+} from '@/lib/rubric/types';
+import { minutesBetween } from '@/lib/time/bands';
+import { weekdayOf } from '@/lib/time/local-date';
+
+function earliestTime(meals: RubricMeal[]): string | null {
+  const times = meals.map((m) => m.consumedLocalTime).filter((t): t is string => t !== null);
+  if (times.length === 0) return null;
+  return times.reduce((a, b) => (minutesBetween(a, b) > 0 ? a : b));
+}
+
+function timingWindowFor(
+  slot: RubricSlot,
+  input: DayInput,
+): { start: string; end: string | null } | null {
+  // A tracked TIMING_WINDOW rule for this slot overrides the slot's own times.
+  for (const rule of input.rules) {
+    if (rule.kind !== 'TIMING_WINDOW' || rule.tracking !== 'TRACK') continue;
+    const def = (rule.definition ?? {}) as Record<string, unknown>;
+    if (def.slotId === slot.id && typeof def.start === 'string') {
+      return { start: def.start, end: typeof def.end === 'string' ? def.end : null };
+    }
+  }
+  if (slot.timeStart) return { start: slot.timeStart, end: slot.timeEnd };
+  return null;
+}
+
+/**
+ * Tech spec § 6 "Calculation order for one day". Pure and deterministic:
+ * identical input → identical view.
+ */
+export function computeDayView(input: DayInput): DayView {
+  const { slots, meals, skippedSlotIds, dayPhase, logComplete } = input;
+  const skipped = new Set(skippedSlotIds);
+  const bySlot = new Map<string, RubricMeal[]>();
+  const otherMealIds: string[] = [];
+  for (const meal of meals) {
+    if (meal.planSlotId === null || !slots.some((s) => s.id === meal.planSlotId)) {
+      otherMealIds.push(meal.id);
+      continue;
+    }
+    const list = bySlot.get(meal.planSlotId) ?? [];
+    list.push(meal);
+    bySlot.set(meal.planSlotId, list);
+  }
+
+  // Steps 3–4: slot states.
+  const views: SlotView[] = slots.map((slot) => {
+    const linked = (bySlot.get(slot.id) ?? []).slice().sort((a, b) => {
+      if (a.consumedLocalTime === null) return 1;
+      if (b.consumedLocalTime === null) return -1;
+      return minutesBetween(b.consumedLocalTime, a.consumedLocalTime);
+    });
+    let state: SlotState = 'NOT_RECORDED';
+    let option: SlotView['option'] = null;
+    const conflictingOptionIds: string[] = [];
+    if (linked.length > 0) {
+      state = 'RECORDED';
+      const optionIds = new Set(linked.map((m) => m.planOptionId));
+      if (slot.options.length <= 1) {
+        option = slot.options[0] ?? null;
+      } else if (optionIds.size === 1 && !optionIds.has(null)) {
+        option = slot.options.find((o) => o.id === linked[0].planOptionId) ?? null;
+        if (!option) state = 'NEEDS_REVIEW';
+      } else {
+        state = 'NEEDS_REVIEW';
+        for (const id of optionIds) if (id) conflictingOptionIds.push(id);
+      }
+    } else if (skipped.has(slot.id)) {
+      state = 'SKIPPED';
+    }
+    const energyTarget =
+      input.targets.find((t) => t.planSlotId === slot.id && t.nutrient === 'ENERGY_KCAL') ?? null;
+    return {
+      slot,
+      state,
+      mealIds: linked.map((m) => m.id),
+      option,
+      conflictingOptionIds,
+      earliestTime: earliestTime(linked),
+      match: null,
+      portion: null,
+      timing: null,
+      slotEnergy: null,
+      recordedEnergyKcal: null,
+      score: null,
+      energyTarget,
+    };
+  });
+
+  // Step 5: comparisons per resolved slot.
+  const orderEntries: OrderEntry[] = views
+    .filter((v) => v.state === 'RECORDED' && v.option)
+    .map((v) => ({ slot: v.slot, time: v.earliestTime }));
+
+  for (const view of views) {
+    if (view.state !== 'RECORDED' || !view.option) continue;
+    const linked = view.mealIds.map((id) => meals.find((m) => m.id === id)!);
+    const items = linked.flatMap((m) => m.items);
+    view.match = matchSlot(items, view.option, view.slot, input.allSlots);
+    view.portion = portionResult(view.match);
+    const window = timingWindowFor(view.slot, input);
+    view.timing = window
+      ? timeResult(view.earliestTime, window)
+      : orderResult(view.slot, orderEntries);
+    const energy = nutritionSubtotals(items).find((s) => s.nutrient === 'ENERGY_KCAL');
+    view.recordedEnergyKcal = energy?.value ?? null;
+    if (view.energyTarget && energy && energy.value !== null && energy.complete) {
+      view.slotEnergy = energyResult(energy.value, view.energyTarget);
+    }
+    view.score = scoreSlot(view.match, view.portion, view.timing);
+  }
+
+  // Step 7: nutrition subtotals over every meal once.
+  const allItems = meals.flatMap((m) => m.items);
+  const subtotals = nutritionSubtotals(allItems);
+  const energySubtotal = subtotals.find((s) => s.nutrient === 'ENERGY_KCAL')!;
+  const dailyEnergyTarget = dailyTargetFor(input.targets, 'ENERGY_KCAL');
+  const { component, energy: dailyEnergy } = nutritionComponent(
+    energySubtotal,
+    dailyEnergyTarget,
+    dayPhase,
+    logComplete,
+  );
+  const nutrition = subtotals.map((s) =>
+    compareTarget(s, dailyTargetFor(input.targets, s.nutrient), dayPhase, logComplete),
+  );
+
+  // Step 6: day score.
+  const coverage: Coverage = {
+    prescribed: views.length,
+    recorded: views.filter((v) => v.state === 'RECORDED' || v.state === 'NEEDS_REVIEW').length,
+    scored: views.filter((v) => v.score?.score !== null && v.score !== null).length,
+    skipped: views.filter((v) => v.state === 'SKIPPED').length,
+    needsReview: views.filter((v) => v.state === 'NEEDS_REVIEW').length,
+    notRecorded: views.filter((v) => v.state === 'NOT_RECORDED').length,
+  };
+  const completeByDefault =
+    dayPhase === 'PAST' && logComplete && meals.length > 0 && coverage.notRecorded > 0;
+  const scores = views.map((v) => v.score?.score).filter((s): s is number => typeof s === 'number');
+  const score = scoreDay(scores, meals.length > 0 ? component : null, coverage, completeByDefault);
+
+  // Step 8: tracked rules over this day (weekly periods are assembled by the service).
+  const ruleDay: RuleDay = {
+    localDate: input.localDate,
+    items: allItems,
+    mealItems: meals.map((m) => m.items),
+    logComplete,
+    complete:
+      dayPhase === 'PAST' &&
+      logComplete &&
+      meals.length > 0 &&
+      coverage.notRecorded === 0 &&
+      coverage.needsReview === 0,
+    weekday: weekdayOf(input.localDate),
+  };
+  const rules = input.rules
+    .filter((r) => r.tracking === 'TRACK' && r.period !== 'WEEK')
+    .map((r) => ruleObservation(r, [ruleDay], dayPhase === 'PAST'));
+
+  const timeline = views
+    .filter(
+      (v) => v.earliestTime !== null && (v.state === 'RECORDED' || v.state === 'NEEDS_REVIEW'),
+    )
+    .map((v) => ({ slotId: v.slot.id, time: v.earliestTime as string }))
+    .sort((a, b) => minutesBetween(b.time, a.time));
+
+  return {
+    rubricVersion: RUBRIC_VERSION,
+    localDate: input.localDate,
+    zone: input.zone,
+    dayPhase,
+    logComplete,
+    hasRecord: input.hasRecord,
+    planStructure: input.planStructure,
+    slots: views,
+    otherMealIds,
+    mealCount: meals.length,
+    contributing: meals.map((m) => ({ mealId: m.id, revision: m.revision })),
+    score,
+    nutrition,
+    dailyEnergy,
+    rules,
+    trendEligible: ruleDay.complete,
+    timeline,
+  };
+}

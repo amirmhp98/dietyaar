@@ -29,8 +29,8 @@ const password = z
 const fullName = z
   .string()
   .trim()
-  .min(2, t('validation.fullNameMin'))
-  .max(80, t('validation.fullNameMax', { max: 80 }));
+  .max(80, t('validation.fullNameMax', { max: 80 }))
+  .refine((value) => value.length === 0 || value.length >= 2, t('validation.fullNameMin'));
 
 const role = z.enum(USER_ROLES, { message: t('validation.roleInvalid') });
 

@@ -79,7 +79,7 @@ export function UsersTable({ users }: { users: UserListItem[] }) {
               return (
                 <TableRow key={user.id} data-testid={`user-row-${user.username}`}>
                   <TableCell className="font-medium">
-                    {user.fullName}
+                    {user.fullName ?? user.username}
                     {isMe && (
                       <span className="ms-2 text-xs text-muted-foreground">{t('users.you')}</span>
                     )}
@@ -106,7 +106,9 @@ export function UsersTable({ users }: { users: UserListItem[] }) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          aria-label={t('users.rowActions', { name: user.fullName })}
+                          aria-label={t('users.rowActions', {
+                            name: user.fullName ?? user.username,
+                          })}
                           loading={pendingId === user.id}
                         >
                           <MoreHorizontal className="h-4 w-4" />

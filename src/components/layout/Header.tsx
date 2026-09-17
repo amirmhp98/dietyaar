@@ -83,7 +83,7 @@ export function Header() {
               >
                 <div className="hidden text-start text-xs md:block">
                   <div className="flex items-center gap-1.5 font-medium">
-                    {user.fullName}
+                    {user.fullName ?? user.username}
                     {user.role === 'ADMIN' && (
                       <Badge
                         variant="outline"
@@ -99,7 +99,7 @@ export function Header() {
                 </div>
                 <Avatar className="h-9 w-9 border-2 border-background ring-1 ring-border">
                   <AvatarFallback className="text-xs font-semibold">
-                    {initialsOf(user.fullName)}
+                    {initialsOf(user.fullName ?? user.username)}
                   </AvatarFallback>
                 </Avatar>
               </button>

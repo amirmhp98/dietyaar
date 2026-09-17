@@ -32,6 +32,7 @@ services:
     environment:
       # Inside the compose network the database host is the service name.
       DATABASE_URL: postgresql://postgres:postgres@db:5432/app?schema=public
+      DIRECT_DATABASE_URL: postgresql://postgres:postgres@db:5432/app?schema=public
     depends_on:
       db:
         condition: service_healthy

@@ -29,7 +29,9 @@ COPY . .
 RUN npx prisma generate
 
 # `next build` evaluates src/lib/env.ts; a syntactically valid placeholder is enough.
-ENV DATABASE_URL="postgresql://build:build@localhost:5432/build"
+ENV DATABASE_URL="postgresql://build:build@localhost:5432/build" \
+    DIRECT_DATABASE_URL="postgresql://build:build@localhost:5432/build" \
+    APP_URL="http://localhost:3000"
 RUN npm run build
 
 # Prisma CLI for `migrate deploy` at container start, installed on its own so

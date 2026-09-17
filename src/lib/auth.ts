@@ -20,6 +20,7 @@ const MOCK_USER: AuthUser = {
   fullName: 'Admin',
   role: 'ADMIN',
   isActive: true,
+  onboardingStep: 'DONE',
 };
 
 /** Current user for this request, or null. Deduplicated per request via React cache(). */
@@ -36,6 +37,16 @@ export const getSession = cache(async (): Promise<AuthUser | null> => {
 export async function requireAuth(): Promise<AuthUser> {
   const user = await getSession();
   if (!user) redirect('/login');
+  return user;
+}
+
+/**
+ * Product pages: a signed-in user who has not finished onboarding is sent back
+ * to the step they left. Admin and tooling pages do not use this.
+ */
+export async function requireOnboarded(): Promise<AuthUser> {
+  const user = await requireAuth();
+  if (user.onboardingStep !== 'DONE') redirect('/onboarding');
   return user;
 }
 

@@ -29,6 +29,8 @@ jobs:
       - run: npm run build
         env:
           DATABASE_URL: postgresql://build:build@localhost:5432/build
+          DIRECT_DATABASE_URL: postgresql://build:build@localhost:5432/build
+          APP_URL: http://localhost:3000
 
   e2e:
     name: End-to-end
@@ -49,6 +51,8 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app?schema=public
+      DIRECT_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app?schema=public
+      APP_URL: http://localhost:3000
       CI: true
     steps:
       - uses: actions/checkout@v4
@@ -92,6 +96,8 @@ jobs:
           for i in $(seq 1 30); do docker exec db pg_isready -U postgres && break; sleep 1; done
           docker run -d --name web --network ci -p 3000:3000 \
             -e DATABASE_URL=postgresql://postgres:postgres@db:5432/app?schema=public \
+            -e DIRECT_DATABASE_URL=postgresql://postgres:postgres@db:5432/app?schema=public \
+            -e APP_URL=http://localhost:3000 \
             -e NODE_ENV=production app:ci
           for i in $(seq 1 30); do curl -sf http://localhost:3000/api/health && exit 0; sleep 2; done
           docker logs web; exit 1

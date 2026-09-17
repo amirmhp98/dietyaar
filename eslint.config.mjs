@@ -103,6 +103,79 @@ const eslintConfig = defineConfig([
     ],
   ),
 
+  // ─── Product layering rules (tech spec § 4) ──────────────────────────
+  // 1. The AI adapter returns validated data and persists nothing (decision 012).
+  layer(
+    ['src/services/ai/**/*.ts'],
+    [
+      {
+        group: ['@/lib/prisma', '@prisma/client'],
+        message: 'services/ai persists nothing; the calling service writes the AiCall row.',
+      },
+    ],
+  ),
+  // 2. Pure libraries take plain objects; no services, no Prisma.
+  layer(
+    ['src/lib/rubric/**/*.ts', 'src/lib/time/**/*.ts', 'src/lib/text/**/*.ts'],
+    [
+      {
+        group: ['@/services/*', '@/lib/prisma', '@prisma/client'],
+        message: 'lib/rubric, lib/time and lib/text are pure: plain numbers and strings only.',
+      },
+    ],
+  ),
+  // 3. Product components receive callbacks from page-level islands.
+  layer(
+    ['src/components/product/**/*.{ts,tsx}'],
+    [
+      {
+        group: ['@/actions/*'],
+        message: 'components/product never import actions; pass callbacks from the page island.',
+      },
+    ],
+  ),
+  // 4. The locale profile's time zone and week start are never product inputs (decision 009).
+  //    calendar.tsx only reads it as the overridable display default of the date picker;
+  //    product pages pass Profile.weekStart explicitly.
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/lib/locale.ts', 'src/lib/format.ts', 'src/components/ui/calendar.tsx'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "MemberExpression[object.name='locale'][property.name=/^(timeZone|weekStartsOn)$/]",
+          message:
+            'Read the time zone and week start from Profile / DayRecord, never from the locale profile (decision 009).',
+        },
+      ],
+    },
+  },
+  // 5. Reduced RTL check for product components (tech spec § 9).
+  {
+    files: ['src/components/product/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "MemberExpression[object.name='locale'][property.name=/^(timeZone|weekStartsOn)$/]",
+          message:
+            'Read the time zone and week start from Profile / DayRecord, never from the locale profile (decision 009).',
+        },
+        {
+          selector: 'Literal[value=/\\btext-(left|right)\\b/]',
+          message: 'Use logical utilities (text-start / text-end) in product components.',
+        },
+        {
+          selector: 'TemplateElement[value.raw=/\\btext-(left|right)\\b/]',
+          message: 'Use logical utilities (text-start / text-end) in product components.',
+        },
+      ],
+    },
+  },
+
   globalIgnores([
     '.next/**',
     'out/**',

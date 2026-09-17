@@ -11,9 +11,10 @@ import { getSession, requireAdmin, requireAuth } from '@/lib/auth';
 const admin = {
   id: 'a',
   username: 'admin',
-  fullName: 'مدیر',
+  fullName: 'Administrator',
   role: 'ADMIN' as const,
   isActive: true,
+  onboardingStep: 'DONE' as const,
 };
 const plainUser = { ...admin, id: 'b', username: 'ana', role: 'USER' as const };
 const cookieStore = { get: vi.fn() };

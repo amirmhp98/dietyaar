@@ -37,6 +37,7 @@ describe('authenticate', () => {
       fullName: user.fullName,
       role: 'ADMIN',
       isActive: true,
+      onboardingStep: 'DONE',
     });
     expect(result!.token).toHaveLength(64);
     expect(result!.expiresAt.getTime()).toBeGreaterThan(Date.now());

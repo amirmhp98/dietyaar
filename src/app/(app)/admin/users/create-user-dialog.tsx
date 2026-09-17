@@ -63,7 +63,7 @@ export function CreateUserDialog() {
         </DialogHeader>
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
-          <FormField label={t('users.field.fullName')} required error={errors.fullName?.message}>
+          <FormField label={t('users.field.fullName')} error={errors.fullName?.message}>
             <Input autoComplete="off" autoFocus dir="auto" {...form.register('fullName')} />
           </FormField>
 

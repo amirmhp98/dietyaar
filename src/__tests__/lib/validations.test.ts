@@ -26,11 +26,15 @@ describe('createUserSchema', () => {
     expect(createUserSchema.safeParse(valid).success).toBe(true);
   });
 
+  it('accepts an empty full name (sign-up collects none; decision 008)', () => {
+    expect(createUserSchema.safeParse({ ...valid, fullName: ' ' }).success).toBe(true);
+  });
+
   it.each([
     ['short username', { ...valid, username: 'ab' }, t('validation.usernameMin', { min: 3 })],
     ['persian username', { ...valid, username: 'کاربر' }, t('validation.usernameChars')],
     ['short password', { ...valid, password: '1234567' }, t('validation.passwordMin', { min: 8 })],
-    ['empty name', { ...valid, fullName: ' ' }, t('validation.fullNameMin')],
+    ['one-letter name', { ...valid, fullName: 'a' }, t('validation.fullNameMin')],
     ['unknown role', { ...valid, role: 'SUPERUSER' }, t('validation.roleInvalid')],
     ['missing role', { ...valid, role: undefined }, t('validation.roleInvalid')],
   ])('rejects %s', (_label, payload, message) => {

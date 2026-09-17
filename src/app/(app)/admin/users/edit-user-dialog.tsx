@@ -39,7 +39,7 @@ export function EditUserDialog({
 
   // Load the selected user's values whenever a different row is opened.
   useEffect(() => {
-    if (user) form.reset({ fullName: user.fullName, role: user.role });
+    if (user) form.reset({ fullName: user.fullName ?? '', role: user.role });
   }, [user, form]);
 
   async function onSubmit(values: UpdateUserInput) {
@@ -64,7 +64,7 @@ export function EditUserDialog({
         </DialogHeader>
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
-          <FormField label={t('users.field.fullName')} required error={errors.fullName?.message}>
+          <FormField label={t('users.field.fullName')} error={errors.fullName?.message}>
             <Input autoComplete="off" autoFocus dir="auto" {...form.register('fullName')} />
           </FormField>
 

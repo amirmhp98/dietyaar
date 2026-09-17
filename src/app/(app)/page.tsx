@@ -10,7 +10,9 @@ export default async function HomePage() {
       {/* Page Header */}
       <div>
         <h2 className="text-2xl font-bold tracking-tight">{t('home.title')}</h2>
-        <p className="text-muted-foreground mt-1">{t('home.welcome', { name: user.fullName })}</p>
+        <p className="text-muted-foreground mt-1">
+          {t('home.welcome', { name: user.fullName ?? user.username })}
+        </p>
       </div>
 
       {/* Placeholder Content */}

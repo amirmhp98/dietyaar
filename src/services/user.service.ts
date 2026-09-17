@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { ServiceError } from '@/lib/errors';
 import { t } from '@/lib/t';
 import type { CreateUserInput, UpdateUserInput } from '@/lib/validations/user';
-import { hashPassword, revokeAllSessions } from '@/services/auth.service';
+import { hashPassword, normalizeUsername, revokeAllSessions } from '@/services/auth.service';
 
 /**
  * User management service — the reference module every other module copies.
@@ -30,15 +30,17 @@ export function listUsers(): Promise<UserListItem[]> {
 }
 
 export async function createUser(input: CreateUserInput): Promise<UserListItem> {
-  const taken = await prisma.user.findUnique({ where: { username: input.username } });
+  const usernameLower = normalizeUsername(input.username);
+  const taken = await prisma.user.findUnique({ where: { usernameLower } });
   if (taken) throw new ServiceError(t('users.errors.usernameTaken'), 'USERNAME_TAKEN');
 
   const passwordHash = await hashPassword(input.password);
   return prisma.user.create({
     data: {
       username: input.username,
+      usernameLower,
       passwordHash,
-      fullName: input.fullName,
+      fullName: input.fullName || null,
       role: input.role,
     },
     select: USER_LIST_SELECT,

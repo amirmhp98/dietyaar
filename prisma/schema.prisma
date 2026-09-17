@@ -1,30 +1,229 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_DATABASE_URL")
+  extensions = [citext]
 }
+
+// Every DateTime is timestamptz(3) (tech spec § 3). Local dates and clock times
+// are stored as ISO strings ("2026-09-17", "13:25") because they are already
+// zone-local values; the zone that produced them travels with the row.
 
 enum UserRole {
   ADMIN
   USER
 }
 
+enum OnboardingStep {
+  AGE
+  SEX
+  HEIGHT
+  WEIGHT
+  TIME_ZONE
+  DISPLAY_NAME
+  PLAN
+  REVIEW
+  READY
+  DONE
+}
+
+enum Sex {
+  FEMALE
+  MALE
+}
+
+enum UnitSystem {
+  METRIC
+  IMPERIAL
+}
+
+enum Appearance {
+  SYSTEM
+  LIGHT
+  DARK
+}
+
+enum PlanStatus {
+  NONE
+  DRAFT_PENDING
+  ACTIVE
+}
+
+enum PlanStructure {
+  SAME_EVERY_DAY
+  BY_WEEKDAY
+  TARGETS_ONLY
+}
+
+enum DraftKind {
+  IMPORT
+  MANUAL
+  EDIT
+}
+
+enum TargetNutrient {
+  ENERGY_KCAL
+  PROTEIN_G
+  CARB_G
+  FAT_G
+  FIBER_G
+  SODIUM_MG
+}
+
+enum TargetType {
+  RANGE
+  MINIMUM
+  MAXIMUM
+  DESIRED
+  APPROXIMATE
+}
+
+enum TargetSource {
+  EXPLICIT
+  ESTIMATED
+  SUM_OF_MEALS
+}
+
+enum RuleKind {
+  SERVING_COUNT
+  DISTINCT_GROUPS
+  NAMED_WEEKDAY_FOOD
+  EXCLUSION
+  TIMING_WINDOW
+  INSTRUCTION
+}
+
+enum RuleTracking {
+  TRACK
+  NOTE
+  IGNORE
+}
+
+enum RulePeriod {
+  DAY
+  WEEK
+}
+
+enum NoteReason {
+  TRAINING_CONDITIONAL
+  EXERCISE
+  FASTING
+  DAY_TYPE
+  UNSUPPORTED_SCHEDULE
+  OTHER
+}
+
+enum ImportJobStatus {
+  QUEUED
+  RUNNING
+  DONE
+  FAILED
+  CANCELLED
+}
+
+enum MealInputKind {
+  TEXT
+  PHOTO
+  PHOTO_TEXT
+  RECENT
+  PLANNED
+  MANUAL
+}
+
+enum FoodCategory {
+  OIL
+  BREAD
+  RICE
+  POTATO
+  NUTS
+  DAIRY
+  MEAT
+  VEGETABLE
+  HERB
+  CONDIMENT
+  FRUIT
+  OTHER
+}
+
+enum UploadStatus {
+  STAGED
+  ATTACHED
+  REMOVED
+}
+
+enum AnalysisStatus {
+  NONE
+  RUNNING
+  DONE
+  FAILED
+}
+
+enum MessageStatus {
+  GENERATING
+  READY
+}
+
+enum FallbackState {
+  COMPLETE
+  UNCHECKED
+  NO_RECORDS
+  FIRST_DAY
+  NO_PLAN
+  PROVIDER_FAILURE
+}
+
+enum AiCallKind {
+  PLAN_IMPORT
+  PLAN_BASELINE
+  MEAL_TEXT
+  MEAL_PHOTO
+  REFLECTION
+}
+
+enum AiOutcome {
+  PENDING
+  OK
+  INVALID_JSON
+  SCHEMA_REJECTED
+  TIMEOUT
+  PROVIDER_ERROR
+  RATE_LIMITED
+}
+
 // ─── USER ──────────────────────────────────────────
 model User {
-  id           String    @id @default(cuid())
-  username     String    @unique
-  passwordHash String
-  fullName     String
-  role         UserRole  @default(USER)
-  isActive     Boolean   @default(true)
-  lastLoginAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                   String         @id @default(cuid())
+  username             String         @unique
+  /// Case-insensitive uniqueness for sign-up and login (citext).
+  usernameLower        String         @unique @db.Citext
+  passwordHash         String
+  /// Optional: sign-up collects no name; the greeting uses Profile.displayName, then username.
+  fullName             String?
+  role                 UserRole       @default(USER)
+  isActive             Boolean        @default(true)
+  onboardingStep       OnboardingStep @default(AGE)
+  deletionRequestedAt  DateTime?      @db.Timestamptz(3)
+  deletionScheduledFor DateTime?      @db.Timestamptz(3)
+  lastLoginAt          DateTime?      @db.Timestamptz(3)
+  createdAt            DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime       @updatedAt @db.Timestamptz(3)
 
-  sessions Session[]
+  sessions        Session[]
+  profile         Profile?
+  plan            Plan?
+  importJobs      PlanImportJob[]
+  dayRecords      DayRecord[]
+  meals           Meal[]
+  uploads         Upload[]
+  mealDrafts      MealDraft[]
+  morningMessages MorningMessage[]
+  aiCalls         AiCall[]
+  analyticsEvents AnalyticsEvent[]
 
   @@index([role])
   @@map("users")
@@ -36,8 +235,8 @@ model Session {
   userId    String
   /// SHA-256 hex of the raw token stored in the cookie. The raw token is never persisted.
   tokenHash String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  expiresAt DateTime @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -45,4 +244,444 @@ model Session {
   @@map("sessions")
 }
 
-// --- Add your domain models below ---
+// ─── PROFILE ───────────────────────────────────────
+/// Created at the AGE step once an age of 18+ is accepted; an under-18 user never gets a row.
+model Profile {
+  id                      String      @id @default(cuid())
+  userId                  String      @unique
+  ageYears                Int?
+  sex                     Sex?
+  heightCm                Decimal?    @db.Decimal(10, 2)
+  weightKg                Decimal?    @db.Decimal(10, 2)
+  /// ISO date in the user's zone.
+  weightMeasuredAt        String?     @db.VarChar(10)
+  timeZone                String?
+  unitSystem              UnitSystem  @default(METRIC)
+  /// 0 = Sunday … 6 = Saturday. Seeded from the plan at confirm, then user-owned.
+  weekStart               Int?
+  appearance              Appearance  @default(SYSTEM)
+  displayName             String?
+  goal                    String?
+  /// Normalised parsing copies used for the review reminder.
+  restrictions            String[]    @default([])
+  /// Verbatim, as the user typed them.
+  restrictionsOriginal    String[]    @default([])
+  aiNoticePlanShownAt     DateTime?   @db.Timestamptz(3)
+  aiNoticeMealTextShownAt DateTime?   @db.Timestamptz(3)
+  aiNoticePhotoShownAt    DateTime?   @db.Timestamptz(3)
+  lastSeenDeviceTimeZone  String?
+  timeZoneHintDismissedAt DateTime?   @db.Timestamptz(3)
+  completedAt             DateTime?   @db.Timestamptz(3)
+  createdAt               DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime    @updatedAt @db.Timestamptz(3)
+  user                    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+// ─── PLAN ──────────────────────────────────────────
+model Plan {
+  id              String         @id @default(cuid())
+  userId          String         @unique
+  status          PlanStatus     @default(NONE)
+  structure       PlanStructure?
+  name            String?
+  sourceNote      String?
+  sourceLanguage  String?
+  /// Verbatim text of the confirmed plan (≤ 20,000 chars).
+  sourceText      String?
+  /// Text of the pending import; copied to sourceText at confirm.
+  draftSourceText String?
+  /// Regenerated by every startImport / startManual / startEdit; the job finalize checks it.
+  draftId         String?
+  draftKind       DraftKind?
+  draftJson       Json?
+  confirmedAt     DateTime?      @db.Timestamptz(3)
+  createdAt       DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime       @updatedAt @db.Timestamptz(3)
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  slots   PlanSlot[]
+  targets PlanTarget[]
+  rules   PlanRule[]
+  notes   PlanNote[]
+
+  @@map("plans")
+}
+
+model PlanSlot {
+  id            String   @id @default(cuid())
+  planId        String
+  /// 0–6 (Sunday–Saturday) or 7 = every day (same-every-day and targets-only plans).
+  weekday       Int
+  /// Display order only; never an identity.
+  position      Int
+  originalName  String
+  englishLabel  String
+  /// "HH:mm" local clock time, or null when the plan gives none.
+  timeStart     String?  @db.VarChar(5)
+  timeEnd       String?  @db.VarChar(5)
+  sourceExcerpt String   @default("")
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+  plan          Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  options      PlanOption[]
+  targets      PlanTarget[]
+  meals        Meal[]
+  skippedRows  DaySkippedSlot[]
+
+  @@unique([planId, weekday, position])
+  @@index([planId])
+  @@map("plan_slots")
+}
+
+model PlanOption {
+  id         String   @id @default(cuid())
+  planSlotId String
+  position   Int
+  label      String?
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+  slot       PlanSlot @relation(fields: [planSlotId], references: [id], onDelete: Cascade)
+
+  items PlanItem[]
+  meals Meal[]
+
+  @@index([planSlotId])
+  @@map("plan_options")
+}
+
+model PlanItem {
+  id               String       @id @default(cuid())
+  planOptionId     String
+  position         Int
+  originalName     String
+  englishLabel     String
+  quantity         Decimal?     @db.Decimal(10, 2)
+  /// Unit-table key (services/food-data/units.ts).
+  unit             String?
+  quantityAssumed  Boolean      @default(false)
+  assumedDefaultKey String?
+  preparationNote  String?
+  /// [{ originalName, englishLabel, nutrition }]
+  alternatives     Json         @default("[]")
+  category         FoodCategory @default(OTHER)
+  /// Tech spec § 5.1 nutrition shape, or null when not estimated.
+  nutrition        Json?
+  sourceExcerpt    String       @default("")
+  createdAt        DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime     @updatedAt @db.Timestamptz(3)
+  option           PlanOption   @relation(fields: [planOptionId], references: [id], onDelete: Cascade)
+
+  matchedFoodItems FoodItem[]
+
+  @@index([planOptionId])
+  @@map("plan_items")
+}
+
+model PlanTarget {
+  id            String         @id @default(cuid())
+  planId        String
+  /// Null = daily target.
+  planSlotId    String?
+  weekday       Int?
+  nutrient      TargetNutrient
+  type          TargetType
+  low           Decimal?       @db.Decimal(10, 2)
+  high          Decimal?       @db.Decimal(10, 2)
+  source        TargetSource
+  sourceExcerpt String?
+  /// `${weekday ?? 'all'}:${planSlotId ?? 'day'}:${nutrient}` — derived by the service.
+  scopeKey      String
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
+  plan          Plan           @relation(fields: [planId], references: [id], onDelete: Cascade)
+  slot          PlanSlot?      @relation(fields: [planSlotId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, scopeKey])
+  @@index([planSlotId])
+  @@map("plan_targets")
+}
+
+model PlanRule {
+  id                String       @id @default(cuid())
+  planId            String
+  kind              RuleKind
+  tracking          RuleTracking @default(NOTE)
+  period            RulePeriod?
+  /// Per-kind shape validated in lib/validations/plan.ts.
+  definition        Json         @default("{}")
+  originalText      String
+  sourceExcerpt     String       @default("")
+  isConflicting     Boolean      @default(false)
+  unsupportedReason String?
+  createdAt         DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime     @updatedAt @db.Timestamptz(3)
+  plan              Plan         @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
+  @@map("plan_rules")
+}
+
+model PlanNote {
+  id           String     @id @default(cuid())
+  planId       String
+  originalText String
+  reason       NoteReason @default(OTHER)
+  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime   @updatedAt @db.Timestamptz(3)
+  plan         Plan       @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
+  @@map("plan_notes")
+}
+
+model PlanImportJob {
+  id            String          @id @default(cuid())
+  userId        String
+  status        ImportJobStatus @default(QUEUED)
+  attempt       Int             @default(0)
+  /// The Plan.draftId this job was started for; finalize writes only while it still matches.
+  draftId       String
+  heartbeatAt   DateTime?       @db.Timestamptz(3)
+  startedAt     DateTime?       @db.Timestamptz(3)
+  finishedAt    DateTime?       @db.Timestamptz(3)
+  errorCategory String?
+  createdAt     DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime        @updatedAt @db.Timestamptz(3)
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, heartbeatAt])
+  @@index([userId, createdAt])
+  @@map("plan_import_jobs")
+}
+
+// ─── DAY ───────────────────────────────────────────
+/// Created lazily on the first meal, skip or completeness change for a date.
+model DayRecord {
+  id          String   @id @default(cuid())
+  userId      String
+  /// ISO date "YYYY-MM-DD" in `timeZone`.
+  localDate   String   @db.VarChar(10)
+  /// The user's zone when the row was created; historical days keep it.
+  timeZone    String
+  logComplete Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  meals        Meal[]
+  skippedSlots DaySkippedSlot[]
+
+  @@unique([userId, localDate])
+  @@map("day_records")
+}
+
+model DaySkippedSlot {
+  id          String    @id @default(cuid())
+  dayRecordId String
+  planSlotId  String
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  day         DayRecord @relation(fields: [dayRecordId], references: [id], onDelete: Cascade)
+  slot        PlanSlot  @relation(fields: [planSlotId], references: [id], onDelete: Cascade)
+
+  @@unique([dayRecordId, planSlotId])
+  @@index([planSlotId])
+  @@map("day_skipped_slots")
+}
+
+// ─── MEAL ──────────────────────────────────────────
+model Meal {
+  id                  String        @id @default(cuid())
+  userId              String
+  dayRecordId         String
+  /// "HH:mm" in the day's zone; null = time unknown.
+  consumedLocalTime   String?       @db.VarChar(5)
+  inputKind           MealInputKind
+  /// Verbatim user text.
+  originalText        String?
+  notes               String?
+  revision            Int           @default(1)
+  copiedFromMealId    String?
+  clientRequestId     String        @unique
+  /// Null = "Other" (in addition to the plan).
+  planSlotId          String?
+  planOptionId        String?
+  linkConfirmedByUser Boolean       @default(false)
+  createdAt           DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime      @updatedAt @db.Timestamptz(3)
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day                 DayRecord     @relation(fields: [dayRecordId], references: [id], onDelete: Cascade)
+  planSlot            PlanSlot?     @relation(fields: [planSlotId], references: [id], onDelete: SetNull)
+  planOption          PlanOption?   @relation(fields: [planOptionId], references: [id], onDelete: SetNull)
+
+  items   FoodItem[]
+  uploads Upload[]
+
+  @@index([userId, dayRecordId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([planSlotId])
+  @@index([planOptionId])
+  @@index([dayRecordId])
+  @@map("meals")
+}
+
+model FoodItem {
+  id                String       @id @default(cuid())
+  mealId            String
+  position          Int
+  originalName      String
+  englishLabel      String
+  quantity          Decimal?     @db.Decimal(10, 2)
+  unit              String?
+  quantityUnknown   Boolean      @default(false)
+  quantityAssumed   Boolean      @default(false)
+  preparation       String?
+  category          FoodCategory @default(OTHER)
+  alternatives      Json         @default("[]")
+  matchedPlanItemId String?
+  isAddedItem       Boolean      @default(false)
+  restrictionHit    String?
+  /// User-confirmed food-group memberships for DISTINCT_GROUPS rules.
+  ruleGroups        String[]     @default([])
+  nutrition         Json?
+  createdAt         DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime     @updatedAt @db.Timestamptz(3)
+  meal              Meal         @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  matchedPlanItem   PlanItem?    @relation(fields: [matchedPlanItemId], references: [id], onDelete: SetNull)
+
+  @@index([mealId])
+  @@index([matchedPlanItemId])
+  @@map("food_items")
+}
+
+model Upload {
+  id         String       @id @default(cuid())
+  userId     String
+  mealId     String?
+  position   Int?
+  storageKey String
+  bytes      Int
+  width      Int
+  height     Int
+  sha256     String
+  status     UploadStatus @default(STAGED)
+  /// 24 h after staging; cleared when attached.
+  expiresAt  DateTime?    @db.Timestamptz(3)
+  createdAt  DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime     @updatedAt @db.Timestamptz(3)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meal       Meal?        @relation(fields: [mealId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([mealId])
+  @@index([status, expiresAt])
+  @@map("uploads")
+}
+
+model MealDraft {
+  id                      String         @id @default(cuid())
+  userId                  String
+  clientRequestId         String         @unique
+  revision                Int            @default(1)
+  /// Input kind, text, upload ids, date, time, slot, option, answers, review edits.
+  state                   Json
+  analysisRunId           String?
+  analysisStartedRevision Int?
+  analysisInputHash       String?
+  analysisResult          Json?
+  analysisStatus          AnalysisStatus @default(NONE)
+  analysisFailureReason   String?
+  /// 24 h from the last edit; staged uploads expire with it.
+  expiresAt               DateTime       @db.Timestamptz(3)
+  createdAt               DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime       @updatedAt @db.Timestamptz(3)
+  user                    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("meal_drafts")
+}
+
+// ─── REFLECTION ────────────────────────────────────
+model MorningMessage {
+  id            String         @id @default(cuid())
+  userId        String
+  localDate     String         @db.VarChar(10)
+  status        MessageStatus  @default(GENERATING)
+  paragraph     String?
+  isFallback    Boolean        @default(false)
+  fallbackState FallbackState?
+  factsSnapshot Json           @default("[]")
+  factsHash     String         @default("")
+  usedFactIds   String[]       @default([])
+  generatedAt   DateTime?      @db.Timestamptz(3)
+  claimedAt     DateTime       @default(now()) @db.Timestamptz(3)
+  providerModel String?
+  stale         Boolean        @default(false)
+  collapsed     Boolean        @default(false)
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, localDate])
+  @@map("morning_messages")
+}
+
+// ─── OPERATIONAL ───────────────────────────────────
+/// One row per user operation, inserted PENDING at admission and updated at the end. No bodies.
+model AiCall {
+  id               String     @id @default(cuid())
+  userId           String?
+  kind             AiCallKind
+  /// Local date of the operation in the user's zone (per-day caps).
+  localDate        String?    @db.VarChar(10)
+  providerModel    String?
+  inputRevision    Int?
+  durationMs       Int?
+  promptTokens     Int?
+  completionTokens Int?
+  outcome          AiOutcome  @default(PENDING)
+  attemptsJson     Json?
+  createdAt        DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime   @updatedAt @db.Timestamptz(3)
+  user             User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, kind, createdAt])
+  @@index([createdAt])
+  @@map("ai_calls")
+}
+
+model AnalyticsEvent {
+  id         String   @id @default(cuid())
+  userId     String?
+  name       String
+  properties Json     @default("{}")
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([name, createdAt])
+  @@index([createdAt])
+  @@map("analytics_events")
+}
+
+model FoodDataCache {
+  id        String   @id @default(cuid())
+  queryKey  String   @unique
+  result    Json
+  fetchedAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([fetchedAt])
+  @@map("food_data_cache")
+}
+
+model JobLock {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  holder      String?
+  lockedUntil DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  @@map("job_locks")
+}
