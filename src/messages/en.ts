@@ -6,7 +6,27 @@
  * Placeholders use `{name}` and are filled by `t()` / `tp()`; their names are
  * inferred from the text, so a missing param is a type error at the call site.
  */
+import { ai } from './sections/ai';
+import { day } from './sections/day';
+import { meal } from './sections/meal';
+import { plan } from './sections/plan';
+import { reflection } from './sections/reflection';
+import { settings } from './sections/settings';
+
+/**
+ * Core strings live here; each product module owns one file under
+ * `sections/` (plan, meal, day, reflection, settings, ai) so modules can be
+ * built in parallel without editing the same file. Keys stay globally
+ * unique and flat.
+ */
 export const en = {
+  ...plan,
+  ...meal,
+  ...day,
+  ...reflection,
+  ...settings,
+  ...ai,
+
   // ── App shell ──────────────────────────────────────────────
   'shell.skipToContent': 'Skip to main content',
   'shell.logoAlt': 'Logo',
