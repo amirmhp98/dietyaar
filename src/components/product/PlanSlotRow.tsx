@@ -69,13 +69,42 @@ export function PlanSlotRow({
           ) : null}
         </div>
         {state !== 'RECORDED' ? (
-          <span className="shrink-0 pt-0.5 text-sm text-muted-foreground" data-testid="slot-status">
-            {state === 'SKIPPED'
-              ? t('slot.state.skipped')
-              : state === 'NEEDS_REVIEW'
-                ? t('slot.state.needsReview')
-                : t('slot.state.notRecorded')}
-          </span>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <span className="pt-0.5 text-sm text-muted-foreground" data-testid="slot-status">
+              {state === 'SKIPPED'
+                ? t('slot.state.skipped')
+                : state === 'NEEDS_REVIEW'
+                  ? t('slot.state.needsReview')
+                  : t('slot.state.notRecorded')}
+            </span>
+            {/* Compact rows keep their one secondary action beside the status; the highlighted row gets a full action line. */}
+            {state === 'NOT_RECORDED' && !highlighted && onSkip ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="-me-2 h-9 px-2 text-muted-foreground"
+                onClick={() => onSkip(true)}
+                disabled={pending}
+                data-testid="mark-skipped"
+              >
+                {t('slot.markSkipped')}
+              </Button>
+            ) : null}
+            {state === 'SKIPPED' && onSkip ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="-me-2 h-9 px-2 text-muted-foreground"
+                onClick={() => onSkip(false)}
+                disabled={pending}
+                data-testid="unskip"
+              >
+                {t('slot.unskip')}
+              </Button>
+            ) : null}
+          </div>
         ) : null}
       </div>
 
@@ -99,9 +128,9 @@ export function PlanSlotRow({
         </Button>
       ) : null}
 
-      {state === 'NOT_RECORDED' ? (
+      {state === 'NOT_RECORDED' && highlighted ? (
         <div className="flex items-center gap-2">
-          {highlighted && onLog ? (
+          {onLog ? (
             <Button
               type="button"
               className="h-11 flex-1"
@@ -124,21 +153,6 @@ export function PlanSlotRow({
               {t('slot.markSkipped')}
             </Button>
           ) : null}
-        </div>
-      ) : null}
-
-      {state === 'SKIPPED' && onSkip ? (
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            variant="ghost"
-            className="h-11"
-            onClick={() => onSkip(false)}
-            disabled={pending}
-            data-testid="unskip"
-          >
-            {t('slot.unskip')}
-          </Button>
         </div>
       ) : null}
     </li>
