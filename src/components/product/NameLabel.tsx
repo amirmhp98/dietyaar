@@ -34,16 +34,19 @@ export function NameLabel({
     );
   }
 
+  // The <bdi> stays inline: as a block (flex item) Chromium sizes an RTL
+  // shrink-to-fit box too wide and the word drifts to the right.
   return (
     <span
-      className={cn(
-        inline ? 'inline-flex flex-wrap items-baseline gap-x-2' : 'flex flex-col',
-        className,
-      )}
+      className={cn(inline ? 'inline-flex flex-wrap items-baseline gap-x-2' : 'block', className)}
     >
-      <bdi className={cn('font-medium [text-align:match-parent]', sizes)}>{original}</bdi>
+      <bdi className={cn('font-medium', sizes)}>{original}</bdi>
       <span
-        className={cn('text-muted-foreground', size === 'lg' ? 'text-sm' : 'text-xs')}
+        className={cn(
+          'text-muted-foreground',
+          inline ? '' : 'block',
+          size === 'lg' ? 'text-sm' : 'text-xs',
+        )}
         dir="ltr"
       >
         {english}

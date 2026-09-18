@@ -123,7 +123,7 @@ export function ItemRow({
 
   return (
     <li
-      className="rounded-xl border border-border bg-card p-4"
+      className="rounded-xl border border-border bg-card p-3"
       data-testid={`meal-item-${index + 1}`}
       aria-label={t('meal.review.item', { number: index + 1 })}
     >
@@ -138,6 +138,15 @@ export function ItemRow({
             <p className="text-xs text-muted-foreground">
               <bdi>{item.preparation}</bdi>
             </p>
+          ) : null}
+          {isEstimate || item.quantityAssumed || isLabel ? (
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {isEstimate ? <Badge variant="outline">{t('meal.review.estimated')}</Badge> : null}
+              {item.quantityAssumed ? (
+                <Badge variant="outline">{t('meal.review.assumed')}</Badge>
+              ) : null}
+              {isLabel ? <Badge variant="secondary">{t('meal.review.labelValues')}</Badge> : null}
+            </div>
           ) : null}
         </div>
         <Button
@@ -163,18 +172,8 @@ export function ItemRow({
         </Button>
       </div>
 
-      {(isEstimate || item.quantityAssumed || isLabel || item.isAddedItem) && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {isEstimate ? <Badge variant="outline">{t('meal.review.estimated')}</Badge> : null}
-          {item.quantityAssumed ? (
-            <Badge variant="outline">{t('meal.review.assumed')}</Badge>
-          ) : null}
-          {isLabel ? <Badge variant="secondary">{t('meal.review.labelValues')}</Badge> : null}
-        </div>
-      )}
-
-      <div className="mt-3 flex flex-wrap items-end gap-2">
-        <div className="w-24 space-y-1">
+      <div className="mt-2 flex items-end gap-2">
+        <div className="w-20 space-y-1">
           <Label htmlFor={`${id}-qty`} className="text-xs">
             {t('meal.review.quantity')}
           </Label>
@@ -193,7 +192,7 @@ export function ItemRow({
             }}
           />
         </div>
-        <div className="min-w-32 flex-1 space-y-1">
+        <div className="min-w-0 flex-1 space-y-1">
           <Label htmlFor={`${id}-unit`} className="text-xs">
             {t('meal.review.unit')}
           </Label>
@@ -219,7 +218,7 @@ export function ItemRow({
             </SelectContent>
           </Select>
         </div>
-        <label className="flex min-h-11 items-center gap-2 text-sm">
+        <label className="flex min-h-11 shrink-0 items-center gap-2 text-sm">
           <Checkbox
             checked={item.quantityUnknown}
             onCheckedChange={(checked) => patch({ quantityUnknown: checked === true })}
@@ -228,7 +227,7 @@ export function ItemRow({
         </label>
       </div>
 
-      <div className="mt-3 space-y-1 text-sm">
+      <div className="mt-2 space-y-1 text-sm">
         {previous ? (
           <p className="text-muted-foreground">
             <span className="sr-only">{t('meal.review.previousValues')}: </span>

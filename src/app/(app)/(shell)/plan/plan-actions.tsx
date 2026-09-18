@@ -59,6 +59,7 @@ export function PlanActions({ planName }: { planName: string | null }) {
       <div className="grid grid-cols-2 gap-3">
         <Button
           type="button"
+          variant="secondary"
           className="h-11"
           loading={pending}
           onClick={edit}
