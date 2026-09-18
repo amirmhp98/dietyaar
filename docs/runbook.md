@@ -73,6 +73,27 @@ entries — users write both often, so adding them to the table (with an assumed
 would raise unit resolution further; the assumed-default keys `yogurt_bowl` / `tea_sweet`
 sometimes come back in the `unit` field instead of `assumedDefaultKey`.
 
+### Query counts (implementation plan task 11.6)
+
+Measured in development on 2026-09-18 with `PRISMA_LOG_QUERIES=true` against the local database,
+one user with a menu plan and one recorded meal. SQL statements per read model, before and after
+enabling Prisma `relationJoins` (decision 020):
+
+| Read model                         | Tech spec § 17 budget | Before | After |
+| ---------------------------------- | --------------------- | ------ | ----- |
+| Today (`getDayView` + message)     | 3                     | 14     | 4     |
+| History 7 days (`getSevenDayView`) | 2                     | 13     | 3     |
+| History day (`listMealsForDate`)   | —                     | 6      | 1     |
+| Composer recent meals              | —                     | 3      | 1     |
+| Save meal                          | 1 transaction         | 1 txn  | 1 txn |
+
+Today's fourth statement is the profile read (`requireProfile`) the page does before the day; the
+session lookup in `requireAuth` adds one more per request. The "before" numbers came from Prisma
+loading each relation level in its own statement, mostly sequentially, so with the measured
+cross-border `R` (113–257 ms) a Today render would have cost 1–3 s in round trips. Re-run the
+measurement from Darkube once step 2 gives the real `R`; the 150 ms default still applies until
+then.
+
 ## Environments
 
 | Name         | Where                  | Database                                  | Storage                                    | Notes                                  |

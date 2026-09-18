@@ -24,3 +24,4 @@ them. 001–007 come from the boilerplate; 008 onwards are Dietyaar's (see `tech
 | [017](017-one-plan-edited-in-place.md)            | One plan per user, edited in place through a draft; no versions   |
 | [018](018-backups-to-hamravesh-object-storage.md) | Backups go to Hamravesh Object Storage, including photos          |
 | [019](019-design-tokens-from-design-md.md)        | Visual language: design.md tokens on the local shadcn kit         |
+| [020](020-relation-joins-for-read-models.md)      | Nested reads use Prisma `relationJoins` (one statement per tree)  |
