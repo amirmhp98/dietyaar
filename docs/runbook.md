@@ -49,6 +49,30 @@ Finding: one baseline call for a 35-slot plan overflowed the 6,000-token output 
 (`INVALID_JSON`); `estimatePlanBaseline` now batches 20 items per call inside the operation
 deadline.
 
+### Evaluation harness (tech spec § 10.5, implementation plan task 11.5)
+
+`DEEPSEEK_API_BASE_URL=https://api.deepseek.com npm run ai:eval` (add `-- --meals-only` to skip
+the plans and reflections). Fixtures: `src/__tests__/fixtures/ai-eval/` — both reference plans,
+40 Persian meal descriptions with expected items (all `reviewed: false` until the owner checks
+them; the recall threshold is read only from reviewed rows — O11), and every reflection state
+with the fact ids the paragraph must draw on. Thresholds are tech spec § 19 item 4. Not in CI.
+
+First run on 2026-09-18 (developer machine, `deepseek-flash`, 49 calls, ≈ $0.06):
+
+| Metric                     | Result                                                                                                                                                                                        | Threshold             |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| Schema pass                | 48/49 (one `PLAN_IMPORT` weekday reply `INVALID_JSON`; the smoke passed the same plan the day before — an occasional empty/invalid reply, surfaced to the user as a failed import with Retry) | 98 %                  |
+| Expected-item recall (all) | 96.4 % (misses: an omitted "milk", "barberry rice" labelled as one dish)                                                                                                                      | 85 % on reviewed rows |
+| Unit resolution            | 91.4 % of quantified items use a unit-table key                                                                                                                                               | 90 %                  |
+| Unsupported facts          | 0/6 reflections; 6/6 used the expected facts                                                                                                                                                  | ≤ 2 %                 |
+| Meal latency               | p50 2.1 s · p75 2.7 s · p95 3.2–4.5 s                                                                                                                                                         | p75 ≤ 15 s            |
+
+Observations for the owner: the model returns `کف دست` / `kaf dast` (a palm of bread) and
+`estekan` (tea glass) as free-text units because the unit table (product spec § 6) has no such
+entries — users write both often, so adding them to the table (with an assumed weight/volume)
+would raise unit resolution further; the assumed-default keys `yogurt_bowl` / `tea_sweet`
+sometimes come back in the `unit` field instead of `assumedDefaultKey`.
+
 ## Environments
 
 | Name         | Where                  | Database                                  | Storage                                    | Notes                                  |

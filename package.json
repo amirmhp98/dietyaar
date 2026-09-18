@@ -30,6 +30,8 @@
     "reinstall": "rm -rf node_modules package-lock.json && npm install",
     "test:integration": "node scripts/test-integration.mjs",
     "db:backup": "tsx --conditions=react-server scripts/db-backup.ts",
+    "ai:smoke": "tsx --conditions=react-server scripts/ai-smoke.ts",
+    "ai:eval": "tsx --conditions=react-server scripts/ai-eval.ts",
     "check:migrations": "node scripts/check-migrations.mjs"
   },
   "dependencies": {

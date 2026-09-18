@@ -564,9 +564,9 @@ function TimeZoneScreen({
       <p className="text-base">{t('onboarding.timeZone.detected', { zone })}</p>
       <p className="text-sm text-muted-foreground">{t('onboarding.timeZone.why')}</p>
       {changing ? (
-        <FormField label={t('onboarding.timeZone.label')}>
+        <FormField label={t('onboarding.timeZone.label')} id="onboarding-time-zone">
           <Select value={zone} onValueChange={setZone}>
-            <SelectTrigger className="h-11">
+            <SelectTrigger className="h-11" id="onboarding-time-zone">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

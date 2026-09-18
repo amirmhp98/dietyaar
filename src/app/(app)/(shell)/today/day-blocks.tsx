@@ -199,7 +199,7 @@ function PlanLink() {
   return (
     <Link
       href="/plan"
-      className="flex min-h-11 items-center px-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
+      className="flex min-h-11 items-center px-1 text-sm font-medium text-foreground underline underline-offset-4 hover:text-muted-foreground"
     >
       {t('day.plan.viewPlan')}
     </Link>

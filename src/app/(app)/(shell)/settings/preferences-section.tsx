@@ -87,12 +87,12 @@ export function PreferencesSection(props: Props) {
         </RadioGroup>
       </div>
 
-      <FormField label={t('settings.preferences.units')}>
+      <FormField label={t('settings.preferences.units')} id="pref-units">
         <Select
           value={values.unitSystem}
           onValueChange={(v) => save({ unitSystem: v as Props['unitSystem'] })}
         >
-          <SelectTrigger className="h-11">
+          <SelectTrigger className="h-11" id="pref-units">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -105,9 +105,10 @@ export function PreferencesSection(props: Props) {
       <FormField
         label={t('settings.preferences.timeZone')}
         helperText={t('settings.preferences.timeZoneHint')}
+        id="pref-time-zone"
       >
         <Select value={values.timeZone} onValueChange={(v) => save({ timeZone: v })}>
-          <SelectTrigger className="h-11">
+          <SelectTrigger className="h-11" id="pref-time-zone">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -123,12 +124,13 @@ export function PreferencesSection(props: Props) {
       <FormField
         label={t('settings.preferences.weekStart')}
         helperText={t('settings.preferences.weekStartHint')}
+        id="pref-week-start"
       >
         <Select
           value={String(values.weekStart)}
           onValueChange={(v) => save({ weekStart: Number(v) })}
         >
-          <SelectTrigger className="h-11">
+          <SelectTrigger className="h-11" id="pref-week-start">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
