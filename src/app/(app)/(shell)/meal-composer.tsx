@@ -783,6 +783,7 @@ export function MealComposerIsland({
         setAnalysisError(null);
         setSaveError(null);
         setMoreOpen(false);
+        setLastUsed({});
         void loadContext();
         void loadRecent();
 

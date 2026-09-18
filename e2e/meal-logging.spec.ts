@@ -128,7 +128,6 @@ test('J4: a meal under Other counts in nutrition only', async ({ page }) => {
   });
   await page.getByTestId('change-link').click();
   await page.getByTestId('slot-select').selectOption('OTHER');
-  await page.getByTestId('apply-link').click();
   await saveAndWait(page);
 
   await expect(page.getByTestId('meal-row').first()).toContainText(t('meals.other'));
@@ -167,14 +166,16 @@ test('J11: between 00:00 and 04:00 the composer asks "Was this for yesterday?"',
 }) => {
   await newUserWithPlan(page, 'j11');
   // 00:30 in Asia/Tehran (UTC+3:30) on the real calendar day, so the date is never in the future.
+  // The fake clock is set before the navigation so the page starts with it.
   const today = new Date();
   const fixed = new Date(
     Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 21, 0, 0),
   );
   await page.clock.setFixedTime(fixed);
+  await page.goto('/today');
   await page.getByTestId('log-meal').click();
   const prompt = page.getByTestId('late-night');
-  await expect(prompt).toContainText(t('meal.compose.lateNight.title'));
+  await expect(page.getByTestId('meal-composer')).toContainText(t('meal.compose.lateNight.title'));
   await prompt.getByRole('button', { name: t('meal.compose.lateNight.yesterday') }).click();
   await expect(page.getByTestId('logging-for')).toBeVisible();
 });

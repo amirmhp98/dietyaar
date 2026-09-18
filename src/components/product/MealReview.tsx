@@ -283,6 +283,7 @@ export function MealReview(props: MealReviewProps) {
               className="h-9"
               onClick={() => setChangingSlot((v) => !v)}
               aria-expanded={changingSlot}
+              data-testid="change-link"
             >
               {t('meal.review.change')}
             </Button>
