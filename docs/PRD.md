@@ -1,6 +1,6 @@
 # Dietyaar — Product Reference
 
-**Last updated:** 2026-09-17
+**Last updated:** 2026-09-18
 
 > The short reference of what the product is and what exists in the code today. Agents read it
 > before making product decisions and update it when a change is product-visible (new module,
@@ -8,7 +8,8 @@
 > authoritative for what is planned: `product-spec.md` (behaviour, v1.7), `design-scope.md`
 > (screens and journeys), `design.md` (visual), `tech-spec.md` (construction, v1.2).
 > Lines marked _(boilerplate)_ ship with the template; lines marked _(planned)_ are specified but
-> not built yet.
+> not built yet. As of 2026-09-18 every V1 feature below is built; what remains is the deployment
+> checklist (see "Not done yet").
 
 ## What it is
 
@@ -40,86 +41,118 @@ text is accepted in any language and stored verbatim; a normalised parsing copy 
 
 ## Modules & routes
 
-Navigation: bottom tabs **Today · History · My plan**, a profile button to Settings, and a
-persistent **Log meal** button on all three tabs (design-scope.md). The boilerplate sidebar shell is
-replaced when the product shell lands.
+Navigation (`src/lib/navigation.ts`): bottom tabs **Today · History · My plan** (`BottomNav`), a
+top bar with the page title and a profile button to Settings (`TopBar`), and a persistent
+**Log meal** button on the three tabs that opens the composer sheet (`(app)/(shell)/layout.tsx`).
+Onboarding and the plan-import screens render outside the shell. The boilerplate sidebar is gone;
+admin pages use the same shell.
 
-| Route                                                   | Who       | What                                                                                         | Status                                   |
-| ------------------------------------------------------- | --------- | -------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| `/login`                                                | everyone  | Username/password sign-in (cookie session, throttled after 5 failures)                       | _(boilerplate)_                          |
-| `/signup`                                               | everyone  | Username/password sign-up; states that a forgotten password cannot be recovered              | _(planned)_                              |
-| `/onboarding`                                           | signed-in | One question per screen: age (under-18 stop), sex, height, weight, time zone, name, plan     | _(planned)_                              |
-| `/today` (`/`)                                          | signed-in | Morning message, adherence score, planned slots vs. recorded meals, "Other" meals            | _(planned)_                              |
-| `/history`                                              | signed-in | Date-based day view and compact seven-day summary                                            | _(planned)_                              |
-| `/plan`                                                 | signed-in | The one plan: slots, options, items, targets, rules, notes; import / manual / edit / delete  | _(planned)_                              |
-| `/meals/[id]`                                           | signed-in | One meal: items, nutrition, photos, slot link, edit, delete, reuse                           | _(planned)_                              |
-| `/settings`                                             | signed-in | Profile, preferences, appearance, privacy, data export, account deletion                     | _(planned)_                              |
-| `/admin/users`                                          | Admin     | List, create, edit, activate/deactivate users, reset passwords                               | _(boilerplate)_                          |
-| `/components`                                           | signed-in | Component gallery / visual reference for the UI kit                                          | _(boilerplate)_                          |
-| `/api/health`, `/api/live`                              | ops       | Readiness (database check) and liveness probes, no auth                                      | health _(boilerplate)_, live _(planned)_ |
-| `/api/uploads`, `/api/uploads/[id]`, `/api/photos/[id]` | owner     | Photo upload (JPEG/PNG/WebP, re-encoded by sharp), staged delete, owner-checked photo stream | _(planned)_                              |
-| `/api/export`                                           | signed-in | Streams a zip of profile, plan, meals, messages and photos                                   | _(planned)_                              |
+| Route                                                   | Who       | What                                                                                                                                                                                                          |
+| ------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/login`                                                | everyone  | Username/password sign-in (cookie session, throttled after 5 failures) _(boilerplate)_                                                                                                                        |
+| `/signup`                                               | everyone  | Username/password sign-up (common-password list, per-IP rate limit `SIGNUP_RATE_LIMIT`); says a forgotten password cannot be recovered; sets the session and the `appearance` cookie, redirects to onboarding |
+| `/onboarding`                                           | signed-in | One question per screen: age (under-18 stop deletes the account), sex, height, weight (metric/imperial), time zone, display name; resumable from `Profile.onboardingStep`                                     |
+| `/onboarding/plan`, `/plan/add`, `/plan/review`         | signed-in | Plan entry: paste text → import job with progress/retry/cancel, or the manual wizard (`/onboarding/plan/manual`); review draft (slots, options, items, targets, rules, questions) → confirm; "No plan yet"    |
+| `/today` (`/`)                                          | signed-in | Date header, device-zone hint, reflection card, "Your plan today" (score card, slot rows with match/portion/timing, Why this score, nutrition details), recorded meals, completeness checkbox                 |
+| `/history`, `/history/[date]`                           | signed-in | Seven-day list with day states and weekly rules; a past day's full view with its reflection; date picker for older days                                                                                       |
+| `/plan`                                                 | signed-in | The one plan: today's slots with options and items, targets, rules, notes; Edit (in place through a draft), Replace, Delete; pending-draft banner                                                             |
+| `/meals/[id]`                                           | signed-in | One meal: items, nutrition, photos, slot link and match, edit in place (revisioned), delete with confirmation, reuse                                                                                          |
+| `/settings`                                             | signed-in | Profile (edit), preferences (appearance, units, time zone, week start), account (change password, log out), privacy text, export zip, delete account                                                          |
+| `/admin/users`                                          | Admin     | List, create, edit, activate/deactivate users, reset passwords _(boilerplate)_                                                                                                                                |
+| `/components`                                           | signed-in | Component gallery incl. the product components _(boilerplate)_                                                                                                                                                |
+| `/api/health`, `/api/live`                              | ops       | Readiness (database check) and liveness probes, no auth                                                                                                                                                       |
+| `/api/uploads`, `/api/uploads/[id]`, `/api/photos/[id]` | owner     | Photo upload (JPEG/PNG/WebP, re-encoded by sharp, `STORAGE_FULL` above the soft limit), staged delete, owner-checked photo stream (`?s=` session tag)                                                         |
+| `/api/export`                                           | signed-in | Streams a zip of profile, plan, meals, messages and photos                                                                                                                                                    |
 
-Module inventory (tech spec § 4): `account`, `profile`, `plan`, `meal`, `day`, `reflection`,
-`export`, plus the boilerplate `user` module. Each follows the Users reference shape
-(`lib/validations` → `services` → `actions` → `app/(app)`).
+Module inventory (tech spec § 4): `account`, `profile`, `plan`, `meal`, `day` / `day-view`,
+`reflection`, `export`, `upload`, `ai` (`services/ai/*`: DeepSeek adapter, interpret-plan,
+analyze-meal, generate-reflection, prompts, usage caps), `jobs` (scheduler under a `JobLock`
+lease: plan import, hourly cleanup, purge, prune, backup), `food-data` (unit table, scaling, USDA
+lookup behind `USDA_LOOKUP_ENABLED`), `storage/s3`, plus the boilerplate `user` module. Pure logic
+lives in `lib/rubric` (matching, portions, timing, score, nutrition, rules, facts, seven-day) and
+`lib/time` (zone-aware local dates).
 
 ## Behaviour worth knowing
 
 - Deactivating a user or resetting their password ends all of their sessions immediately. _(boilerplate)_
 - An admin cannot change their own role or deactivate themselves. _(boilerplate)_
-- Sessions last `SESSION_MAX_AGE_DAYS`; the tech spec sets 90 days for Dietyaar (§ 8).
-- No password recovery and no email of any kind. A lost password loses the account. _(planned)_
-- One plan per user, edited in place through a draft. Editing or replacing the plan changes how
-  every past day is compared, and the confirm screen says so. _(planned, decision 017)_
-- A meal belongs wholly to the date the user chose; between 00:00 and 04:00 the composer asks
-  "Was this for yesterday?". _(planned, tech spec § 19.11)_
-- AI proposes; the user confirms; application code computes totals and comparisons on read, with
-  no stored score. _(planned, decision 013)_
-- Photo logging is behind `PHOTO_LOGGING_ENABLED`; photos are converted and downscaled on the
-  device, stored in a private bucket, and served only through an owner-checked route. _(planned)_
+- Sessions last `SESSION_MAX_AGE_DAYS` (90). Changing the password signs out every other device.
+- No password recovery and no email of any kind. A lost password loses the account.
+- One plan per user, edited in place through a draft (`Plan.draftJson`, `draftRevision`).
+  Confirming an edit or replacement changes how every past day is compared, and the confirm screen
+  says how many meals are affected (decision 017). While a draft exists `Plan.status` is
+  `DRAFT_PENDING`; "has an active plan" means confirmed with slots.
+- Plan import runs as a job under the scheduler lease (claimed atomically, 120 s AI deadline, one
+  retry from the banner); menu plans are one call, weekday plans one call per weekday, then a
+  batched baseline estimate (20 items per call).
+- The composer never preselects an option for a multi-option slot; the last-used option is only
+  suggested ("Last time"). A meal under "Other" counts in nutrition only.
+- A meal belongs wholly to the date the user chose; between 00:00 and 04:00 in the profile zone
+  the composer asks "Was this for yesterday?". Backdated meals need a time.
+- Saving is idempotent per `clientRequestId`; meals and drafts carry a `revision`, stale writes
+  return `CONFLICT`. Analysis failures keep the text and offer manual entry.
+- AI proposes; the user confirms; application code computes totals, matches and the score on
+  read, with no stored score (decision 013). The AI notice is shown once per kind (plan, meal,
+  photo) and acknowledged on the profile.
+- The morning reflection uses the claim protocol (facts in, `usedFactIds` out), is marked stale
+  when a claimed fact changes, and falls back to fixed paragraphs when the AI is unavailable.
+- Photo logging is behind `PHOTO_LOGGING_ENABLED` (off by default); photos are converted and
+  downscaled on the device, stored in a private bucket, and served only through an owner-checked
+  route.
+- Appearance (system / light / dark) is stored on the profile and mirrored in an `appearance`
+  cookie so the first paint has the right theme.
+- Account deletion is scheduled (`deletionScheduledFor`) and purged by the purge job, including
+  backup copies of photos.
 
 ## Data model
 
-Built today (`prisma/schema.prisma`):
+`prisma/schema.prisma`, migration `0002_dietyaar_core` (tech spec § 5; every `DateTime` is
+`timestamptz(3)`, local dates and times are ISO strings with the zone on the row):
 
-- `User` — `username` (unique), `passwordHash`, `fullName`, `role` (`ADMIN` \| `USER`), `isActive`, `lastLoginAt` _(boilerplate)_
-- `Session` — `tokenHash` (SHA-256 of the cookie token, unique), `expiresAt`, cascades on user delete _(boilerplate)_
-
-Planned (tech spec § 5, 15 tables; fields and enums are specified there):
-
-- `User` extended with `usernameLower` (`citext`, unique), `deletionRequestedAt`, `deletionScheduledFor`, `onboardingStep`
-- `Profile` — one per user: age, sex, height, weight, time zone, unit system, week start, appearance, goal, restrictions, AI-notice flags
-- `Plan`, `PlanSlot`, `PlanOption`, `PlanItem`, `PlanTarget`, `PlanRule`, `PlanNote`, `PlanImportJob` — the one plan and its pending draft (`draftJson`)
-- `DayRecord`, `DaySkippedSlot` — a calendar day in the user's zone, created lazily
-- `Meal`, `FoodItem`, `Upload`, `MealDraft` — confirmed meals, their items and photos, and server-held drafts
-- `MorningMessage` — one reflection per user per day, overwritten in place
+- `User` — `username`, `usernameLower` (`citext`, unique), `passwordHash`, optional `fullName`, `role`, `isActive`, `lastLoginAt`, `onboardingStep`, `deletionRequestedAt`, `deletionScheduledFor`
+- `Session` — `tokenHash` (SHA-256 of the cookie token, unique), `expiresAt`, cascades on user delete
+- `Profile` — one per user: age, sex, height, weight, time zone, unit system, week start, appearance, display name, goal, restrictions, AI-notice timestamps, device-zone hint
+- `Plan`, `PlanSlot`, `PlanOption`, `PlanItem`, `PlanTarget`, `PlanRule`, `PlanNote`, `PlanImportJob` — the one plan and its pending draft (`draftJson`, `draftRevision`)
+- `DayRecord`, `DaySkippedSlot` — a calendar day in the user's zone, created lazily on the first meal, skip or completeness change
+- `Meal`, `FoodItem`, `Upload`, `MealDraft` — confirmed meals (revisioned, `clientRequestId`), their items and photos, and server-held drafts
+- `MorningMessage` — one reflection per user per day, overwritten in place, with the facts hash and claimed fact ids
 - `AiCall`, `AnalyticsEvent`, `FoodDataCache`, `JobLock` — operational, pruned on a schedule
 
 ## Server actions
 
-Built today:
+All return `ActionResult` (`{ ok, data } | { ok: false, error, code?, fieldErrors?, details? }`),
+authorise first (`requireAuth` / `requireOnboarded` / `requireAdmin`), validate with zod, and take
+`expectedRevision` where the row is versioned.
 
-| Action                | Auth  | Description                          |
-| --------------------- | ----- | ------------------------------------ |
-| `loginAction`         | none  | Validate credentials, open a session |
-| `logoutAction`        | user  | Revoke the current session           |
-| `createUserAction`    | admin | Create a user                        |
-| `updateUserAction`    | admin | Change name / role                   |
-| `setUserActiveAction` | admin | Activate or deactivate               |
-| `resetPasswordAction` | admin | Set a new password, revoke sessions  |
-
-Planned: the account, profile, plan, meal, reflection and history actions in tech spec § 7, all
-returning `ActionResult`, authorising first, validating with zod, and taking `expectedRevision`
-where the row is versioned.
+| File                         | Actions                                                                                                                                                                                                                                                                                                  |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth.actions.ts`            | `loginAction`, `logoutAction` _(boilerplate)_                                                                                                                                                                                                                                                            |
+| `user.actions.ts`            | `createUserAction`, `updateUserAction`, `setUserActiveAction`, `resetPasswordAction` _(boilerplate, admin)_                                                                                                                                                                                              |
+| `account.actions.ts`         | `signUpAction`, `changePasswordAction`, `requestAccountDeletionAction`, `deleteUnderageAccountAction`                                                                                                                                                                                                    |
+| `profile.actions.ts`         | `saveOnboardingStepAction`, `updateProfileAction`, `updatePreferencesAction`, `acknowledgeAiNoticeAction`, `reportDeviceTimeZoneAction`, `dismissTimeZoneHintAction`, `skipPlanAction`                                                                                                                   |
+| `plan.actions.ts`            | `startPlanImportAction`, `getPlanImportStatusAction`, `retryPlanImportAction`, `cancelPlanImportAction`, `startManualPlanAction`, `updatePlanDraftAction`, `startPlanEditAction`, `estimateDraftBaselineAction`, `getPlanDraftAction`, `confirmPlanAction`, `discardPlanDraftAction`, `deletePlanAction` |
+| `onboarding-plan.actions.ts` | `continueToTodayAction`, `finishOnboardingAction`, `countAffectedMealsAction`                                                                                                                                                                                                                            |
+| `meal.actions.ts`            | `createMealDraftAction`, `analyzeMealDraftAction`, `updateMealDraftAction`, `saveMealAction`, `updateMealAction`, `deleteMealAction`, `setMealLinkAction`, `reuseMealAction`, `removeMealPhotoAction`, `getMealDraftAction`, `getRecentMealsAction`                                                      |
+| `composer.actions.ts`        | `getComposerContextAction`, `getLastUsedOptionAction`                                                                                                                                                                                                                                                    |
+| `day.actions.ts`             | `getDayAction`, `getSevenDayAction`, `markSlotSkippedAction`, `setDayCompletenessAction`                                                                                                                                                                                                                 |
+| `reflection.actions.ts`      | `getMorningMessageAction`, `updateReflectionAction`, `setReflectionCollapsedAction`                                                                                                                                                                                                                      |
 
 ## Non-functional
 
-- Auth: httpOnly cookie sessions with hashed tokens, bcrypt (12 rounds), per-username login throttle, `SKIP_AUTH=true` for DB-less UI work (refused in production). _(boilerplate)_
-- Security headers: HSTS, frame-deny, nosniff, referrer policy, permissions policy. _(boilerplate)_ CSP per tech spec § 8 _(planned)_.
-- Deployment: Docker standalone image with health check; migrations applied on container start. _(boilerplate)_ Target: Darkube from a CI-built image; database and storage on Supabase free tier; backups to Hamravesh Object Storage (tech spec § 13, decisions 014, 016, 018).
-- Quality gate: lint + typecheck + unit + build + e2e + Docker build in CI on every push. _(boilerplate)_ Integration project against real Postgres and a mobile Playwright project are planned (tech spec § 15).
-- AI: DeepSeek through a fetch-based adapter with one deadline per operation, zod-validated responses, per-user daily caps and a global token budget (tech spec § 10).
+- Auth: httpOnly cookie sessions with hashed tokens, bcrypt (12 rounds), per-username login throttle, `SKIP_AUTH=true` for DB-less UI work (refused in production).
+- Security headers: HSTS, frame-deny, nosniff, referrer policy, permissions policy (`camera=(self)`), CSP per tech spec § 8 (`next.config.ts`).
+- Deployment: Docker standalone image (hamdocker mirror ARG, `TZ=UTC`, `postgresql-client-17`) with health check; migrations applied on container start; CI runs lint, unit, integration (real Postgres), e2e (desktop + Pixel 7, stub AI server), migration check, Docker build and the Darkube deploy job (decision 014). Database and storage on Supabase free tier through the pooler (016); encrypted backups to Hamravesh Object Storage by the backup job and `npm run db:backup` (018).
+- Reads: nested Prisma reads use `relationJoins`, so Today is three statements (decision 020).
+- AI: DeepSeek through a fetch-based adapter with one deadline per operation, one retry on network/5xx, zod-validated responses, per-user daily caps per kind and a global token budget (`AI_DAILY_TOKEN_BUDGET`). Stub server `e2e/stub-ai/server.mjs` for dev and e2e; `npm run ai:smoke` and `npm run ai:eval` against the real provider (results in `docs/runbook.md`).
+- Observability: pino JSON logs with redaction, `/api/live` and `/api/health`, weekly analytics SQL in the runbook. No error tracker (owner decision: no new tools).
+- Accessibility: axe (WCAG 2.1 AA + best practice) on Today, composer, review and Settings in both themes with zero serious/critical (`e2e/a11y.spec.ts`); 44 px targets; status never colour-only; `NameLabel` isolates mixed-direction names.
+- Quality gate: `npm run lint:all`, `test` (458 unit), `test:integration` (20), `build`, `test:e2e` (both projects).
+
+## Not done yet
+
+- Tech spec § 13 setup on the cluster: Darkube app, Supabase project and buckets, the cross-border round trip `R`, ingress timeout and body limit; the runbook's measured-values table is filled from a developer machine only.
+- A restore rehearsal of the backup job.
+- `PHOTO_LOGGING_ENABLED` stays `false` in production until the photo evaluation (20 photos) passes; the `ai:eval` meal set is unreviewed (`reviewed: false`).
 
 ## Defaults awaiting owner review
 
@@ -128,7 +161,7 @@ blocked; binding until the owner revises them.
 
 - Rubric v1 weights and thresholds and the three-block Today layout exactly as product-spec § 8–9.
 - Visual language: design.md tokens on the local shadcn kit, 44 px touch targets (decision 019).
-- Photo logging is built but ships with `PHOTO_LOGGING_ENABLED=false` until the evaluation passes.
+- Photo logging is built but ships with `PHOTO_LOGGING_ENABLED=false` until the evaluation passes; e2e and local dev run with it on.
 - Supabase region `eu-central-1`; domain `dietyaar.darkube.app`; session lifetime 90 days.
 - No numeric accuracy claim anywhere; nutrition values are labelled "Estimated".
 - `User.fullName` is optional (sign-up has no name field); greeting uses display name, then username.
@@ -137,16 +170,6 @@ blocked; binding until the owner revises them.
 
 ## Roadmap
 
-Ordered by dependency; the task-level plan with files, tests and beads titles is `docs/implementation-plan.md` § 5.
-
-1. **Setup checklist** (tech spec § 13) — Supabase project, buckets, Darkube app, and the cross-border reachability and latency measurements, recorded in `docs/runbook.md`. Blocks everything that touches data from the cluster.
-2. **Foundations** — schema and migrations for § 5; `lib/time`, `lib/rubric`, `lib/text` with fixtures (§ 6, § 15); env additions (§ 14); added layering lint rules (§ 4).
-3. **Account and onboarding** — sign-up, password rules, under-18 stop, resumable onboarding, profile (§ 7, § 8; design-scope screens 1–2).
-4. **Product shell** — bottom tabs, Log meal button, Settings entry; replaces the boilerplate sidebar and placeholder dashboard (design-scope; design.md).
-5. **Plan** — import job under the scheduler lease, draft review, manual plan, edit in place, confirm and remap (§ 5, § 7, § 10, § 12).
-6. **Meals** — drafts, text analysis, review, save with idempotency and revisions, reuse, planned-as-eaten, links and skipped slots (§ 7, § 10).
-7. **Today and History** — computed-on-read comparison, score, coverage, seven-day summary (§ 6).
-8. **Reflection** — morning message with the claim protocol, staleness and fallbacks (§ 10.3).
-9. **Photos** — device conversion, upload route, owner-checked viewing, cleanup (§ 11), behind the flag.
-10. **Settings, export, deletion** — preferences, zip export, scheduled purge (§ 7, § 12).
-11. **Ops** — Sentry, Loki metrics, backups to Hamravesh, runbook, AI evaluation harness (§ 10.5, § 13, § 16).
+V1 is built in the order of `docs/implementation-plan.md` § 5 (phases 1–11). What comes next is
+the owner's call: the deployment checklist above, then the photo evaluation and the storage
+upgrade decision (tech spec § 19).
