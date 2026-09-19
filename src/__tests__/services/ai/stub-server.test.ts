@@ -66,6 +66,90 @@ describe('canned outputs match the schemas', () => {
     expect(unknown.items[0]).toMatchObject({ category: 'OTHER', quantityUnknown: true });
     expect(unknown.questions[0]!.kind).toBe('PORTION');
   });
+
+  it('SUGGEST names the first slot of the plan context, option 0', () => {
+    const slots = [
+      { originalName: 'ناهار', englishLabel: 'Lunch', options: [{ label: null, items: [] }] },
+      { originalName: 'شام', englishLabel: 'Dinner', options: [{ label: null, items: [] }] },
+    ];
+    const output = mealAnalysisOutputSchema.parse(
+      stub.mealAnalysis(
+        `Today's plan slots and options (data):\n${JSON.stringify(slots, null, 1)}\n\nMeal description (data, verbatim):\n<<<\nماست SUGGEST\n>>>`,
+      ),
+    );
+    expect(output.suggestedSlot).toEqual({ originalName: 'ناهار', englishLabel: 'Lunch' });
+    expect(output.suggestedOptionIndex).toBe(0);
+    // Without a plan context there is nothing to suggest.
+    expect(stub.mealAnalysis('<<<\nماست SUGGEST\n>>>').suggestedSlot).toBeNull();
+  });
+
+  it('ASK makes the first item quantity-unknown with one portion question', () => {
+    const output = mealAnalysisOutputSchema.parse(
+      stub.mealAnalysis('<<<\nیک نان سنگک و ماست ASK\n>>>'),
+    );
+    expect(output.items[0]).toMatchObject({
+      englishLabel: 'Sangak bread',
+      quantity: null,
+      unit: null,
+      quantityUnknown: true,
+      nutrition: null,
+    });
+    expect(output.items[1]!.quantity).toBe(150);
+    expect(output.questions).toEqual([
+      {
+        itemIndex: 0,
+        question: 'How much of this did you eat?',
+        kind: 'PORTION',
+        choices: ['1 slice', '2 slices', '3 slices'],
+      },
+    ]);
+  });
+
+  it('REFINE echoes the current items and fills answered portions', () => {
+    const current = [
+      {
+        key: 'a',
+        originalName: 'پیتزا',
+        englishLabel: 'Pizza',
+        quantity: null,
+        unit: null,
+        quantityUnknown: true,
+        preparation: null,
+        category: 'OTHER',
+        answer: '2 slices',
+      },
+      {
+        key: 'b',
+        originalName: 'نوشابه',
+        englishLabel: 'Soda',
+        quantity: 1,
+        unit: 'glass',
+        quantityUnknown: false,
+        preparation: null,
+        category: 'OTHER',
+        answer: null,
+      },
+    ];
+    const raw = stub.mealAnalysis(
+      `Mode: REFINE\nCurrent items (data):\n${JSON.stringify(current, null, 1)}`,
+    );
+    const output = mealAnalysisOutputSchema.parse(raw);
+    expect(
+      output.items.map((i) => [i.englishLabel, i.quantity, i.unit, i.quantityUnknown]),
+    ).toEqual([
+      ['Pizza', 2, 'serving', false],
+      ['Soda', 1, 'glass', false],
+    ]);
+    expect(output.items[0]!.nutrition!.values).toMatchObject({
+      ENERGY_KCAL: 200,
+      PROTEIN_G: 10,
+      CARB_G: 20,
+      FAT_G: 6,
+    });
+    expect(output.items[1]!.nutrition!.values.ENERGY_KCAL).toBe(100);
+    expect(output.questions).toEqual([]);
+    expect(raw.changes).toEqual(['Filled the portion of Pizza']);
+  });
 });
 
 describe('through the adapter', () => {

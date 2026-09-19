@@ -14,7 +14,7 @@ import { MEAL_COMMON_RULES, MEAL_EXAMPLE } from '@/services/ai/prompts/meal-text
  * § 7). Same output shape as the text prompt; the photos are attached to the
  * user message as inline images. No profile field is ever sent.
  */
-export const MEAL_PHOTO_PROMPT_VERSION = 1;
+export const MEAL_PHOTO_PROMPT_VERSION = 2;
 
 export function mealPhotoSystemPrompt(): string {
   return [
