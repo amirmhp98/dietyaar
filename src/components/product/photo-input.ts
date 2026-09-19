@@ -24,6 +24,7 @@ export type PhotoErrorCode =
   | 'RATE_LIMITED'
   | 'FORBIDDEN'
   | 'NOT_FOUND'
+  | 'UNAUTHENTICATED'
   | 'UNSUPPORTED'
   | 'NETWORK'
   | 'UNEXPECTED';
@@ -145,6 +146,7 @@ async function errorFromResponse(response: Response): Promise<PhotoUploadError> 
   if (code && (known as string[]).includes(code)) {
     return new PhotoUploadError(code as PhotoErrorCode, message);
   }
+  if (response.status === 401) return new PhotoUploadError('UNAUTHENTICATED', message);
   if (response.status === 413) return new PhotoUploadError('UPLOAD_SIZE', message);
   if (response.status === 415) return new PhotoUploadError('UPLOAD_TYPE', message);
   if (response.status === 404) return new PhotoUploadError('NOT_FOUND', message);

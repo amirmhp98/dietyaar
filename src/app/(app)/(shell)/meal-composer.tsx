@@ -105,6 +105,7 @@ const PHOTO_ERRORS: Record<PhotoErrorCode, string> = {
   RATE_LIMITED: t('photo.errors.rateLimited'),
   FORBIDDEN: t('photo.errors.notFound'),
   NOT_FOUND: t('photo.errors.notFound'),
+  UNAUTHENTICATED: t('meal.errors.sessionEnded'),
   UNSUPPORTED: t('photo.errors.unsupported'),
   NETWORK: t('photo.errors.network'),
   UNEXPECTED: t('errors.unexpected'),
