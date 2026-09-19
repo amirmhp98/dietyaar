@@ -9,6 +9,7 @@ import {
   analyzeMealDraftSchema,
   createMealDraftSchema,
   deleteMealSchema,
+  discardMealDraftSchema,
   reuseMealSchema,
   saveMealSchema,
   setMealLinkSchema,
@@ -67,11 +68,13 @@ export async function analyzeMealDraftAction(
       parsed.data.draftId,
       parsed.data.expectedRevision,
       new Date(),
+      parsed.data.mode,
     );
     await recordEvent(
       draft.analysisStatus === 'DONE' ? 'analysis_succeeded' : 'analysis_failed',
       {
         kind: draft.state.kind,
+        mode: parsed.data.mode,
         durationMs: Date.now() - startedAt,
         reason: draft.analysisFailureReason,
       },
@@ -108,7 +111,20 @@ export async function updateMealDraftAction(
   }
 }
 
-export async function saveMealAction(input: unknown): Promise<ActionResult<meals.MealView>> {
+/** "Start over": drops the server draft and its staged photos; the client clears its mirror. */
+export async function discardMealDraftAction(input: unknown): Promise<ActionResult> {
+  const user = await requireOnboarded();
+  const parsed = discardMealDraftSchema.safeParse(input);
+  if (!parsed.success) return fromZodError(parsed.error);
+  try {
+    await meals.discardDraft(user.id, parsed.data.draftId);
+    return ok();
+  } catch (error) {
+    return fromError(error);
+  }
+}
+
+export async function saveMealAction(input: unknown): Promise<ActionResult<meals.SaveMealResult>> {
   const user = await requireOnboarded();
   const parsed = saveMealSchema.safeParse(input);
   if (!parsed.success) return fromZodError(parsed.error);

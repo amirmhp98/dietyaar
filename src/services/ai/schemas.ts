@@ -139,6 +139,8 @@ export const mealAnalysisOutputSchema = z.object({
   suggestedSlot: foodNameSchema.nullable().default(null),
   suggestedOptionIndex: z.number().int().nonnegative().nullable().default(null),
   questions: z.array(aiMealQuestionSchema).max(6).default([]),
+  /** REFINE mode only: one English sentence per item the answers changed. */
+  changes: z.array(z.string().trim().max(200)).max(20).default([]),
 });
 export type MealAnalysisOutput = z.infer<typeof mealAnalysisOutputSchema>;
 

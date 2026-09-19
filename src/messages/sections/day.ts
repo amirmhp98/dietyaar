@@ -178,7 +178,7 @@ export const day = {
   // ── Recorded meals ─────────────────────────────────────────
   'meals.heading': 'Recorded meals',
   'meals.timeUnknown': 'Time unknown',
-  'meals.other': 'Other',
+  'meals.other': 'Extra',
   'meals.empty': 'No meals recorded for this day.',
   'meals.moreItems.one': '+{count} more',
   'meals.moreItems.other': '+{count} more',

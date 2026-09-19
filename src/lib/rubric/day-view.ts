@@ -1,6 +1,6 @@
 import { RUBRIC_VERSION } from '@/lib/rubric/constants';
 import { energyResult } from '@/lib/rubric/energy';
-import { matchSlot } from '@/lib/rubric/match-slot';
+import { matchSlot, optionRequiredFor } from '@/lib/rubric/match-slot';
 import {
   compareTarget,
   dailyTargetFor,
@@ -16,6 +16,7 @@ import type {
   DayInput,
   DayView,
   RubricMeal,
+  RubricOption,
   RubricSlot,
   SlotState,
   SlotView,
@@ -43,6 +44,17 @@ function timingWindowFor(
   }
   if (slot.timeStart) return { start: slot.timeStart, end: slot.timeEnd };
   return null;
+}
+
+/**
+ * The option a recorded slot is compared with: the resolved one, or, for a
+ * meal saved under the slot without an option (a different food), the first
+ * option, which the matcher then reports as Different food (product spec § 8).
+ */
+function referenceOption(view: SlotView): RubricOption | null {
+  if (view.option) return view.option;
+  const [first] = [...view.slot.options].sort((a, b) => a.position - b.position);
+  return first ?? null;
 }
 
 /**
@@ -76,15 +88,20 @@ export function computeDayView(input: DayInput): DayView {
     const conflictingOptionIds: string[] = [];
     if (linked.length > 0) {
       state = 'RECORDED';
-      const optionIds = new Set(linked.map((m) => m.planOptionId));
+      const namedIds = new Set(linked.flatMap((m) => (m.planOptionId ? [m.planOptionId] : [])));
       if (slot.options.length <= 1) {
         option = slot.options[0] ?? null;
-      } else if (optionIds.size === 1 && !optionIds.has(null)) {
-        option = slot.options.find((o) => o.id === linked[0].planOptionId) ?? null;
+      } else if (namedIds.size === 0) {
+        // No option named: a different food under the slot (B3), unless the items
+        // overlap an option — then the choice is still owed (an option removed by a plan edit).
+        const items = linked.flatMap((m) => m.items);
+        if (optionRequiredFor(items, slot)) state = 'NEEDS_REVIEW';
+      } else if (namedIds.size === 1) {
+        option = slot.options.find((o) => namedIds.has(o.id)) ?? null;
         if (!option) state = 'NEEDS_REVIEW';
       } else {
         state = 'NEEDS_REVIEW';
-        for (const id of optionIds) if (id) conflictingOptionIds.push(id);
+        for (const id of namedIds) conflictingOptionIds.push(id);
       }
     } else if (skipped.has(slot.id)) {
       state = 'SKIPPED';
@@ -110,14 +127,15 @@ export function computeDayView(input: DayInput): DayView {
 
   // Step 5: comparisons per resolved slot.
   const orderEntries: OrderEntry[] = views
-    .filter((v) => v.state === 'RECORDED' && v.option)
+    .filter((v) => v.state === 'RECORDED' && referenceOption(v))
     .map((v) => ({ slot: v.slot, time: v.earliestTime }));
 
   for (const view of views) {
-    if (view.state !== 'RECORDED' || !view.option) continue;
+    const reference = view.state === 'RECORDED' ? referenceOption(view) : null;
+    if (!reference) continue;
     const linked = view.mealIds.map((id) => meals.find((m) => m.id === id)!);
     const items = linked.flatMap((m) => m.items);
-    view.match = matchSlot(items, view.option, view.slot, input.allSlots);
+    view.match = matchSlot(items, reference, view.slot, input.allSlots);
     view.portion = portionResult(view.match);
     const window = timingWindowFor(view.slot, input);
     view.timing = window

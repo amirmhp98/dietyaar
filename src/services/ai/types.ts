@@ -84,11 +84,32 @@ export interface MealPlanContext {
   }>;
 }
 
+/** One reviewed item as the user has it, sent back in REFINE mode (product spec § 7 "AI review"). */
+export interface MealRefineItem {
+  key: string;
+  originalName: string;
+  englishLabel: string;
+  quantity: number | null;
+  unit: string | null;
+  quantityUnknown: boolean;
+  preparation: string | null;
+  category: string;
+  /** The answered question text for this item, or null. */
+  answer: string | null;
+}
+
+export interface MealRefineContext {
+  items: MealRefineItem[];
+  answers: Array<{ question: string; answer: string }>;
+}
+
 export interface AnalyzeMealInput {
   text: string | null;
   /** JPEG bytes, sent base64-inline; empty for text-only. */
   images: Buffer[];
   planContext: MealPlanContext | null;
+  /** Set for a REFINE call: the model returns these items, filled in, instead of a fresh list. */
+  refine?: MealRefineContext | null;
   deadlineAt: DeadlineAt;
   userTag: string;
 }

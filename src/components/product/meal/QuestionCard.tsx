@@ -17,7 +17,8 @@ export function QuestionCard({
 }: {
   questions: DraftQuestion[];
   items: DraftFoodItem[];
-  onAnswer: (key: string, answer: string | null) => void;
+  /** `fromChoice`: a quick-answer chip, which may carry a quantity (B2). */
+  onAnswer: (key: string, answer: string | null, fromChoice: boolean) => void;
 }) {
   if (questions.length === 0) return null;
   return (
@@ -60,7 +61,7 @@ export function QuestionCard({
                         type="button"
                         role="radio"
                         aria-checked={selected}
-                        onClick={() => onAnswer(question.key, selected ? null : choice)}
+                        onClick={() => onAnswer(question.key, selected ? null : choice, true)}
                         className={cn(
                           'min-h-11 rounded-full border px-4 text-sm transition-colors',
                           selected
@@ -81,7 +82,7 @@ export function QuestionCard({
                   placeholder={t('meal.review.questionAnswerPlaceholder')}
                   value={question.answer ?? ''}
                   maxLength={300}
-                  onChange={(event) => onAnswer(question.key, event.target.value || null)}
+                  onChange={(event) => onAnswer(question.key, event.target.value || null, false)}
                 />
               )}
             </li>

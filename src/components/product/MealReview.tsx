@@ -2,39 +2,66 @@
 
 import { useMemo, useState } from 'react';
 import { CloudOff, Plus } from 'lucide-react';
-import { Badge, Button, Checkbox, Input, Label, Textarea } from '@/components/UiComponents';
+import {
+  Badge,
+  Button,
+  Checkbox,
+  Input,
+  Label,
+  Spinner,
+  Textarea,
+} from '@/components/UiComponents';
 import { DifferenceChip } from '@/components/product/DifferenceChip';
 import { Disclosure } from '@/components/product/Disclosure';
+import { InlineName, fillNames } from '@/components/product/InlineName';
 import { NameLabel } from '@/components/product/NameLabel';
 import { ItemRow } from '@/components/product/meal/ItemRow';
+import type { StagedPhoto } from '@/components/product/meal/PhotoPicker';
+import { PhotoThumbnails } from '@/components/product/meal/PhotoThumbnails';
 import { QuestionCard } from '@/components/product/meal/QuestionCard';
+import { ResumedBanner } from '@/components/product/meal/ResumedBanner';
 import { OTHER_SLOT, SlotSelect, optionLabel } from '@/components/product/meal/SlotPicker';
+import { newDraftItem, timeMissing, toRubricItem } from '@/components/product/meal/composition';
+import { quantityFromChoice } from '@/components/product/meal/questions';
 import { NUTRIENT_UNITS, sumTotals } from '@/components/product/meal/totals';
 import { formatNumber } from '@/lib/format';
+import { optionRequiredFor } from '@/lib/rubric/match-slot';
 import type { MatchResult, RubricSlot } from '@/lib/rubric/types';
 import { t } from '@/lib/t';
 import type { DraftFoodItem, MealDraftState } from '@/lib/validations/meal';
 import { MAIN_NUTRIENTS } from '@/lib/validations/nutrition';
 import { cn } from '@/lib/utils';
 
-export type ReviewSyncStatus = 'saved' | 'pending' | 'failed';
+export { newDraftItem };
+
+/** `refining`: a REFINE call is in flight; the review stays usable meanwhile. */
+export type ReviewSyncStatus = 'saved' | 'pending' | 'failed' | 'refining';
 
 export interface MealReviewProps {
   /** `draft`: the composer (slot change allowed); `edit`: a saved meal (slot changes go through the details page). */
   mode: 'draft' | 'edit';
   state: MealDraftState;
   onChange: (patch: Partial<MealDraftState>) => void;
+  /** Called after a question was answered so the island can refine the estimate. */
+  onAnswered?: () => void;
   match: MatchResult | null;
   slots: RubricSlot[];
   lastUsed: Record<string, string | null>;
   /** True when the user explicitly picked "Other" (kept client-side; the server only knows null). */
   otherChosen: boolean;
+  /** The suggested slot that already held a meal, when that is why the meal became an extra one (B4). */
+  extraBecauseRecordedSlotId?: string | null;
+  /** Staged photos of the draft (B5). */
+  photos?: StagedPhoto[];
   sync: ReviewSyncStatus;
   online: boolean;
   conflict: boolean;
   saving: boolean;
   /** Inline message under the primary action (save failure, option required, future time). */
   error: string | null;
+  /** A failed refine: the answer is kept, a retry is offered. */
+  refineError?: string | null;
+  onRetryRefine?: () => void;
   canReestimate: boolean;
   onReestimate: () => void;
   onSave: () => void;
@@ -43,32 +70,12 @@ export interface MealReviewProps {
   saveLabel?: string;
   dateSummary: string;
   today: string;
-}
-
-let newItemSeq = 0;
-export function newDraftItem(position: number): DraftFoodItem {
-  newItemSeq += 1;
-  return {
-    key: `new-${Date.now().toString(36)}-${newItemSeq}`,
-    position,
-    originalName: '',
-    englishLabel: '',
-    quantity: null,
-    unit: null,
-    quantityUnknown: false,
-    quantityAssumed: false,
-    preparation: null,
-    category: 'OTHER',
-    alternatives: [],
-    chosenAlternative: null,
-    nutrition: null,
-    matchedPlanItemId: null,
-    isAddedItem: false,
-    needsReestimate: false,
-    previousNutrition: null,
-    scaleFlag: null,
-    ruleGroups: [],
-  };
+  /** Lifted by the composer so the compose step and the review agree; local otherwise (edit mode). */
+  timeUnknown?: boolean;
+  onTimeUnknownChange?: (unknown: boolean) => void;
+  /** The sheet opened on a draft from before (B8). */
+  resumed?: boolean;
+  onStartOver?: () => void;
 }
 
 function matchLabel(
@@ -98,15 +105,20 @@ export function MealReview(props: MealReviewProps) {
     mode,
     state,
     onChange,
+    onAnswered,
     match,
     slots,
     lastUsed,
     otherChosen,
+    extraBecauseRecordedSlotId = null,
+    photos = [],
     sync,
     online,
     conflict,
     saving,
     error,
+    refineError = null,
+    onRetryRefine,
     canReestimate,
     onReestimate,
     onSave,
@@ -114,9 +126,12 @@ export function MealReview(props: MealReviewProps) {
     onCancel,
     dateSummary,
     today,
+    resumed = false,
+    onStartOver,
   } = props;
   const [changingSlot, setChangingSlot] = useState(false);
-  const [timeUnknown, setTimeUnknown] = useState(state.time === null);
+  const [localTimeUnknown, setLocalTimeUnknown] = useState(state.time === null);
+  const timeUnknown = props.timeUnknown ?? localTimeUnknown;
   const totals = useMemo(() => sumTotals(state.items), [state.items]);
   const slot = slots.find((s) => s.id === state.planSlotId) ?? null;
   const option = slot?.options.find((o) => o.id === state.planOptionId) ?? null;
@@ -125,11 +140,14 @@ export function MealReview(props: MealReviewProps) {
         .sort((a, b) => a.position - b.position)
         .findIndex((o) => o.id === option?.id)
     : -1;
-  const optionRequired = slot !== null && slot.options.length > 1 && option === null;
+  const optionRequired =
+    slot !== null && option === null && optionRequiredFor(state.items.map(toRubricItem), slot);
+  const extraSlot = slots.find((s) => s.id === extraBecauseRecordedSlotId) ?? null;
   const hitByKey = new Map(state.restrictionHits.map((h) => [h.itemKey, h.restriction]));
   const addedNames = match?.added.map((a) => a.englishLabel) ?? [];
   const backdated = state.localDate !== today;
-  const saveDisabled = saving || optionRequired || conflict;
+  const timeRequired = timeMissing(state.time, timeUnknown);
+  const saveDisabled = saving || optionRequired || conflict || timeRequired;
   const slotSummary = match ? matchLabel(match, slots) : null;
 
   function updateItem(index: number, next: DraftFoodItem) {
@@ -143,14 +161,46 @@ export function MealReview(props: MealReviewProps) {
   function addItem() {
     onChange({ items: [...state.items, newDraftItem(state.items.length)] });
   }
-  function answer(key: string, value: string | null) {
-    onChange({
+  function setTimeUnknown(unknown: boolean) {
+    setLocalTimeUnknown(unknown);
+    props.onTimeUnknownChange?.(unknown);
+    // Unticking leaves the field empty; a time is typed, never invented (B6).
+    onChange({ time: null });
+  }
+  /** A picked choice that names a count of a known unit fills the quantity at once (B2). */
+  function answer(key: string, value: string | null, fromChoice: boolean) {
+    const question = state.questions.find((q) => q.key === key);
+    const patch: Partial<MealDraftState> = {
       questions: state.questions.map((q) => (q.key === key ? { ...q, answer: value } : q)),
-    });
+    };
+    if (fromChoice && value && question?.itemKey) {
+      const index = state.items.findIndex((i) => i.key === question.itemKey);
+      const item = state.items[index];
+      const parsed = item ? quantityFromChoice(value, item) : null;
+      if (item && parsed) {
+        patch.items = state.items.map((it, i) =>
+          i === index
+            ? {
+                ...it,
+                quantity: parsed.quantity,
+                unit: parsed.unit,
+                quantityUnknown: false,
+                quantityAssumed: false,
+              }
+            : it,
+        );
+      }
+    }
+    onChange(patch);
+    if (value) onAnswered?.();
   }
 
   return (
     <div className="space-y-4" data-testid="meal-review">
+      {resumed && onStartOver ? (
+        <ResumedBanner onStartOver={onStartOver} disabled={saving} />
+      ) : null}
+
       <div className="flex flex-wrap items-center justify-between gap-2" aria-live="polite">
         <p className="text-sm text-muted-foreground">{t('meal.review.helper')}</p>
         <SyncIndicator sync={sync} online={online} />
@@ -168,6 +218,29 @@ export function MealReview(props: MealReviewProps) {
           </Button>
         </div>
       ) : null}
+
+      {refineError ? (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning bg-warning/10 p-3 text-sm"
+          data-testid="refine-failed"
+        >
+          <span>{refineError}</span>
+          {onRetryRefine ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9"
+              onClick={onRetryRefine}
+            >
+              {t('meal.compose.retry')}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+
+      <PhotoThumbnails photos={photos} />
 
       {state.text ? (
         <p className="text-sm text-muted-foreground">
@@ -246,6 +319,16 @@ export function MealReview(props: MealReviewProps) {
             {t('meal.review.unknownValuesHint')}
           </p>
         ) : null}
+        {state.lastChanges.length > 0 ? (
+          <div className="mt-2 text-sm text-muted-foreground" data-testid="what-changed">
+            <p className="text-xs font-medium text-foreground">{t('meal.review.whatChanged')}</p>
+            <ul className="mt-1 list-disc space-y-0.5 ps-4">
+              {state.lastChanges.map((change, index) => (
+                <li key={index}>{change}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <Disclosure label={t('meal.review.sources')} className="mt-2" testId="sources-toggle">
           <ul className="space-y-1 text-sm">
             {state.items.map((item) => (
@@ -305,27 +388,33 @@ export function MealReview(props: MealReviewProps) {
           />
         ) : (
           <div className="space-y-1 text-sm" data-testid="slot-summary">
-            {slot ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <NameLabel
-                  originalName={slot.originalName}
-                  englishLabel={slot.englishLabel}
-                  inline
-                  size="sm"
-                />
-                {option ? (
-                  <Badge variant="secondary">
-                    <bdi>{optionLabel(option, optionIndex)}</bdi>
-                  </Badge>
-                ) : null}
-              </div>
-            ) : (
-              <p>
-                {otherChosen || mode === 'edit'
-                  ? t('meal.compose.slotOther')
-                  : t('meal.compose.slotNone')}
-              </p>
-            )}
+            <p>
+              {slot ? (
+                <>
+                  {fillNames(
+                    t(
+                      option || optionRequired
+                        ? 'meal.review.linkedTo'
+                        : 'meal.review.linkedDifferent',
+                      { slot: '{slot}' },
+                    ),
+                    { slot: <InlineName name={slot} /> },
+                  )}
+                  {option && slot.options.length > 1 ? (
+                    <>
+                      {' · '}
+                      <bdi>{optionLabel(option, optionIndex)}</bdi>
+                    </>
+                  ) : null}
+                </>
+              ) : extraSlot ? (
+                fillNames(t('meal.review.extraBecauseRecorded', { slot: '{slot}' }), {
+                  slot: <InlineName name={extraSlot} />,
+                })
+              ) : (
+                t('meal.review.extraMeal')
+              )}
+            </p>
             {slotSummary ? (
               <p className="text-muted-foreground">
                 {slotSummary.text}
@@ -397,24 +486,23 @@ export function MealReview(props: MealReviewProps) {
               dir="ltr"
               disabled={timeUnknown}
               value={state.time ?? ''}
-              onChange={(event) => {
-                if (event.target.value) onChange({ time: event.target.value });
-              }}
+              onChange={(event) => onChange({ time: event.target.value || null })}
             />
           </div>
           <label className="flex min-h-11 items-center gap-2 text-sm">
             <Checkbox
               checked={timeUnknown}
               data-testid="time-unknown"
-              onCheckedChange={(checked) => {
-                const unknown = checked === true;
-                setTimeUnknown(unknown);
-                onChange({ time: unknown ? null : state.time });
-              }}
+              onCheckedChange={(checked) => setTimeUnknown(checked === true)}
             />
             {t('meal.compose.timeUnknown')}
           </label>
         </div>
+        {timeRequired ? (
+          <p className="text-sm text-warning" role="status" data-testid="time-required">
+            {t('meal.review.timeRequired')}
+          </p>
+        ) : null}
         <div className="space-y-1">
           <Label htmlFor="review-notes" className="text-xs">
             {t('meal.compose.notes')}
@@ -475,6 +563,18 @@ function SyncIndicator({ sync, online }: { sync: ReviewSyncStatus; online: boole
     );
   }
   if (sync === 'saved') return null;
+  if (sync === 'refining') {
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
+        role="status"
+        data-testid="refining"
+      >
+        <Spinner className="size-3.5" />
+        {t('meal.review.refining')}
+      </span>
+    );
+  }
   return (
     <Badge variant={sync === 'failed' ? 'warning' : 'outline'} data-testid="unsaved">
       {t('meal.review.unsaved')}

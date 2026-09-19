@@ -4,11 +4,12 @@ import { useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { Badge, Label } from '@/components/UiComponents';
 import { NameLabel } from '@/components/product/NameLabel';
+import { OTHER_SLOT } from '@/components/product/meal/composition';
 import type { RubricOption, RubricSlot } from '@/lib/rubric/types';
 import { t, tp } from '@/lib/t';
 import { cn } from '@/lib/utils';
 
-export const OTHER_SLOT = 'OTHER';
+export { OTHER_SLOT };
 
 export function optionLabel(option: RubricOption, index: number): string {
   return option.label?.trim() || t('meal.compose.option', { number: index + 1 });
@@ -86,17 +87,20 @@ export function OptionList({
 /**
  * "Today's planned meals" row (compose step): one chip per slot in plan
  * order. A single-option slot logs on tap; a multi-option slot expands its
- * options beneath the row, the last-used one marked "Last time".
+ * options beneath the row, the last-used one marked "Last time". A slot
+ * already recorded today carries a check (O D14) and stays selectable.
  */
 export function PlannedSlotsRow({
   slots,
   lastUsed,
+  recordedSlotIds = [],
   initialExpandedSlotId = null,
   onExpand,
   onPick,
 }: {
   slots: RubricSlot[];
   lastUsed: Record<string, string | null>;
+  recordedSlotIds?: readonly string[];
   initialExpandedSlotId?: string | null;
   onExpand: (slotId: string) => void;
   onPick: (slotId: string, optionId: string) => void;
@@ -110,6 +114,7 @@ export function PlannedSlotsRow({
           const options = sortedOptions(slot);
           const multi = options.length > 1;
           const isOpen = expanded === slot.id;
+          const recorded = recordedSlotIds.includes(slot.id);
           return (
             <button
               key={slot.id}
@@ -131,12 +136,23 @@ export function PlannedSlotsRow({
               )}
             >
               <span className="flex flex-col">
-                <NameLabel
-                  originalName={slot.originalName}
-                  englishLabel={slot.englishLabel}
-                  size="sm"
-                  className="items-start"
-                />
+                <span className="flex items-center gap-1.5">
+                  <NameLabel
+                    originalName={slot.originalName}
+                    englishLabel={slot.englishLabel}
+                    size="sm"
+                    className="items-start"
+                  />
+                  {recorded ? (
+                    <span
+                      className="grid size-4 shrink-0 place-content-center rounded-full bg-primary/15 text-primary"
+                      data-testid="slot-recorded"
+                    >
+                      <Check className="size-3" aria-hidden="true" />
+                      <span className="sr-only">{t('meal.compose.slotRecorded')}</span>
+                    </span>
+                  ) : null}
+                </span>
                 <span className="text-xs text-muted-foreground">
                   {multi
                     ? tp('meal.compose.optionCount', options.length)

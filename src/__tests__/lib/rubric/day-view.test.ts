@@ -91,13 +91,28 @@ describe('computeDayView', () => {
     expect(view.score.coverage.needsReview).toBe(1);
   });
 
-  it('a multi-option slot without a chosen option → Needs review; a single-option slot resolves itself', () => {
+  it('a multi-option slot without a chosen option → Needs review when the items overlap an option; a single-option slot resolves itself', () => {
     const p = buildMenuPlan();
     const o = p.lunch.options[0];
     const view = computeDayView(
       dayInput(p.slots, { meals: [meal(p.lunch.id, null, '13:00', [eaten(o.items[0])])] }),
     );
     expect(view.slots[2].state).toBe('NEEDS_REVIEW');
+    expect(view.slots[2].match).toBeNull();
+  });
+
+  it('a meal under a multi-option slot that overlaps no option → Recorded · Different food, no option named (B3)', () => {
+    const p = buildMenuPlan();
+    const burger = fi('ساندویچ همبرگر', 'burger sandwich', 1, 'piece', 'MEAT', 450);
+    const view = computeDayView(
+      dayInput(p.slots, { meals: [meal(p.lunch.id, null, '13:00', [burger])] }),
+    );
+    const lunch = view.slots[2];
+    expect(lunch.state).toBe('RECORDED');
+    expect(lunch.option).toBeNull();
+    expect(lunch.match?.status).toBe('DIFFERENT_FOOD');
+    expect(lunch.score?.food).toBe(0);
+    expect(view.score.coverage).toMatchObject({ recorded: 1, needsReview: 0 });
   });
 
   it('midnight: ONGOING excludes the nutrition component; PAST with a complete log applies it (TS-§21.5)', () => {

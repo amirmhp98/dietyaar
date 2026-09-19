@@ -270,6 +270,7 @@ describe('analyzeDraft (tech spec § 21.8)', () => {
         suggestedSlot: null,
         suggestedOptionIndex: null,
         questions: [],
+        changes: [],
       },
       attempts: [],
       usage: { promptTokens: 1, completionTokens: 1 },

@@ -1,5 +1,5 @@
 import { normalizeInput } from '@/lib/text/normalize';
-import type { MealPlanContext } from '@/services/ai/types';
+import type { MealPlanContext, MealRefineContext } from '@/services/ai/types';
 import {
   DATA_NOTICE,
   LANGUAGE_RULES,
@@ -84,6 +84,15 @@ export const MEAL_COMMON_RULES = [
   'Before replying, count the foods named in the description (or shown in the photos); `items` must have one entry for each of them.',
 ].join('\n');
 
+/**
+ * REFINE (product spec § 7 "AI review", improvement plan B1): the user has
+ * reviewed the items and answered questions; the model fills the gaps
+ * instead of starting over, so renames and entered values survive.
+ */
+export const MEAL_REFINE_RULES = [
+  'Mode REFINE: when the user message says `Mode: REFINE`, it carries the current items (data) and the answered questions (data). Return exactly these items, in this order, with the same `originalName` and `englishLabel`; never drop, merge or rename one. Fill `quantity`, `unit` and `nutrition` for items whose answer now makes the portion known (an answer such as "2 slices" or "a medium bowl" is the quantity and unit), and set `quantityUnknown: false` for them. Keep every value the user already provided. Explain each item you changed in one short English sentence in `changes` (empty when nothing changed). Ask again only for items whose portion is still unknown; never repeat an answered question.',
+].join('\n');
+
 export function mealTextSystemPrompt(): string {
   return [
     marker('MEAL_TEXT', MEAL_TEXT_PROMPT_VERSION),
@@ -91,6 +100,7 @@ export function mealTextSystemPrompt(): string {
     DATA_NOTICE,
     LANGUAGE_RULES,
     MEAL_COMMON_RULES,
+    MEAL_REFINE_RULES,
     unitsSection(),
     assumedDefaultsSection(),
     categoriesSection(),
@@ -101,8 +111,37 @@ export function mealTextSystemPrompt(): string {
   ].join('\n');
 }
 
-export function mealUserMessage(text: string | null, planContext: MealPlanContext | null): string {
+/** The REFINE block of the user message: current items, then the answered questions, both as data. */
+function refineSection(refine: MealRefineContext): string[] {
+  return [
+    'Mode: REFINE',
+    'Current items (data):',
+    asJson(
+      refine.items.map((item) => ({
+        key: item.key,
+        originalName: item.originalName,
+        englishLabel: item.englishLabel,
+        quantity: item.quantity,
+        unit: item.unit,
+        quantityUnknown: item.quantityUnknown,
+        preparation: item.preparation,
+        category: item.category,
+        answer: item.answer,
+      })),
+    ),
+    'Answered questions (data):',
+    asJson(refine.answers),
+    '',
+  ];
+}
+
+export function mealUserMessage(
+  text: string | null,
+  planContext: MealPlanContext | null,
+  refine: MealRefineContext | null = null,
+): string {
   const lines: string[] = [];
+  if (refine) lines.push(...refineSection(refine));
   if (planContext && planContext.slots.length > 0) {
     lines.push("Today's plan slots and options (data):", asJson(planContext.slots), '');
   }

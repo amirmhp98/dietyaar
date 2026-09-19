@@ -277,7 +277,7 @@ Preserve an in-progress form through temporary connectivity loss. Clearly label 
 
 - A text-only meal and a photo meal can both reach an editable review.
 - The AI-processing notice appears once before the first text analysis and once before the first photo analysis, each with a manual alternative.
-- A planned meal with several options cannot be saved without a chosen option; no option is preselected.
+- A planned meal whose items overlap one of the slot's options cannot be saved without a chosen option; no option is preselected. A meal that overlaps none of the options saves under the slot as a different food, with no option.
 - No AI output changes totals before confirmation.
 - A recorded item that matches a Settings restriction shows a neutral reminder that does not block saving.
 - Correcting a portion updates the meal and day consistently.
