@@ -155,12 +155,12 @@ then.
 
 ## Environments
 
-| Name         | Where                  | Database                                  | Storage                                    | Notes                                       |
-| ------------ | ---------------------- | ----------------------------------------- | ------------------------------------------ | ------------------------------------------- |
-| Local        | `npm run dev`          | docker-compose Postgres (`npm run db:up`) | —                                          | `SKIP_AUTH=true` for UI-only work           |
-| Production   | Darkube app `dietyaar` | Supabase project `uhevhxxyjhgldbmxyfmg`   | Supabase bucket `dietyaar`, prefix `prod/` | Backups to Hamravesh `dietyaar-backup`      |
-| Restore test | local app              | second Supabase project                   | —                                          | Used only for step 5 rehearsals             |
-| Staging      | Vercel `dietyaar`      | same Supabase project                     | same bucket, prefix `vercel/`              | `https://dietyaar.vercel.app`; decision 021 |
+| Name         | Where                  | Database                                  | Storage                                     | Notes                                       |
+| ------------ | ---------------------- | ----------------------------------------- | ------------------------------------------- | ------------------------------------------- |
+| Local        | `npm run dev`          | docker-compose Postgres (`npm run db:up`) | MinIO `dietyaar-dev` (`npm run storage:up`) | `SKIP_AUTH=true` for UI-only work           |
+| Production   | Darkube app `dietyaar` | Supabase project `uhevhxxyjhgldbmxyfmg`   | Supabase bucket `dietyaar`, prefix `prod/`  | Backups to Hamravesh `dietyaar-backup`      |
+| Restore test | local app              | second Supabase project                   | —                                           | Used only for step 5 rehearsals             |
+| Staging      | Vercel `dietyaar`      | same Supabase project                     | same bucket, prefix `vercel/`               | `https://dietyaar.vercel.app`; decision 021 |
 
 ### Local AI
 
@@ -171,6 +171,14 @@ knows ~20 foods and ignores the rest). Offline or without a key: `npm run dev:st
 `e2e/stub-ai/server.mjs` on 3999 and `next dev` pointed at it, and stops both together. The e2e
 suite always runs on the stub: `e2e/playwright.config.ts` starts its own and overrides the URL, whatever
 `.env` says.
+
+### Local photo storage
+
+`npm run storage:up` starts MinIO from `docker-compose.yml` (API `localhost:9000`, console
+`localhost:9001`, user `dietyaar` / `dietyaar-dev-secret`) and a one-shot `minio-init` that creates
+the `dietyaar-dev` bucket. The five `S3_*` values in `.env.example` point at it with
+`S3_KEY_PREFIX=dev/`; with `PHOTO_LOGGING_ENABLED=true` the composer's photo actions upload for
+real. CI starts the same two services for the e2e job (`e2e/photo.spec.ts`), prefix `ci/`.
 
 ## Supabase
 

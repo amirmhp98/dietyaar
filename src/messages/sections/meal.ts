@@ -193,4 +193,8 @@ export const meal = {
   'meal.details.diff.missing': 'Not recorded: {names}',
   'meal.details.diff.crossSlot': 'This is a {slot} option',
   'meal.details.quantityUnknown': 'amount unknown',
+
+  // ── Composer photo actions on touch devices (improvement plan B9) ──
+  'meal.compose.photoTake': 'Take photo',
+  'meal.compose.photoGallery': 'Choose from gallery',
 } as const;

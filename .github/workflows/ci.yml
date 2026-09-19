@@ -90,6 +90,14 @@ jobs:
       PHOTO_LOGGING_ENABLED: 'true'
       SCHEDULER_ENABLED: 'true'
       SIGNUP_RATE_LIMIT: '100000'
+      # Photo storage: the MinIO service from docker-compose.yml (started below), same
+      # values as .env.example, so e2e/photo.spec.ts uploads for real (improvement plan B26).
+      S3_ENDPOINT: http://localhost:9000
+      S3_REGION: us-east-1
+      S3_BUCKET: dietyaar-dev
+      S3_ACCESS_KEY_ID: dietyaar
+      S3_SECRET_ACCESS_KEY: dietyaar-dev-secret
+      S3_KEY_PREFIX: ci/
       CI: true
     steps:
       - uses: actions/checkout@v4
@@ -102,6 +110,12 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run db:deploy
       - run: npm run db:seed
+      # MinIO needs `server /data` as its command, which a `services:` container cannot set;
+      # the compose file has it, and minio-init creates the bucket and exits 0.
+      - name: Start MinIO and create the bucket
+        run: |
+          npm run storage:up
+          test "$(docker wait dietyaar-minio-init)" = 0 || { docker logs dietyaar-minio-init; exit 1; }
       # Runs every Playwright project (setup, auth, chromium, mobile) against the stub AI server.
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4
