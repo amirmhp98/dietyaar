@@ -1,0 +1,10 @@
+# TLS is automatic (Let's Encrypt) for {$DOMAIN}. Security headers, CSP and HSTS
+# come from the app (next.config.ts); Caddy only terminates TLS and compresses.
+{$DOMAIN} {
+	encode zstd gzip
+	request_body {
+		# Photos are downscaled on the device to under 1 MB (decision 011); leave room for plan imports.
+		max_size 12MB
+	}
+	reverse_proxy app:3000
+}

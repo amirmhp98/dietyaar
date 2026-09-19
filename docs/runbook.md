@@ -155,12 +155,13 @@ then.
 
 ## Environments
 
-| Name         | Where                  | Database                                  | Storage                                     | Notes                                       |
-| ------------ | ---------------------- | ----------------------------------------- | ------------------------------------------- | ------------------------------------------- |
-| Local        | `npm run dev`          | docker-compose Postgres (`npm run db:up`) | MinIO `dietyaar-dev` (`npm run storage:up`) | `SKIP_AUTH=true` for UI-only work           |
-| Production   | Darkube app `dietyaar` | Supabase project `uhevhxxyjhgldbmxyfmg`   | Supabase bucket `dietyaar`, prefix `prod/`  | Backups to Hamravesh `dietyaar-backup`      |
-| Restore test | local app              | second Supabase project                   | —                                           | Used only for step 5 rehearsals             |
-| Staging      | Vercel `dietyaar`      | same Supabase project                     | same bucket, prefix `vercel/`               | `https://dietyaar.vercel.app`; decision 021 |
+| Name         | Where                  | Database                                  | Storage                                     | Notes                                          |
+| ------------ | ---------------------- | ----------------------------------------- | ------------------------------------------- | ---------------------------------------------- |
+| Local        | `npm run dev`          | docker-compose Postgres (`npm run db:up`) | MinIO `dietyaar-dev` (`npm run storage:up`) | `SKIP_AUTH=true` for UI-only work              |
+| Production   | VPS `85.198.48.114`    | Postgres 17 container on the box          | MinIO container, bucket `dietyaar`, `prod/` | `https://85-198-48-114.sslip.io`; decision 026 |
+| Darkube      | Darkube app `dietyaar` | Supabase project `uhevhxxyjhgldbmxyfmg`   | Supabase bucket `dietyaar`, prefix `prod/`  | Not created yet; `DARKUBE_ENABLED` gates CI    |
+| Restore test | local app              | second Supabase project                   | —                                           | Used only for step 5 rehearsals                |
+| Staging      | Vercel `dietyaar`      | same Supabase project                     | same bucket, prefix `vercel/`               | `https://dietyaar.vercel.app`; decision 021    |
 
 ### Local AI
 
@@ -209,11 +210,12 @@ Notes from setup:
 
 ## Routines
 
-- **Deploy.** Push to `main`; CI builds and pushes the image and calls `darkube deploy`. Watch the
-  rollout; readiness is `/api/health`. Migrations run at container start with `lock_timeout = 5s`.
+- **Deploy.** Push to `main`; CI builds the image, pushes it to GHCR and the `deploy-vps` job
+  restarts the stack on the VPS (and calls `darkube deploy` when `DARKUBE_ENABLED=true`). Readiness
+  is `/api/health`. Migrations run at container start with `lock_timeout = 5s`.
 - **Before a destructive migration.** `npm run db:backup`, confirm the object exists, then deploy.
-- **Flip a flag.** Change the Darkube env (`PHOTO_LOGGING_ENABLED`, `USDA_LOOKUP_ENABLED`, …) and
-  restart; no deploy.
+- **Flip a flag.** Edit `/opt/dietyaar/.env` on the VPS (`PHOTO_LOGGING_ENABLED`,
+  `USDA_LOOKUP_ENABLED`, …) and `docker compose up -d app`; no deploy. On Darkube: the app env.
 - **Weekly.** Run the analytics SQL (§ 16) and check the size gauges against the § 19.10 upgrade
   trigger: database over 400 MB, storage over 700 MB, egress over 4 GB per month.
 - **If the Supabase project was paused** (replicas were zero for 7 days): unpause it in the
@@ -236,7 +238,34 @@ get previews. Region `fra1` (Supabase is `eu-central-1`). Build: `npm run vercel
 machine), sign-up, onboarding and an AI plan import through `after()`, cron route 401/404/200, no
 console errors. The MCP server `https://mcp.vercel.com` is listed in `.mcp.json` for inspection.
 
-### Darkube (production)
+### VPS (production, decision 026)
+
+Server `85.198.48.114` (Ubuntu 24.04, 2 vCPU / 4 GB / 23 GB, UTC), set up 2026-09-19: 2 GB swap
+file, `ufw` allowing 22/80/443, `fail2ban` on sshd, key-only SSH (`~/.ssh/id_ed25519_dietyaar`,
+host alias `dietyaar` in `~/.ssh/config`), unattended security upgrades, Docker CE with
+`hub.hamdocker.ir` as the Docker Hub mirror (Hub refuses `minio/*` from this IP). The stack is
+`deploy/vps/docker-compose.yml` copied to `/opt/dietyaar/` with `Caddyfile` and a `.env` filled
+from `deploy/vps/.env.example` (Postgres and MinIO passwords generated on the server; the DeepSeek
+key is the one in the dev `.env`). Caddy holds a Let's Encrypt certificate for
+`85-198-48-114.sslip.io`; when a real domain exists, point an `A` record at the server, change
+`DOMAIN` and `APP_URL` in `.env`, and `docker compose up -d`.
+
+CI: `docker` pushes `ghcr.io/amirmhp98/dietyaar:<short sha>` and `:latest`; `deploy-vps` SSHes in
+with the deploy key (GitHub secrets `VPS_SSH_KEY`, `VPS_KNOWN_HOSTS`, `VPS_HOST`; the public key is
+in the server's `authorized_keys` as `github-actions@dietyaar`), logs the server in to GHCR with the
+job token, pins the tag in `.env`, pulls, restarts and waits for `/api/health` over HTTPS.
+
+**Rollback.** `ssh dietyaar`, then in `/opt/dietyaar`: set `IMAGE=ghcr.io/amirmhp98/dietyaar:<previous
+short sha>` in `.env`, `docker login ghcr.io` with a token that can read packages,
+`docker compose pull app && docker compose up -d app`. The same migration caveats as Darkube apply.
+
+**Operating.** `docker compose logs -f app`; `docker compose exec db psql -U postgres app`;
+`docker system df` for disk. Upgrade the plan when `free -h` shows available memory under 500 MB
+for more than a few minutes, load average stays above the vCPU count, or `df -h /` passes 80%.
+Open items: `BACKUP_ENABLED=false` until the Hamravesh backup bucket and key exist (decision 018);
+`PHOTO_LOGGING_ENABLED=false` until the vision evaluation passes (§ 19.4).
+
+### Darkube (pending)
 
 CI (`.github/workflows/ci.yml`) runs `quality`, `integration`, `e2e` (desktop and mobile
 Playwright projects against the stub AI server) and `migrations` (`scripts/check-migrations.mjs`);
