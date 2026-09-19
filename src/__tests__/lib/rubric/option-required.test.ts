@@ -30,6 +30,15 @@ describe('optionRequiredFor', () => {
     expect(optionRequiredFor([], p.lunch)).toBe(false);
   });
 
+  it('always requires the option for a prefilled ("I ate this") meal under a multi-option slot', () => {
+    const p = buildMenuPlan();
+    const burger = fi('ساندویچ همبرگر', 'burger sandwich', 1, 'piece', 'MEAT', 450);
+    expect(optionRequiredFor([burger], p.lunch, true)).toBe(true);
+    expect(optionRequiredFor([], p.lunch, true)).toBe(true);
+    const single = { ...p.dinner, options: [p.dinner.options[0]] };
+    expect(optionRequiredFor([], single, true)).toBe(false);
+  });
+
   it('never counts raw vegetables or herbs listed without a quantity', () => {
     const p = buildMenuPlan();
     const salad = fi('سالاد بزرگ', 'large salad', null, null, 'VEGETABLE');

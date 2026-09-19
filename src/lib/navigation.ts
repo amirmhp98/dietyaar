@@ -60,7 +60,7 @@ export function pageTitleFor(pathname: string): string {
   return match?.label ?? '';
 }
 
-/** Meal details already shows the meal and its own actions; the floating Log meal button would cover them. */
+/** A detail page shows its record and its own actions; the floating Log meal button would cover them. */
 export function showsLogMealButton(pathname: string): boolean {
-  return !isNavItemActive('/meals', pathname);
+  return !DETAIL_PAGES.some((page) => isNavItemActive(page.href, pathname));
 }

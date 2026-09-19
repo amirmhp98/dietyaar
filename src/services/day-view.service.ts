@@ -455,12 +455,8 @@ export function historyStartFor(
   accountStart: string | null,
   recordedDates: string[],
 ): string | null {
-  if (accountStart === null || accountStart <= windowStart) return null;
-  const earliestRecord = recordedDates.reduce<string | null>(
-    (min, d) => (min === null || d < min ? d : min),
-    null,
-  );
-  const start = earliestRecord && earliestRecord < accountStart ? earliestRecord : accountStart;
+  if (accountStart === null) return null;
+  const start = [accountStart, ...recordedDates].reduce((a, b) => (a < b ? a : b));
   return start > windowStart ? start : null;
 }
 

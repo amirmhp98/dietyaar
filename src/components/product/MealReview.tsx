@@ -21,18 +21,16 @@ import { PhotoThumbnails } from '@/components/product/meal/PhotoThumbnails';
 import { QuestionCard } from '@/components/product/meal/QuestionCard';
 import { ResumedBanner } from '@/components/product/meal/ResumedBanner';
 import { OTHER_SLOT, SlotSelect, optionLabel } from '@/components/product/meal/SlotPicker';
-import { newDraftItem, timeMissing, toRubricItem } from '@/components/product/meal/composition';
+import { newDraftItem, timeMissing } from '@/components/product/meal/composition';
 import { quantityFromChoice } from '@/components/product/meal/questions';
 import { NUTRIENT_UNITS, sumTotals } from '@/components/product/meal/totals';
 import { formatNumber } from '@/lib/format';
 import { optionRequiredFor } from '@/lib/rubric/match-slot';
 import type { MatchResult, RubricSlot } from '@/lib/rubric/types';
 import { t } from '@/lib/t';
-import type { DraftFoodItem, MealDraftState } from '@/lib/validations/meal';
+import { type DraftFoodItem, type MealDraftState, toRubricItem } from '@/lib/validations/meal';
 import { MAIN_NUTRIENTS } from '@/lib/validations/nutrition';
 import { cn } from '@/lib/utils';
-
-export { newDraftItem };
 
 /** `refining`: a REFINE call is in flight; the review stays usable meanwhile. */
 export type ReviewSyncStatus = 'saved' | 'pending' | 'failed' | 'refining';
@@ -59,9 +57,8 @@ export interface MealReviewProps {
   saving: boolean;
   /** Inline message under the primary action (save failure, option required, future time). */
   error: string | null;
-  /** A failed refine: the answer is kept, a retry is offered. */
+  /** A failed refine: the answer is kept, Re-estimate is offered again. */
   refineError?: string | null;
-  onRetryRefine?: () => void;
   canReestimate: boolean;
   onReestimate: () => void;
   onSave: () => void;
@@ -118,7 +115,6 @@ export function MealReview(props: MealReviewProps) {
     saving,
     error,
     refineError = null,
-    onRetryRefine,
     canReestimate,
     onReestimate,
     onSave,
@@ -143,8 +139,7 @@ export function MealReview(props: MealReviewProps) {
   const optionRequired =
     slot !== null &&
     option === null &&
-    ((state.kind === 'PLANNED' && slot.options.length > 1) ||
-      optionRequiredFor(state.items.map(toRubricItem), slot));
+    optionRequiredFor(state.items.map(toRubricItem), slot, state.kind === 'PLANNED');
   const extraSlot = slots.find((s) => s.id === extraBecauseRecordedSlotId) ?? null;
   const hitByKey = new Map(state.restrictionHits.map((h) => [h.itemKey, h.restriction]));
   const addedNames = match?.added.map((a) => a.englishLabel) ?? [];
@@ -170,29 +165,27 @@ export function MealReview(props: MealReviewProps) {
     // Unticking leaves the field empty; a time is typed, never invented (B6).
     onChange({ time: null });
   }
-  /** A picked choice that names a count of a known unit fills the quantity at once (B2). */
-  function answer(key: string, value: string | null, fromChoice: boolean) {
+  /** A picked choice (a chip, never free text) naming a count of a known unit fills the quantity at once (B2). */
+  function answer(key: string, value: string | null) {
     const question = state.questions.find((q) => q.key === key);
     const patch: Partial<MealDraftState> = {
       questions: state.questions.map((q) => (q.key === key ? { ...q, answer: value } : q)),
     };
-    if (fromChoice && value && question?.itemKey) {
-      const index = state.items.findIndex((i) => i.key === question.itemKey);
-      const item = state.items[index];
-      const parsed = item ? quantityFromChoice(value, item) : null;
-      if (item && parsed) {
-        patch.items = state.items.map((it, i) =>
-          i === index
-            ? {
-                ...it,
-                quantity: parsed.quantity,
-                unit: parsed.unit,
-                quantityUnknown: false,
-                quantityAssumed: false,
-              }
-            : it,
-        );
-      }
+    const item = question?.itemKey ? state.items.find((i) => i.key === question.itemKey) : null;
+    const parsed =
+      item && value && question?.choices.includes(value) ? quantityFromChoice(value, item) : null;
+    if (parsed) {
+      patch.items = state.items.map((it) =>
+        it === item
+          ? {
+              ...it,
+              quantity: parsed.quantity,
+              unit: parsed.unit,
+              quantityUnknown: false,
+              quantityAssumed: false,
+            }
+          : it,
+      );
     }
     onChange(patch);
     if (value) onAnswered?.();
@@ -229,17 +222,9 @@ export function MealReview(props: MealReviewProps) {
           data-testid="refine-failed"
         >
           <span>{refineError}</span>
-          {onRetryRefine ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9"
-              onClick={onRetryRefine}
-            >
-              {t('meal.compose.retry')}
-            </Button>
-          ) : null}
+          <Button type="button" variant="outline" size="sm" className="h-9" onClick={onReestimate}>
+            {t('meal.compose.retry')}
+          </Button>
         </div>
       ) : null}
 

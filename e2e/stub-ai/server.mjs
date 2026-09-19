@@ -486,7 +486,8 @@ function suggestedFirstSlot(userText) {
  * `quantityUnknown: true` and a non-null `answer` gets the leading number of
  * the answer (default 1) as quantity in `serving`s; every item with a quantity
  * gets nutrition of 100 kcal (5 g protein, 10 g carb, 3 g fat) per unit of
- * quantity. `changes` names each portion filled.
+ * quantity. `changes` names each portion filled. No slot suggestion: the
+ * service keeps the link as the user has it in this mode.
  */
 function refineAnalysis(userText) {
   const current = jsonBlockAfter(userText, 'Current items (data):');
@@ -518,14 +519,7 @@ function refineAnalysis(userText) {
           : nutrition(100 * quantity, 5 * quantity, 10 * quantity, 3 * quantity, quantity, unit),
     };
   });
-  const suggested = /\bSUGGEST\b/.test(userText) ? suggestedFirstSlot(userText) : null;
-  return {
-    items,
-    suggestedSlot: suggested,
-    suggestedOptionIndex: suggested ? 0 : null,
-    questions: [],
-    changes,
-  };
+  return { items, suggestedSlot: null, suggestedOptionIndex: null, questions: [], changes };
 }
 
 function mealAnalysis(userText) {

@@ -97,7 +97,7 @@ export function mealRecall(
     else if (hits.length) merged.push(keyword);
     else missing.push(keyword);
   }
-  return { recalled: expectedItems.length - missing.length - merged.length, missing, merged };
+  return { recalled: claimed.size, missing, merged };
 }
 
 async function mapLimit<T, R>(

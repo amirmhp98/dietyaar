@@ -31,21 +31,17 @@ const m = (text: string, expectedItems: string[]): EvalMeal => ({
   source: 'OFF_PLAN',
 });
 
-const menu = (label: string, text: string, expectedItems: string[]): EvalMeal => ({
-  text,
-  expectedItems,
-  reviewed: false,
-  source: 'MENU_PLAN',
-  label,
-});
-
-const weekday = (label: string, text: string, expectedItems: string[]): EvalMeal => ({
-  text,
-  expectedItems,
-  reviewed: false,
-  source: 'WEEKDAY_PLAN',
-  label,
-});
+const planMeal =
+  (source: EvalMealSource) =>
+  (label: string, text: string, expectedItems: string[]): EvalMeal => ({
+    text,
+    expectedItems,
+    reviewed: false,
+    source,
+    label,
+  });
+const menu = planMeal('MENU_PLAN');
+const weekday = planMeal('WEEKDAY_PLAN');
 
 /** Keywords shared by the plan fixtures (the plans repeat the same foods). */
 const EGG = 'egg';

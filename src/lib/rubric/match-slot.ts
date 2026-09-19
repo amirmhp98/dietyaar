@@ -120,9 +120,16 @@ export function matchSlot(
  * spec § 7, improvement plan B3): only when the slot has several options and
  * the items share a counted item with at least one of them. A meal that
  * overlaps none is a different food under the slot and carries no option.
+ * `prefilled` ("I ate this", a PLANNED draft) always needs the option: its
+ * items are only filled in once one is picked.
  */
-export function optionRequiredFor(items: RubricFoodItem[], slot: RubricSlot): boolean {
+export function optionRequiredFor(
+  items: RubricFoodItem[],
+  slot: RubricSlot,
+  prefilled = false,
+): boolean {
   if (slot.options.length <= 1) return false;
+  if (prefilled) return true;
   return slot.options.some((option) =>
     option.items.some(
       (planItem) => isCounted(planItem) && items.some((i) => sameFood(i, planItem)),

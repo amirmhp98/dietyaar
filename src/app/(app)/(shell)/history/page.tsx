@@ -3,10 +3,10 @@ import { ChevronRight } from 'lucide-react';
 import { Disclosure } from '@/components/product/Disclosure';
 import { fillNames, InlineName } from '@/components/product/InlineName';
 import { requireOnboarded } from '@/lib/auth';
-import { formatDate, formatLocalDate } from '@/lib/format';
+import { formatLocalDate } from '@/lib/format';
 import type { SevenDaySummary } from '@/lib/rubric/seven-day';
 import { t, tp } from '@/lib/t';
-import { addDays, instantFor, localDateFor } from '@/lib/time/local-date';
+import { addDays, localDateFor } from '@/lib/time/local-date';
 import { getSevenDayView, type DayRow } from '@/services/day-view.service';
 import { requireProfile } from '@/services/profile.service';
 import { HistoryDatePicker } from './history-date-picker';
@@ -25,7 +25,6 @@ export default async function HistoryPage() {
   const now = new Date();
   const today = localDateFor(now, profile.timeZone);
   const week = await getSevenDayView(user.id, today, now);
-  const zone = profile.timeZone;
 
   return (
     <div className="space-y-6">
@@ -61,12 +60,10 @@ export default async function HistoryPage() {
               className="flex min-h-14 items-center gap-3 px-3 py-3 hover:bg-accent"
               data-testid="history-row"
               data-state={row.state}
-              aria-label={t('history.openDay', { date: rowDate(row.localDate, today, zone) })}
+              aria-label={t('history.openDay', { date: rowDate(row.localDate, today) })}
             >
               <span className="min-w-0 flex-1 space-y-0.5">
-                <span className="block text-sm font-medium">
-                  {rowDate(row.localDate, today, zone)}
-                </span>
+                <span className="block text-sm font-medium">{rowDate(row.localDate, today)}</span>
                 <span
                   className="block text-xs text-muted-foreground"
                   data-testid="history-row-state"
@@ -123,13 +120,8 @@ export default async function HistoryPage() {
   );
 }
 
-function rowDate(localDate: string, today: string, zone: string): string {
-  const label = formatDate(instantFor(localDate, '12:00', zone), {
-    timeZone: zone,
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  });
+function rowDate(localDate: string, today: string): string {
+  const label = formatLocalDate(localDate, { weekday: 'short', month: 'short', day: 'numeric' });
   if (localDate === today) return `${t('history.today')} · ${label}`;
   if (localDate === addDays(today, -1)) return `${t('history.yesterday')} · ${label}`;
   return label;
