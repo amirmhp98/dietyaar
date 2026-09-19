@@ -1,7 +1,7 @@
 import { ServiceError } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
 import { t } from '@/lib/t';
-import { localDateFor } from '@/lib/time/local-date';
+import { isFutureLocalDateTime } from '@/lib/time/local-date';
 import { DEFAULT_TIME_ZONE, getProfile } from '@/services/profile.service';
 import { markStaleIfNeeded } from '@/services/reflection.service';
 
@@ -34,8 +34,9 @@ async function ownerZone(ownerId: string): Promise<string> {
 /** The owner's zone, after refusing a date later than today in it. */
 async function zoneForWrite(ownerId: string, localDate: string, now: Date): Promise<string> {
   const zone = await ownerZone(ownerId);
-  if (localDate > localDateFor(now, zone))
+  if (isFutureLocalDateTime(localDate, null, now, zone)) {
     throw new ServiceError(t('day.errors.futureDate'), 'FUTURE_TIME');
+  }
   return zone;
 }
 

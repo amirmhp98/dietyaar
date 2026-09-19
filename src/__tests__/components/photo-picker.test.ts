@@ -12,7 +12,7 @@ import { t } from '@/lib/t';
  */
 
 const coarse = vi.fn(() => false);
-vi.mock('@/components/product/meal/use-coarse-pointer', () => ({
+vi.mock('@/components/product/meal/use-media-query', () => ({
   useCoarsePointer: () => coarse(),
 }));
 

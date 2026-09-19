@@ -30,6 +30,7 @@ import {
   type MealDraftState,
   draftFoodItemSchema,
   mealDraftStateSchema,
+  toRubricItem,
 } from '@/lib/validations/meal';
 import { alternativeSchema } from '@/lib/validations/plan';
 import { type Nutrition, nutritionSchema } from '@/lib/validations/nutrition';
@@ -37,6 +38,7 @@ import type { MealAnalysisOutput } from '@/services/ai/schemas';
 import { analyzeMeal } from '@/services/ai/analyze-meal';
 import type { AiKind, AiResult, MealPlanContext, MealRefineContext } from '@/services/ai/types';
 import { admitOperation, finishOperation } from '@/services/ai-usage.service';
+import { toRubricFoodItem } from '@/services/day-view.service';
 import { scaleNutrition } from '@/services/food-data/scale';
 import { type ActivePlan, getActivePlan, slotsForWeekday } from '@/services/plan.service';
 import { DEFAULT_TIME_ZONE, getProfile } from '@/services/profile.service';
@@ -192,23 +194,6 @@ function parseNutrition(value: unknown): Nutrition | null {
 function parseAlternatives(value: unknown): RubricAlternative[] {
   const parsed = z.array(alternativeSchema).safeParse(value ?? []);
   return parsed.success ? parsed.data : [];
-}
-
-function toRubricItem(item: DraftFoodItem): RubricFoodItem {
-  return {
-    id: item.key,
-    originalName: item.originalName,
-    englishLabel: item.englishLabel,
-    quantity: item.quantity,
-    unit: item.unit,
-    quantityUnknown: item.quantityUnknown,
-    category: item.category,
-    alternatives: item.alternatives,
-    matchedPlanItemId: item.matchedPlanItemId,
-    isAddedItem: item.isAddedItem,
-    nutrition: item.nutrition,
-    ruleGroups: item.ruleGroups,
-  };
 }
 
 /** A confirmed FoodItem row as a draft item, keyed by its row id (edit mode). */
@@ -698,23 +683,25 @@ function planContextFor(plan: ActivePlan | null, localDate: string): MealPlanCon
   };
 }
 
+function outputToItem(item: MealAnalysisOutput['items'][number], position: number): DraftFoodItem {
+  return draftFoodItemSchema.parse({
+    key: newKey(),
+    position,
+    originalName: item.originalName,
+    englishLabel: item.englishLabel,
+    quantity: item.quantity,
+    unit: item.unit,
+    quantityUnknown: item.quantityUnknown,
+    quantityAssumed: item.quantityAssumed,
+    preparation: item.preparation,
+    category: item.category,
+    alternatives: item.alternatives,
+    nutrition: item.nutrition,
+  });
+}
+
 function outputToItems(output: MealAnalysisOutput): DraftFoodItem[] {
-  return output.items.map((item, position) =>
-    draftFoodItemSchema.parse({
-      key: newKey(),
-      position,
-      originalName: item.originalName,
-      englishLabel: item.englishLabel,
-      quantity: item.quantity,
-      unit: item.unit,
-      quantityUnknown: item.quantityUnknown,
-      quantityAssumed: item.quantityAssumed,
-      preparation: item.preparation,
-      category: item.category,
-      alternatives: item.alternatives,
-      nutrition: item.nutrition,
-    }),
-  );
+  return output.items.map(outputToItem);
 }
 
 function outputToQuestions(output: MealAnalysisOutput, items: DraftFoodItem[]): DraftQuestion[] {
@@ -814,22 +801,9 @@ export function mergeRefinedItems(
     }
     return next;
   });
-  const extra = output.items.slice(current.length).map((item) =>
-    draftFoodItemSchema.parse({
-      key: newKey(),
-      originalName: item.originalName,
-      englishLabel: item.englishLabel,
-      quantity: item.quantity,
-      unit: item.unit,
-      quantityUnknown: item.quantityUnknown,
-      quantityAssumed: item.quantityAssumed,
-      preparation: item.preparation,
-      category: item.category,
-      alternatives: item.alternatives,
-      nutrition: item.nutrition,
-      isAddedItem: true,
-    }),
-  );
+  const extra = output.items
+    .slice(current.length)
+    .map((item, i) => ({ ...outputToItem(item, current.length + i), isAddedItem: true }));
   return [...merged, ...extra].map((item, position) => ({ ...item, position }));
 }
 
@@ -1021,26 +995,21 @@ export function resetRecentMealsCache(): void {
 }
 
 /**
- * Refuse a multi-option slot without a chosen option only when the items
- * overlap one of its options (product spec § 7, B3); a meal that overlaps
- * none saves as a different food under the slot with no option.
- */
-/**
- * "I ate this" (a PLANNED draft) always needs the option: the items are only
- * prefilled once one is picked. Any other path needs it only when what was
- * eaten overlaps an option; a meal that overlaps nothing is a different food.
+ * The option rule (product spec § 7, B3; `optionRequiredFor`): "I ate this"
+ * (a PLANNED draft) always needs the option; any other path only when what
+ * was eaten overlaps an option, a meal that overlaps nothing being a
+ * different food under the slot.
  */
 function requireOption(
   slot: RubricSlot | null,
   option: RubricOption | null,
   planOptionId: string | null,
-  items: DraftFoodItem[],
+  items: RubricFoodItem[],
   kind: MealDraftState['kind'] | null,
 ) {
   if (!slot) return;
   if (planOptionId && !option) throw notFound(t('meal.errors.optionNotInSlot'));
-  const planned = kind === 'PLANNED' && slot.options.length > 1;
-  if (!option && (planned || optionRequiredFor(items.map(toRubricItem), slot))) {
+  if (!option && optionRequiredFor(items, slot, kind === 'PLANNED')) {
     throw new ServiceError(t('meal.errors.optionRequired'), 'OPTION_REQUIRED');
   }
 }
@@ -1082,7 +1051,7 @@ export async function saveMeal(
     if (!applies) throw notFound(t('meal.errors.slotNotOnDay'));
   }
   const { slot, option } = resolveLink(plan, state.localDate, state.planSlotId, state.planOptionId);
-  requireOption(slot, option, state.planOptionId, state.items, state.kind);
+  requireOption(slot, option, state.planOptionId, state.items.map(toRubricItem), state.kind);
   const { items } = matchAndAnnotate(state.items, plan, slot, option);
 
   // A photo staged over 24 h ago may already be gone (cleanup ran before the
@@ -1281,7 +1250,7 @@ export async function setMealLink(
     if (!applies) throw notFound(t('meal.errors.slotNotOnDay'));
   }
   const { slot, option } = resolveLink(plan, meal.day.localDate, planSlotId, planOptionId);
-  requireOption(slot, option, planOptionId, meal.items.map(rowToDraftItem), null);
+  requireOption(slot, option, planOptionId, meal.items.map(toRubricFoodItem), null);
 
   await prisma.$transaction(async (tx) => {
     if (slot) {

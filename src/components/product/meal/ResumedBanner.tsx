@@ -8,18 +8,16 @@ import { t } from '@/lib/t';
 export function StartOverButton({
   onClick,
   disabled,
-  className,
 }: {
   onClick: () => void;
   disabled?: boolean;
-  className?: string;
 }) {
   return (
     <Button
       type="button"
       variant="ghost"
       size="sm"
-      className={className ?? 'h-9 shrink-0 text-muted-foreground'}
+      className="h-9 shrink-0 text-muted-foreground"
       onClick={onClick}
       disabled={disabled}
       data-testid="start-over"

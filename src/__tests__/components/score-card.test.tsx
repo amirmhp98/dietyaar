@@ -79,5 +79,6 @@ describe('WhyThisScore', () => {
     const html = renderToStaticMarkup(<WhyThisScore view={withLunch} />);
     expect(html).toContain(t('day.why.title'));
     expect(html).toContain('data-testid="why-this-score"');
+    expect(html).not.toContain(t('day.why.food'));
   });
 });

@@ -14,6 +14,7 @@ import { NameLabel } from '@/components/product/NameLabel';
 import { PhotoPicker, type StagedPhoto } from '@/components/product/meal/PhotoPicker';
 import { ResumedBanner } from '@/components/product/meal/ResumedBanner';
 import { OTHER_SLOT, PlannedSlotsRow, SlotSelect } from '@/components/product/meal/SlotPicker';
+import { timeMissing } from '@/components/product/meal/composition';
 import { formatNumber } from '@/lib/format';
 import type { RubricSlot } from '@/lib/rubric/types';
 import { t } from '@/lib/t';
@@ -333,7 +334,7 @@ export function MealComposer(props: MealComposerProps) {
               {t('meal.compose.timeUnknown')}
             </label>
           </div>
-          {!timeUnknown && time === null ? (
+          {timeMissing(time, timeUnknown) ? (
             <p className="text-sm text-muted-foreground" role="status" data-testid="time-required">
               {t('meal.review.timeRequired')}
             </p>

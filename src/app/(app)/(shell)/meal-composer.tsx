@@ -25,8 +25,11 @@ import { type ComposerRequest, useComposerRequests } from '@/components/product/
 import { ComposerModal } from '@/components/product/meal/ComposerModal';
 import type { StagedPhoto } from '@/components/product/meal/PhotoPicker';
 import { StartOverButton } from '@/components/product/meal/ResumedBanner';
-import { OTHER_SLOT } from '@/components/product/meal/SlotPicker';
-import { defaultLinkAfterAnalysis, seedManualItem } from '@/components/product/meal/composition';
+import {
+  OTHER_SLOT,
+  defaultLinkAfterAnalysis,
+  seedManualItem,
+} from '@/components/product/meal/composition';
 import {
   PhotoUploadError,
   type PhotoErrorCode,
@@ -74,7 +77,6 @@ interface Composition {
   match: MatchResult | null;
   /** Text + photos the current items were analysed from; Analyze with the same input skips the call. */
   analyzedInput: string | null;
-  lateNightAnswered: boolean;
   /** Set when the composer opened for a slot; the row shows its options expanded. */
   expandSlotId: string | null;
   /** The sheet opened on a draft from before (mirror or resume link). */
@@ -129,7 +131,6 @@ function newComposition(localDate: string, time: string | null): Composition {
     state: null,
     match: null,
     analyzedInput: null,
-    lateNightAnswered: false,
     expandSlotId: null,
     resumed: false,
   };
@@ -206,6 +207,15 @@ function linkOf(comp: Composition): { planSlotId: string | null; planOptionId: s
 
 function inputSignature(comp: Composition): string {
   return JSON.stringify([comp.text.trim(), comp.photos.map((p) => p.uploadId)]);
+}
+
+/** Drops a staged upload the composition let go of; already gone (with its draft) or offline is fine. */
+async function dropStagedUpload(uploadId: string): Promise<void> {
+  try {
+    await deleteStagedImage(uploadId);
+  } catch {
+    // The cleanup task removes stale uploads.
+  }
 }
 
 export function MealComposerIsland({
@@ -350,7 +360,7 @@ export function MealComposerIsland({
 
   // ── Adopting a server draft ─────────────────────────────────────────────
   const adoptDraft = useCallback(
-    (draft: DraftView, match: MatchResult | null | undefined, step: Step) => {
+    (draft: DraftView, match: MatchResult | null | undefined, step?: Step) => {
       setComp((prev) => ({
         ...prev,
         draftId: draft.id,
@@ -364,7 +374,7 @@ export function MealComposerIsland({
         notes: draft.state.notes ?? '',
         slotChoice: draft.state.planSlotId ?? (prev.slotChoice === OTHER_SLOT ? OTHER_SLOT : null),
         optionId: draft.state.planOptionId,
-        step,
+        step: step ?? prev.step,
       }));
       dirtyRef.current = false;
       setSync('saved');
@@ -410,8 +420,7 @@ export function MealComposerIsland({
         okResult = true;
         if (editSeqRef.current === seq) {
           // The user may have stepped back meanwhile; never pull them into the review.
-          const step = compRef.current?.step === 'compose' ? 'compose' : 'review';
-          adoptDraft(result.data.draft, result.data.preview.match, step);
+          adoptDraft(result.data.draft, result.data.preview.match);
         } else {
           // Newer local edits exist: keep them, take the revision, the next flush sends them.
           setComp((prev) => ({ ...prev, revision: result.data.draft.revision }));
@@ -498,13 +507,15 @@ export function MealComposerIsland({
         if (result.data.analysisStatus !== 'DONE' || dirtyRef.current) {
           // Superseded by an edit, or edited meanwhile: the user's values win; take the revision.
           setComp((prev) => ({ ...prev, revision: result.data.revision }));
-          setSync(dirtyRef.current ? 'pending' : 'saved');
           if (dirtyRef.current) {
+            setSync('pending');
             timerRef.current = setTimeout(() => void flushRef.current(), AUTOSAVE_MS);
+          } else {
+            setSync('saved');
           }
           return;
         }
-        adoptDraft(result.data, undefined, latest.step === 'compose' ? 'compose' : 'review');
+        adoptDraft(result.data, undefined);
         return;
       }
       // The answer is saved already; only the estimate failed.
@@ -672,8 +683,7 @@ export function MealComposerIsland({
       setComp((prev) => ({
         ...prev,
         slotChoice: decision.slotChoice,
-        extraSlotId:
-          decision.extraReason === 'ALREADY_RECORDED' ? result.data.state.planSlotId : null,
+        extraSlotId: decision.extraSlotId,
         analyzedInput: inputSignature(latest),
       }));
       return;
@@ -804,11 +814,7 @@ export function MealComposerIsland({
       const photo = compRef.current?.photos.find((p) => p.uploadId === uploadId);
       if (photo?.previewUrl) URL.revokeObjectURL(photo.previewUrl);
       setComp((prev) => ({ ...prev, photos: prev.photos.filter((p) => p.uploadId !== uploadId) }));
-      try {
-        await deleteStagedImage(uploadId);
-      } catch {
-        // Already gone or offline: the cleanup task removes stale uploads.
-      }
+      await dropStagedUpload(uploadId);
     },
     [setComp],
   );
@@ -871,7 +877,7 @@ export function MealComposerIsland({
       toast.error(result.error);
       return;
     }
-    adoptDraft(result.data, null, current.step === 'review' ? 'review' : 'compose');
+    adoptDraft(result.data, null);
     setSaveError(null);
   }, [adoptDraft]);
 
@@ -914,8 +920,6 @@ export function MealComposerIsland({
     clearMirror(user.id, current.clientRequestId);
     for (const photo of current.photos) if (photo.previewUrl) URL.revokeObjectURL(photo.previewUrl);
     const fresh = startNew({ localDate: current.localDate, planSlotId: current.expandSlotId });
-    fresh.step = 'compose';
-    fresh.lateNightAnswered = true;
     replaceComp(fresh);
     setAnalysis('idle');
     setAnalysisError(null);
@@ -926,13 +930,8 @@ export function MealComposerIsland({
     setMoreOpen(false);
     void loadDay(fresh.localDate);
     if (current.draftId) await safely(() => discardMealDraftAction({ draftId: current.draftId }));
-    for (const photo of current.photos) {
-      try {
-        await deleteStagedImage(photo.uploadId);
-      } catch {
-        // Gone with the draft, or offline: the cleanup task removes stale uploads.
-      }
-    }
+    // The discard took the photos the draft knew; any added since are still the client's.
+    for (const photo of current.photos) await dropStagedUpload(photo.uploadId);
   }, [loadDay, replaceComp, startNew, user.id]);
 
   // ── Opening ─────────────────────────────────────────────────────────────
@@ -954,7 +953,6 @@ export function MealComposerIsland({
           if (result.ok) {
             replaceComp({
               ...newComposition(result.data.state.localDate, result.data.state.time),
-              lateNightAnswered: true,
               resumed: true,
             });
             adoptDraft(
@@ -971,7 +969,6 @@ export function MealComposerIsland({
         if (request.reuseMealId) {
           const fresh = startNew({ localDate: request.localDate });
           fresh.step = 'compose';
-          fresh.lateNightAnswered = true;
           replaceComp(fresh);
           void loadDay(fresh.localDate);
           setBusy(true);
@@ -1013,7 +1010,6 @@ export function MealComposerIsland({
               timeUnknown: mirror.timeUnknown ?? mirror.time === null,
               extraSlotId: mirror.extraSlotId ?? null,
               analyzedInput: mirror.analyzedInput ?? null,
-              lateNightAnswered: true,
               resumed: true,
             };
             replaceComp(restored);
@@ -1109,7 +1105,6 @@ export function MealComposerIsland({
           time: yesterday ? null : prev.time,
           timeUnknown: yesterday ? true : prev.timeUnknown,
           step: 'compose',
-          lateNightAnswered: true,
         };
       });
       const current = compRef.current;
@@ -1140,9 +1135,9 @@ export function MealComposerIsland({
         })
       : null;
 
-  const slotsForDate = dayInfo && comp && dayInfo.date === comp.localDate ? dayInfo.slots : null;
-  const recordedSlotIds =
-    dayInfo && comp && dayInfo.date === comp.localDate ? dayInfo.recordedSlotIds : [];
+  const dayForDate = dayInfo && comp && dayInfo.date === comp.localDate ? dayInfo : null;
+  const slotsForDate = dayForDate?.slots ?? null;
+  const recordedSlotIds = dayForDate?.recordedSlotIds ?? [];
   const canReestimate = !!comp?.state && comp.state.items.length > 0;
 
   const title =
@@ -1220,7 +1215,6 @@ export function MealComposerIsland({
             saving={saving}
             error={saveError}
             refineError={refineError}
-            onRetryRefine={() => void runRefine()}
             canReestimate={canReestimate}
             onReestimate={() => void runRefine()}
             onSave={save}

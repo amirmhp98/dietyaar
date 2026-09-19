@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { RubricFoodItem } from '@/lib/rubric/types';
 import { t } from '@/lib/t';
 import { isValidLocalDate, isValidLocalTime } from '@/lib/time/local-date';
 import {
@@ -55,6 +56,24 @@ export const draftFoodItemSchema = foodNameSchema.extend({
   ruleGroups: z.array(z.string().max(60)).max(10).default([]),
 });
 export type DraftFoodItem = z.infer<typeof draftFoodItemSchema>;
+
+/** A draft item in the rubric's shape, so the review and the service apply the same rules to it. */
+export function toRubricItem(item: DraftFoodItem): RubricFoodItem {
+  return {
+    id: item.key,
+    originalName: item.originalName,
+    englishLabel: item.englishLabel,
+    quantity: item.quantity,
+    unit: item.unit,
+    quantityUnknown: item.quantityUnknown,
+    category: item.category,
+    alternatives: item.alternatives,
+    matchedPlanItemId: item.matchedPlanItemId,
+    isAddedItem: item.isAddedItem,
+    nutrition: item.nutrition,
+    ruleGroups: item.ruleGroups,
+  };
+}
 
 export const draftQuestionSchema = z.object({
   key,

@@ -122,13 +122,13 @@ export function resetStorageClients(): void {
 export async function deleteObjects(keys: string[]): Promise<void> {
   if (keys.length === 0 || !storageConfigured) return;
   const storage = createStorage('photos');
-  for (const key of keys) {
-    try {
-      await storage.deleteObject(key);
-    } catch (error) {
-      logger.warn({ err: error, key }, 'photo object delete failed; left for the purge');
-    }
-  }
+  await Promise.all(
+    keys.map((key) =>
+      storage.deleteObject(key).catch((error: unknown) => {
+        logger.warn({ err: error, key }, 'photo object delete failed; left for the purge');
+      }),
+    ),
+  );
 }
 
 /**

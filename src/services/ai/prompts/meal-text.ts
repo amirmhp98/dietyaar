@@ -111,37 +111,22 @@ export function mealTextSystemPrompt(): string {
   ].join('\n');
 }
 
-/** The REFINE block of the user message: current items, then the answered questions, both as data. */
-function refineSection(refine: MealRefineContext): string[] {
-  return [
-    'Mode: REFINE',
-    'Current items (data):',
-    asJson(
-      refine.items.map((item) => ({
-        key: item.key,
-        originalName: item.originalName,
-        englishLabel: item.englishLabel,
-        quantity: item.quantity,
-        unit: item.unit,
-        quantityUnknown: item.quantityUnknown,
-        preparation: item.preparation,
-        category: item.category,
-        answer: item.answer,
-      })),
-    ),
-    'Answered questions (data):',
-    asJson(refine.answers),
-    '',
-  ];
-}
-
 export function mealUserMessage(
   text: string | null,
   planContext: MealPlanContext | null,
   refine: MealRefineContext | null = null,
 ): string {
   const lines: string[] = [];
-  if (refine) lines.push(...refineSection(refine));
+  if (refine) {
+    lines.push(
+      'Mode: REFINE',
+      'Current items (data):',
+      asJson(refine.items),
+      'Answered questions (data):',
+      asJson(refine.answers),
+      '',
+    );
+  }
   if (planContext && planContext.slots.length > 0) {
     lines.push("Today's plan slots and options (data):", asJson(planContext.slots), '');
   }

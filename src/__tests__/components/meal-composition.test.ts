@@ -61,14 +61,14 @@ describe('defaultLinkAfterAnalysis (B4)', () => {
         suggestedSlotId: 'slot-dinner',
         recordedSlotIds: ['slot-lunch'],
       }),
-    ).toEqual({ slotChoice: 'slot-lunch', extraReason: null });
+    ).toEqual({ slotChoice: 'slot-lunch', extraSlotId: null });
     expect(
       defaultLinkAfterAnalysis({
         userChoice: OTHER_SLOT,
         suggestedSlotId: 'slot-dinner',
         recordedSlotIds: [],
       }),
-    ).toEqual({ slotChoice: OTHER_SLOT, extraReason: null });
+    ).toEqual({ slotChoice: OTHER_SLOT, extraSlotId: null });
   });
 
   it('takes the suggestion when the slot is free', () => {
@@ -78,20 +78,20 @@ describe('defaultLinkAfterAnalysis (B4)', () => {
         suggestedSlotId: 'slot-lunch',
         recordedSlotIds: ['slot-breakfast'],
       }),
-    ).toEqual({ slotChoice: 'slot-lunch', extraReason: null });
+    ).toEqual({ slotChoice: 'slot-lunch', extraSlotId: null });
   });
 
   it('defaults to Extra when nothing is suggested or the suggested slot is already recorded', () => {
     expect(
       defaultLinkAfterAnalysis({ userChoice: null, suggestedSlotId: null, recordedSlotIds: [] }),
-    ).toEqual({ slotChoice: OTHER_SLOT, extraReason: 'NO_SUGGESTION' });
+    ).toEqual({ slotChoice: OTHER_SLOT, extraSlotId: null });
     expect(
       defaultLinkAfterAnalysis({
         userChoice: null,
         suggestedSlotId: 'slot-snack',
         recordedSlotIds: ['slot-snack'],
       }),
-    ).toEqual({ slotChoice: OTHER_SLOT, extraReason: 'ALREADY_RECORDED' });
+    ).toEqual({ slotChoice: OTHER_SLOT, extraSlotId: 'slot-snack' });
   });
 });
 

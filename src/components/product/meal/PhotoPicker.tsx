@@ -3,7 +3,7 @@
 import type { ChangeEvent, ReactNode } from 'react';
 import { Camera, Image as ImageIcon, X } from 'lucide-react';
 import { buttonVariants, Spinner } from '@/components/UiComponents';
-import { useCoarsePointer } from '@/components/product/meal/use-coarse-pointer';
+import { useCoarsePointer } from '@/components/product/meal/use-media-query';
 import { PHOTOS_PER_MEAL } from '@/components/product/photo-input';
 import { t } from '@/lib/t';
 import { cn } from '@/lib/utils';

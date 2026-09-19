@@ -1,4 +1,3 @@
-import type { RubricFoodItem } from '@/lib/rubric/types';
 import type { DraftFoodItem } from '@/lib/validations/meal';
 
 /**
@@ -8,24 +7,6 @@ import type { DraftFoodItem } from '@/lib/validations/meal';
  */
 
 export const OTHER_SLOT = 'OTHER';
-
-/** A review item in the rubric's shape, for the same option rule the server applies. */
-export function toRubricItem(item: DraftFoodItem): RubricFoodItem {
-  return {
-    id: item.key,
-    originalName: item.originalName,
-    englishLabel: item.englishLabel,
-    quantity: item.quantity,
-    unit: item.unit,
-    quantityUnknown: item.quantityUnknown,
-    category: item.category,
-    alternatives: item.alternatives,
-    matchedPlanItemId: item.matchedPlanItemId,
-    isAddedItem: item.isAddedItem,
-    nutrition: item.nutrition,
-    ruleGroups: item.ruleGroups,
-  };
-}
 
 let newItemSeq = 0;
 export function newDraftItem(position: number): DraftFoodItem {
@@ -53,7 +34,7 @@ export function newDraftItem(position: number): DraftFoodItem {
   };
 }
 
-export const MANUAL_SEED_MAX = 120;
+const MANUAL_SEED_MAX = 120;
 
 /** "Enter manually" keeps what was typed as the first item's name (O D13); an empty box seeds nothing. */
 export function seedManualItem(text: string): DraftFoodItem | null {
@@ -71,25 +52,23 @@ export function timeMissing(time: string | null, timeUnknown: boolean): boolean 
   return !timeUnknown && (time === null || time === '');
 }
 
-export type ExtraReason = 'NO_SUGGESTION' | 'ALREADY_RECORDED' | null;
-
 /**
  * Where a freshly analysed meal lands (O D5, O D12 owner decision 12): the
  * user's own choice always wins; otherwise the AI's suggested slot, unless
  * there is none or that slot already holds a meal today — then it is an
- * extra meal (Other), and the review says why.
+ * extra meal (Other), and `extraSlotId` names the taken slot so the review
+ * can say why.
  */
 export function defaultLinkAfterAnalysis(input: {
   /** null = not chosen, OTHER_SLOT, or a plan slot id. */
   userChoice: string | null;
   suggestedSlotId: string | null;
   recordedSlotIds: readonly string[];
-}): { slotChoice: string | null; extraReason: ExtraReason } {
-  if (input.userChoice !== null) return { slotChoice: input.userChoice, extraReason: null };
-  if (input.suggestedSlotId === null)
-    return { slotChoice: OTHER_SLOT, extraReason: 'NO_SUGGESTION' };
+}): { slotChoice: string | null; extraSlotId: string | null } {
+  if (input.userChoice !== null) return { slotChoice: input.userChoice, extraSlotId: null };
+  if (input.suggestedSlotId === null) return { slotChoice: OTHER_SLOT, extraSlotId: null };
   if (input.recordedSlotIds.includes(input.suggestedSlotId)) {
-    return { slotChoice: OTHER_SLOT, extraReason: 'ALREADY_RECORDED' };
+    return { slotChoice: OTHER_SLOT, extraSlotId: input.suggestedSlotId };
   }
-  return { slotChoice: input.suggestedSlotId, extraReason: null };
+  return { slotChoice: input.suggestedSlotId, extraSlotId: null };
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -13,22 +13,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/UiComponents';
+import { useIsWide } from '@/components/product/meal/use-media-query';
 import { cn } from '@/lib/utils';
-
-const MD_QUERY = '(min-width: 768px)';
-
-/** True on md+ viewports; false until mounted (the modal never renders on the server). */
-export function useIsWide(): boolean {
-  const [wide, setWide] = useState(false);
-  useEffect(() => {
-    const mql = window.matchMedia(MD_QUERY);
-    const update = () => setWide(mql.matches);
-    update();
-    mql.addEventListener('change', update);
-    return () => mql.removeEventListener('change', update);
-  }, []);
-  return wide;
-}
 
 /**
  * The composer's container: a bottom sheet on phones (full height, scrolling

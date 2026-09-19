@@ -57,7 +57,7 @@ function matchWeekday(text: string): { weekday: number; length: number } | null 
 }
 
 /** Every weekday from `from` to `to` inclusive, walking forward around the week. */
-export function weekdayRange(from: number, to: number): number[] {
+function weekdayRange(from: number, to: number): number[] {
   const days = [from];
   for (let day = from; day !== to;) {
     day = (day + 1) % 7;
@@ -77,7 +77,7 @@ export function weekdayHeading(line: string): number[] | null {
   if (!first) return null;
   const afterFirst = rest.slice(first.length);
   const separator = RANGE_SEPARATOR.exec(afterFirst);
-  if (separator && separator[0].length > 0) {
+  if (separator) {
     const afterSeparator = afterFirst.slice(separator[0].length);
     const second = matchWeekday(afterSeparator);
     if (second && HEADING_SUFFIX.test(afterSeparator.slice(second.length))) {
