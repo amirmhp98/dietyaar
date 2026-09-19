@@ -864,7 +864,10 @@ export async function analyzeDraft(
     ownerContext(ownerId),
     getActivePlan(ownerId),
   ]);
-  const kind: AiKind = state.uploadIds.length > 0 ? 'MEAL_PHOTO' : 'MEAL_TEXT';
+  // A refine works from the identified items and the answers: no photo round trip
+  // (three S3 reads and image tokens per answered question) and no plan context,
+  // since the link is pinned and the model's suggestion is discarded.
+  const kind: AiKind = state.uploadIds.length > 0 && !refining ? 'MEAL_PHOTO' : 'MEAL_TEXT';
   const admission = await admitOperation(ownerId, kind, localDateFor(now, zone));
   if (!admission.ok) {
     await prisma.mealDraft.updateMany({
@@ -883,7 +886,7 @@ export async function analyzeDraft(
     result = await analyzeMeal({
       text: state.text,
       images,
-      planContext: planContextFor(plan, state.localDate),
+      planContext: refining ? null : planContextFor(plan, state.localDate),
       refine: refining ? refineContextFor(state) : null,
       deadlineAt: now.getTime() + MEAL_ANALYSIS_DEADLINE_MS,
       userTag: sha256(ownerId).slice(0, 24),

@@ -166,7 +166,7 @@ export function MealReview(props: MealReviewProps) {
     onChange({ time: null });
   }
   /** A picked choice (a chip, never free text) naming a count of a known unit fills the quantity at once (B2). */
-  function answer(key: string, value: string | null) {
+  function answer(key: string, value: string | null, committed: boolean) {
     const question = state.questions.find((q) => q.key === key);
     const patch: Partial<MealDraftState> = {
       questions: state.questions.map((q) => (q.key === key ? { ...q, answer: value } : q)),
@@ -188,7 +188,7 @@ export function MealReview(props: MealReviewProps) {
       );
     }
     onChange(patch);
-    if (value) onAnswered?.();
+    if (value && committed) onAnswered?.();
   }
 
   return (

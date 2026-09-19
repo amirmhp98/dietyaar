@@ -17,7 +17,8 @@ export function QuestionCard({
 }: {
   questions: DraftQuestion[];
   items: DraftFoodItem[];
-  onAnswer: (key: string, answer: string | null) => void;
+  /** `committed` is false while free text is still being typed (no estimate yet). */
+  onAnswer: (key: string, answer: string | null, committed: boolean) => void;
 }) {
   if (questions.length === 0) return null;
   return (
@@ -60,7 +61,7 @@ export function QuestionCard({
                         type="button"
                         role="radio"
                         aria-checked={selected}
-                        onClick={() => onAnswer(question.key, selected ? null : choice)}
+                        onClick={() => onAnswer(question.key, selected ? null : choice, true)}
                         className={cn(
                           'min-h-11 rounded-full border px-4 text-sm transition-colors',
                           selected
@@ -81,7 +82,14 @@ export function QuestionCard({
                   placeholder={t('meal.review.questionAnswerPlaceholder')}
                   value={question.answer ?? ''}
                   maxLength={300}
-                  onChange={(event) => onAnswer(question.key, event.target.value || null)}
+                  onChange={(event) => onAnswer(question.key, event.target.value || null, false)}
+                  onBlur={(event) => onAnswer(question.key, event.target.value || null, true)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      onAnswer(question.key, event.currentTarget.value || null, true);
+                    }
+                  }}
                 />
               )}
             </li>

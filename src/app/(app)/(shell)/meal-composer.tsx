@@ -262,12 +262,18 @@ export function MealComposerIsland({
     planSlotId: string | null;
     planOptionId: string | null;
   }> | null>(null);
-  const [dayInfo, setDayInfo] = useState<{
-    date: string;
-    slots: RubricSlot[];
-    recordedSlotIds: string[];
-    hasPlan: boolean;
-  } | null>(null);
+  type DayInfo = { date: string; slots: RubricSlot[]; recordedSlotIds: string[]; hasPlan: boolean };
+  const [dayInfo, setDayInfoState] = useState<DayInfo | null>(null);
+  // Read through the ref from async paths (analysis returns after loadDay may have resolved).
+  const dayInfoRef = useRef<DayInfo | null>(null);
+  const setDayInfo = useCallback(
+    (next: DayInfo | null | ((prev: DayInfo | null) => DayInfo | null)) => {
+      const value = typeof next === 'function' ? next(dayInfoRef.current) : next;
+      dayInfoRef.current = value;
+      setDayInfoState(value);
+    },
+    [],
+  );
   const [lastUsed, setLastUsed] = useState<Record<string, string | null>>({});
   const [moreOpen, setMoreOpen] = useState(false);
   const [sync, setSync] = useState<ReviewSyncStatus>('saved');
@@ -342,7 +348,7 @@ export function MealComposerIsland({
       hasPlan: plan !== null && plan.confirmedAt !== null,
     });
     return slots;
-  }, []);
+  }, [setDayInfo]);
 
   const loadRecent = useCallback(async () => {
     const result = await getRecentMealsAction();
@@ -675,7 +681,8 @@ export function MealComposerIsland({
       const decision = defaultLinkAfterAnalysis({
         userChoice: latest.slotChoice,
         suggestedSlotId: result.data.state.planSlotId,
-        recordedSlotIds: dayInfo?.date === latest.localDate ? dayInfo.recordedSlotIds : [],
+        recordedSlotIds:
+          dayInfoRef.current?.date === latest.localDate ? dayInfoRef.current.recordedSlotIds : [],
       });
       if (decision.slotChoice === OTHER_SLOT && result.data.state.planSlotId) {
         patchReview({ planSlotId: null, planOptionId: null });
@@ -703,7 +710,7 @@ export function MealComposerIsland({
     } else {
       setAnalysisError(t('meal.errors.analysisFailed'));
     }
-  }, [adoptDraft, dayInfo, ensureDraft, patchReview, setComp]);
+  }, [adoptDraft, ensureDraft, patchReview, setComp]);
 
   const requestAnalysis = useCallback(async () => {
     const current = compRef.current;

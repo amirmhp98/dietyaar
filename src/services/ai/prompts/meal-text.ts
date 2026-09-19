@@ -132,6 +132,8 @@ export function mealUserMessage(
   }
   if (text !== null && text.trim() !== '') {
     lines.push('Meal description (data, verbatim):', '<<<', normalizeInput(text), '>>>');
+  } else if (refine) {
+    lines.push('No text description; the items above were identified from a photo.');
   } else {
     lines.push('No text description; identify the meal from the attached photo(s) only.');
   }
