@@ -6,7 +6,7 @@ import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
 import { t } from '@/lib/t';
 import { bestOption, matchSlot, optionRequiredFor } from '@/lib/rubric/match-slot';
-import { sameFood } from '@/lib/rubric/names';
+import { foodKey, sameFood } from '@/lib/rubric/names';
 import { restrictionHits } from '@/lib/rubric/restrictions';
 import type {
   MatchResult,
@@ -371,8 +371,11 @@ export function reconcileItem(next: DraftFoodItem, prev: DraftFoodItem | undefin
     return { ...next, needsReestimate: false, previousNutrition: null, scaleFlag: null };
   }
 
+  // An edited name is a new identity even when the other label still matches
+  // (renaming تخم‌مرغ to املت keeps "Egg"); sameFood is for matching, not edits.
   const identityChanged =
-    !sameFood(next, { ...prev, alternatives: [] }) ||
+    foodKey(next.originalName) !== foodKey(prev.originalName) ||
+    foodKey(next.englishLabel) !== foodKey(prev.englishLabel) ||
     (next.preparation ?? '') !== (prev.preparation ?? '') ||
     next.chosenAlternative !== prev.chosenAlternative;
 

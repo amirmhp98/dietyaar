@@ -277,6 +277,25 @@ describe('reconcileItem (tech spec § 5.1)', () => {
     expect(next.nutrition).toBeNull();
     expect(next.previousNutrition).toEqual(eggNutrition);
   });
+
+  it('an edited original name is a new identity even when the English label still matches', () => {
+    const prev = draftItem({ key: 'a', originalName: 'تخم‌مرغ', englishLabel: 'Egg' });
+    const next = reconcileItem(
+      draftItem({ key: 'a', originalName: 'املت', englishLabel: 'Egg' }),
+      prev,
+    );
+    expect(next.needsReestimate).toBe(true);
+    expect(next.nutrition).toBeNull();
+  });
+
+  it('a spelling-only change of the same name is not an identity change', () => {
+    const prev = draftItem({ key: 'a', originalName: 'تخم مرغ', englishLabel: 'Egg' });
+    const next = reconcileItem(
+      draftItem({ key: 'a', originalName: 'تخم‌مرغ', englishLabel: 'Egg' }),
+      prev,
+    );
+    expect(next.needsReestimate).toBe(false);
+  });
 });
 
 describe('updateDraft', () => {
