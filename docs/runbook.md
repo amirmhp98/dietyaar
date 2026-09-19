@@ -96,11 +96,12 @@ then.
 
 ## Environments
 
-| Name         | Where                  | Database                                  | Storage                                    | Notes                                  |
-| ------------ | ---------------------- | ----------------------------------------- | ------------------------------------------ | -------------------------------------- |
-| Local        | `npm run dev`          | docker-compose Postgres (`npm run db:up`) | —                                          | `SKIP_AUTH=true` for UI-only work      |
-| Production   | Darkube app `dietyaar` | Supabase project `uhevhxxyjhgldbmxyfmg`   | Supabase bucket `dietyaar`, prefix `prod/` | Backups to Hamravesh `dietyaar-backup` |
-| Restore test | local app              | second Supabase project                   | —                                          | Used only for step 5 rehearsals        |
+| Name         | Where                  | Database                                  | Storage                                    | Notes                                       |
+| ------------ | ---------------------- | ----------------------------------------- | ------------------------------------------ | ------------------------------------------- |
+| Local        | `npm run dev`          | docker-compose Postgres (`npm run db:up`) | —                                          | `SKIP_AUTH=true` for UI-only work           |
+| Production   | Darkube app `dietyaar` | Supabase project `uhevhxxyjhgldbmxyfmg`   | Supabase bucket `dietyaar`, prefix `prod/` | Backups to Hamravesh `dietyaar-backup`      |
+| Restore test | local app              | second Supabase project                   | —                                          | Used only for step 5 rehearsals             |
+| Staging      | Vercel `dietyaar`      | same Supabase project                     | same bucket, prefix `vercel/`              | `https://dietyaar.vercel.app`; decision 021 |
 
 ## Supabase
 
@@ -142,6 +143,23 @@ Notes from setup:
   dashboard, then restart the app.
 
 ## Deploy and rollback
+
+### Vercel (staging, decision 021)
+
+Project `dietyaar` in team `amirmhps-projects` (Hobby), created 2026-09-19 with `vercel link`,
+paired with GitHub `amirmhp98/dietyaar`: every push to `main` deploys production, other branches
+get previews. Region `fra1` (Supabase is `eu-central-1`). Build: `npm run vercel-build`. Env vars
+(Production and Preview, secrets marked sensitive): `APP_URL=https://dietyaar.vercel.app`,
+`DATABASE_URL`, `DIRECT_DATABASE_URL`, `S3_*` with `S3_KEY_PREFIX=vercel/`, `DEEPSEEK_*`,
+`PHOTO_LOGGING_ENABLED=true`, `SCHEDULER_ENABLED=false`, `BACKUP_ENABLED=false`, `LOG_LEVEL=info`,
+`CRON_SECRET` (copy in `~/.supabase/dietyaar-vercel-cron-secret`). `vercel.json` schedules
+`/api/cron/all` at 04:00 UTC. Manual deploy from the working tree: `vercel deploy --prod`; rollback:
+`vercel rollback` or promote an earlier deployment in the dashboard. Verified 2026-09-19 from
+`fra1`: `/api/health` 200 through the transaction pooler (port 6543, untestable from the dev
+machine), sign-up, onboarding and an AI plan import through `after()`, cron route 401/404/200, no
+console errors. The MCP server `https://mcp.vercel.com` is listed in `.mcp.json` for inspection.
+
+### Darkube (production)
 
 CI (`.github/workflows/ci.yml`) runs `quality`, `integration`, `e2e` (desktop and mobile
 Playwright projects against the stub AI server) and `migrations` (`scripts/check-migrations.mjs`);
