@@ -1,6 +1,6 @@
 # Dietyaar — Product Reference
 
-**Last updated:** 2026-09-18
+**Last updated:** 2026-09-19
 
 > The short reference of what the product is and what exists in the code today. Agents read it
 > before making product decisions and update it when a change is product-visible (new module,
@@ -88,7 +88,25 @@ lives in `lib/rubric` (matching, portions, timing, score, nutrition, rules, fact
   one call, weekday plans one call per weekday heading (a range such as "شنبه تا پنجشنبه" is one
   call applied to every day of the range), then a batched baseline estimate (20 items per call).
 - The composer never preselects an option for a multi-option slot; the last-used option is only
-  suggested ("Last time"). A meal under "Other" counts in nutrition only.
+  suggested ("Last time"). "I ate this" (the planned path) cannot save without an option; any
+  other path needs one only when the recorded items overlap an option, otherwise the meal saves
+  under the slot as a different food with no option. A meal under "Other" (shown as "Extra · in
+  addition to your plan") counts in nutrition only; the review always states the outcome in one
+  line ("Linked to ناهار · Option 2" / "Extra meal · not part of your plan"), and Extra is the
+  default when the AI suggests no slot or the chosen slot is already recorded that day.
+- Review is a loop, not a one-shot: answering one of the AI's portion questions (or pressing
+  Re-estimate) sends the current items, the user's names and values and the answers back in
+  `REFINE` mode; the model fills what the answers make known and returns `changes[]`, shown as
+  "What changed". Renames, label values and edited quantities always survive; an edited name
+  marks the item for a new estimate. Choice answers that name a unit ("2 slices") set the
+  quantity immediately.
+- The composer has a Back arrow from the review to the compose step (no re-analysis when the
+  input is unchanged) and a Start over action that discards the server draft and its staged
+  photos; a resumed draft says "Continuing where you left off". Unticking "I don't remember
+  the time" leaves the time empty (never 12:00) and Save disabled until a time is typed.
+- Photo actions are native file inputs: on touch devices Take photo (camera) and Choose from
+  gallery, on desktop one Add photo; the staged photos show as thumbnails on the review. Local
+  storage is MinIO via `npm run storage:up`; CI runs the photo e2e against it.
 - A meal belongs wholly to the date the user chose; between 00:00 and 04:00 in the profile zone
   the composer asks "Was this for yesterday?". Backdated meals need a time.
 - Saving is idempotent per `clientRequestId`; meals and drafts carry a `revision`, stale writes
