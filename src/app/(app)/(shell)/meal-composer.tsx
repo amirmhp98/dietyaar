@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
 import { getComposerContextAction, getLastUsedOptionAction } from '@/actions/composer.actions';
 import { getDayAction } from '@/actions/day.actions';
 import {
   analyzeMealDraftAction,
   createMealDraftAction,
+  discardMealDraftAction,
   getMealDraftAction,
   getRecentMealsAction,
   reuseMealAction,
@@ -22,7 +24,9 @@ import { MealReview, type ReviewSyncStatus } from '@/components/product/MealRevi
 import { type ComposerRequest, useComposerRequests } from '@/components/product/composer-bus';
 import { ComposerModal } from '@/components/product/meal/ComposerModal';
 import type { StagedPhoto } from '@/components/product/meal/PhotoPicker';
+import { StartOverButton } from '@/components/product/meal/ResumedBanner';
 import { OTHER_SLOT } from '@/components/product/meal/SlotPicker';
+import { defaultLinkAfterAnalysis, seedManualItem } from '@/components/product/meal/composition';
 import {
   PhotoUploadError,
   type PhotoErrorCode,
@@ -33,7 +37,7 @@ import {
 import type { ActionResult } from '@/lib/action-result';
 import { formatDate, formatTime } from '@/lib/format';
 import type { MatchResult, RubricSlot } from '@/lib/rubric/types';
-import { t } from '@/lib/t';
+import { t, tp } from '@/lib/t';
 import { addDays, instantFor, isLateNightWindow, localDateFor, localTimeFor } from '@/lib/time';
 import type { DraftFoodItem, MealDraftState } from '@/lib/validations/meal';
 import type { AiNoticeKind } from '@/lib/validations/profile';
@@ -42,7 +46,9 @@ import type { AiNoticeKind } from '@/lib/validations/profile';
  * Log meal island (implementation plan 6.3/6.4/6.6, 9.3): owns the whole
  * composition, calls the actions, mirrors the draft to sessionStorage per
  * user (`composer:<userId>:<clientRequestId>`) and autosaves review edits
- * with a 500 ms debounce. Product components underneath are stateless.
+ * with a 500 ms debounce. Answering a question refines the estimate in
+ * place (REFINE, 800 ms debounce); Re-estimate takes the same path.
+ * Product components underneath are stateless.
  */
 
 type Step = 'late-night' | 'compose' | 'review';
@@ -51,20 +57,28 @@ interface Composition {
   clientRequestId: string;
   step: Step;
   localDate: string;
+  /** null = not entered; `timeUnknown` says whether that is deliberate. */
   time: string | null;
+  timeUnknown: boolean;
   text: string;
   notes: string;
   /** null = not chosen, OTHER_SLOT = explicitly "Other", else a plan slot id. */
   slotChoice: string | null;
   optionId: string | null;
+  /** The suggested slot that already held a meal, when that made this an extra meal (B4). */
+  extraSlotId: string | null;
   photos: StagedPhoto[];
   draftId: string | null;
   revision: number;
   state: MealDraftState | null;
   match: MatchResult | null;
+  /** Text + photos the current items were analysed from; Analyze with the same input skips the call. */
+  analyzedInput: string | null;
   lateNightAnswered: boolean;
   /** Set when the composer opened for a slot; the row shows its options expanded. */
   expandSlotId: string | null;
+  /** The sheet opened on a draft from before (mirror or resume link). */
+  resumed: boolean;
 }
 
 interface Mirror extends Omit<Composition, 'photos'> {
@@ -80,6 +94,7 @@ type DraftView =
     : never;
 
 const AUTOSAVE_MS = 500;
+const REFINE_MS = 800;
 const SLOW_MS = 15_000;
 const PHOTO_ERRORS: Record<PhotoErrorCode, string> = {
   PHOTO_DISABLED: t('photo.errors.disabled'),
@@ -101,17 +116,21 @@ function newComposition(localDate: string, time: string | null): Composition {
     step: 'compose',
     localDate,
     time,
+    timeUnknown: time === null,
     text: '',
     notes: '',
     slotChoice: null,
     optionId: null,
+    extraSlotId: null,
     photos: [],
     draftId: null,
     revision: 0,
     state: null,
     match: null,
+    analyzedInput: null,
     lateNightAnswered: false,
     expandSlotId: null,
+    resumed: false,
   };
 }
 
@@ -184,6 +203,10 @@ function linkOf(comp: Composition): { planSlotId: string | null; planOptionId: s
   return { planSlotId, planOptionId: planSlotId ? comp.optionId : null };
 }
 
+function inputSignature(comp: Composition): string {
+  return JSON.stringify([comp.text.trim(), comp.photos.map((p) => p.uploadId)]);
+}
+
 export function MealComposerIsland({
   timeZone,
   photoEnabled,
@@ -215,6 +238,7 @@ export function MealComposerIsland({
   const [photoBusy, setPhotoBusy] = useState(false);
   const [analysis, setAnalysis] = useState<AnalysisStatus>('idle');
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [refineError, setRefineError] = useState<string | null>(null);
   const [notice, setNotice] = useState<AiNoticeKind | null>(null);
   const [context, setContext] = useState<{
     aiNoticeMealTextShown: boolean;
@@ -230,6 +254,7 @@ export function MealComposerIsland({
   const [dayInfo, setDayInfo] = useState<{
     date: string;
     slots: RubricSlot[];
+    recordedSlotIds: string[];
     hasPlan: boolean;
   } | null>(null);
   const [lastUsed, setLastUsed] = useState<Record<string, string | null>>({});
@@ -247,6 +272,9 @@ export function MealComposerIsland({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flushRef = useRef<() => Promise<boolean>>(async () => true);
   const analysisRunRef = useRef(0);
+  const refineRunRef = useRef(0);
+  const refineFlightRef = useRef<Promise<void> | null>(null);
+  const refineTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const today = localDateFor(new Date(), timeZone);
 
@@ -288,12 +316,20 @@ export function MealComposerIsland({
     setDayInfo((prev) => (prev?.date === localDate ? prev : null));
     const result = await getDayAction(localDate);
     if (!result.ok) {
-      setDayInfo({ date: localDate, slots: [], hasPlan: false });
+      setDayInfo({ date: localDate, slots: [], recordedSlotIds: [], hasPlan: false });
       return [] as RubricSlot[];
     }
-    const slots = result.data.view.slots.map((s) => s.slot);
+    const views = result.data.view.slots;
+    const slots = views.map((s) => s.slot);
     const plan = result.data.plan;
-    setDayInfo({ date: localDate, slots, hasPlan: plan !== null && plan.confirmedAt !== null });
+    setDayInfo({
+      date: localDate,
+      slots,
+      recordedSlotIds: views
+        .filter((s) => s.state === 'RECORDED' || s.state === 'NEEDS_REVIEW')
+        .map((s) => s.slot.id),
+      hasPlan: plan !== null && plan.confirmedAt !== null,
+    });
     return slots;
   }, []);
 
@@ -323,6 +359,7 @@ export function MealComposerIsland({
         text: draft.state.text ?? prev.text,
         localDate: draft.state.localDate,
         time: draft.state.time,
+        timeUnknown: draft.state.time !== null ? false : prev.timeUnknown,
         notes: draft.state.notes ?? '',
         slotChoice: draft.state.planSlotId ?? (prev.slotChoice === OTHER_SLOT ? OTHER_SLOT : null),
         optionId: draft.state.planOptionId,
@@ -371,7 +408,9 @@ export function MealComposerIsland({
       if (result.ok) {
         okResult = true;
         if (editSeqRef.current === seq) {
-          adoptDraft(result.data.draft, result.data.preview.match, 'review');
+          // The user may have stepped back meanwhile; never pull them into the review.
+          const step = compRef.current?.step === 'compose' ? 'compose' : 'review';
+          adoptDraft(result.data.draft, result.data.preview.match, step);
         } else {
           // Newer local edits exist: keep them, take the revision, the next flush sends them.
           setComp((prev) => ({ ...prev, revision: result.data.draft.revision }));
@@ -417,6 +456,8 @@ export function MealComposerIsland({
           state,
           slotChoice,
           optionId: patch.planOptionId !== undefined ? patch.planOptionId : prev.optionId,
+          // A slot picked by hand ends the "already recorded" explanation.
+          extraSlotId: patch.planSlotId !== undefined ? null : prev.extraSlotId,
           localDate: state.localDate,
           time: state.time,
           notes: state.notes ?? '',
@@ -427,6 +468,58 @@ export function MealComposerIsland({
     },
     [scheduleAutosave, setComp],
   );
+
+  // ── Refine (answers and Re-estimate) ────────────────────────────────────
+  /**
+   * REFINE keeps the reviewed items and fills what the answers made known.
+   * Runs after the autosave has flushed so the server sees the answers; a
+   * previous refine still in flight is awaited so revisions never cross.
+   */
+  const runRefine = useCallback(async () => {
+    if (refineFlightRef.current) await refineFlightRef.current;
+    const flushed = await flushAutosave();
+    const current = compRef.current;
+    if (!flushed || !current?.draftId || !current.state || current.state.items.length === 0) return;
+    const run = ++refineRunRef.current;
+    setRefineError(null);
+    setSync('refining');
+    const flight = (async () => {
+      const result = await safely(() =>
+        analyzeMealDraftAction({
+          draftId: current.draftId,
+          expectedRevision: current.revision,
+          mode: 'REFINE',
+        }),
+      );
+      const latest = compRef.current;
+      if (refineRunRef.current !== run || !latest || latest.draftId !== current.draftId) return;
+      if (result.ok) {
+        if (result.data.analysisStatus !== 'DONE' || dirtyRef.current) {
+          // Superseded by an edit, or edited meanwhile: the user's values win; take the revision.
+          setComp((prev) => ({ ...prev, revision: result.data.revision }));
+          setSync(dirtyRef.current ? 'pending' : 'saved');
+          if (dirtyRef.current) {
+            timerRef.current = setTimeout(() => void flushRef.current(), AUTOSAVE_MS);
+          }
+          return;
+        }
+        adoptDraft(result.data, undefined, latest.step === 'compose' ? 'compose' : 'review');
+        return;
+      }
+      // The answer is saved already; only the estimate failed.
+      setSync('saved');
+      if (result.code === 'CONFLICT') setConflict(true);
+      else setRefineError(t('meal.review.refineFailed'));
+    })();
+    refineFlightRef.current = flight;
+    await flight;
+    refineFlightRef.current = null;
+  }, [adoptDraft, flushAutosave, setComp]);
+
+  const scheduleRefine = useCallback(() => {
+    if (refineTimerRef.current) clearTimeout(refineTimerRef.current);
+    refineTimerRef.current = setTimeout(() => void runRefine(), REFINE_MS);
+  }, [runRefine]);
 
   // ── Draft creation ──────────────────────────────────────────────────────
   type Kind = 'TEXT' | 'PHOTO' | 'PHOTO_TEXT' | 'RECENT' | 'PLANNED' | 'MANUAL';
@@ -513,10 +606,19 @@ export function MealComposerIsland({
 
   // ── Analysis ────────────────────────────────────────────────────────────
   const runAnalysis = useCallback(async () => {
-    setBusy(true);
-    setAnalysisError(null);
     const current = compRef.current;
     if (!current) return;
+    // Back, then Analyze with nothing changed: the analysed items are still good.
+    if (
+      current.state &&
+      current.state.items.length > 0 &&
+      current.analyzedInput === inputSignature(current)
+    ) {
+      setComp((prev) => ({ ...prev, step: 'review' }));
+      return;
+    }
+    setBusy(true);
+    setAnalysisError(null);
     const kind: Kind =
       current.photos.length > 0 ? (current.text.trim() ? 'PHOTO_TEXT' : 'PHOTO') : 'TEXT';
     const draft = await ensureDraft(kind);
@@ -534,6 +636,7 @@ export function MealComposerIsland({
       analyzeMealDraftAction({
         draftId: draft.id,
         expectedRevision: draft.revision,
+        mode: 'ANALYZE',
       }),
     );
     clearTimeout(slowTimer);
@@ -556,11 +659,22 @@ export function MealComposerIsland({
       }
       setAnalysis('idle');
       adoptDraft(result.data, undefined, 'review');
-      // The user explicitly chose "Other": undo the AI's suggested link.
-      if (latest.slotChoice === OTHER_SLOT && result.data.state.planSlotId) {
+      // Where the meal lands: the user's choice, the suggestion, or Extra (B4).
+      const decision = defaultLinkAfterAnalysis({
+        userChoice: latest.slotChoice,
+        suggestedSlotId: result.data.state.planSlotId,
+        recordedSlotIds: dayInfo?.date === latest.localDate ? dayInfo.recordedSlotIds : [],
+      });
+      if (decision.slotChoice === OTHER_SLOT && result.data.state.planSlotId) {
         patchReview({ planSlotId: null, planOptionId: null });
-        setComp((prev) => ({ ...prev, slotChoice: OTHER_SLOT }));
       }
+      setComp((prev) => ({
+        ...prev,
+        slotChoice: decision.slotChoice,
+        extraSlotId:
+          decision.extraReason === 'ALREADY_RECORDED' ? result.data.state.planSlotId : null,
+        analyzedInput: inputSignature(latest),
+      }));
       return;
     }
     if (abandoned) return;
@@ -578,7 +692,7 @@ export function MealComposerIsland({
     } else {
       setAnalysisError(t('meal.errors.analysisFailed'));
     }
-  }, [adoptDraft, ensureDraft, patchReview, setComp]);
+  }, [adoptDraft, dayInfo, ensureDraft, patchReview, setComp]);
 
   const requestAnalysis = useCallback(async () => {
     const current = compRef.current;
@@ -600,8 +714,13 @@ export function MealComposerIsland({
     setBusy(true);
     const draft = await ensureDraft('MANUAL');
     setBusy(false);
-    if (draft) adoptDraft(draft, undefined, 'review');
-  }, [adoptDraft, ensureDraft]);
+    if (!draft) return;
+    adoptDraft(draft, undefined, 'review');
+    // What was typed becomes the first item, so nothing is lost on the way to manual (B7).
+    const seed =
+      draft.state.items.length === 0 ? seedManualItem(compRef.current?.text ?? '') : null;
+    if (seed) patchReview({ items: [seed] });
+  }, [adoptDraft, ensureDraft, patchReview]);
 
   // ── Recent and planned picks ────────────────────────────────────────────
   const rotateIfDrafted = useCallback(() => {
@@ -615,6 +734,8 @@ export function MealComposerIsland({
         revision: 0,
         state: null,
         match: null,
+        analyzedInput: null,
+        extraSlotId: null,
       }));
     }
   }, [setComp, user.id]);
@@ -697,6 +818,9 @@ export function MealComposerIsland({
     if (!current?.draftId || saving) return;
     setSaving(true);
     setSaveError(null);
+    // A refine still in flight would bump the revision under the save; a pending one is moot.
+    if (refineTimerRef.current) clearTimeout(refineTimerRef.current);
+    if (refineFlightRef.current) await refineFlightRef.current;
     if (current.state && hasBlankItem(current.state.items)) {
       setComp((prev) =>
         prev.state
@@ -721,6 +845,9 @@ export function MealComposerIsland({
     );
     setSaving(false);
     if (result.ok) {
+      if (result.data.droppedPhotos > 0) {
+        toast.warning(tp('meal.photosExpired', result.data.droppedPhotos));
+      }
       finishAlreadySaved(result.data.id);
       return;
     }
@@ -747,14 +874,13 @@ export function MealComposerIsland({
     setSaveError(null);
   }, [adoptDraft]);
 
-  const reestimate = useCallback(async () => {
-    const ok = await flushAutosave();
-    if (!ok) return;
+  // ── Back and Start over ─────────────────────────────────────────────────
+  const goBack = useCallback(async () => {
+    // Pending review edits go first, so the compose fields never race them.
+    await flushAutosave();
     setComp((prev) => ({ ...prev, step: 'compose' }));
-    await runAnalysis();
-  }, [flushAutosave, runAnalysis, setComp]);
+  }, [flushAutosave, setComp]);
 
-  // ── Opening ─────────────────────────────────────────────────────────────
   const startNew = useCallback(
     (request: ComposerRequest): Composition => {
       const now = new Date();
@@ -775,12 +901,47 @@ export function MealComposerIsland({
     [timeZone],
   );
 
+  /** Discards the server draft, its staged photos and the mirror; a fresh compose step for the same date and slot. */
+  const startOver = useCallback(async () => {
+    const current = compRef.current;
+    if (!current) return;
+    analysisRunRef.current += 1;
+    refineRunRef.current += 1;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (refineTimerRef.current) clearTimeout(refineTimerRef.current);
+    dirtyRef.current = false;
+    clearMirror(user.id, current.clientRequestId);
+    for (const photo of current.photos) if (photo.previewUrl) URL.revokeObjectURL(photo.previewUrl);
+    const fresh = startNew({ localDate: current.localDate, planSlotId: current.expandSlotId });
+    fresh.step = 'compose';
+    fresh.lateNightAnswered = true;
+    replaceComp(fresh);
+    setAnalysis('idle');
+    setAnalysisError(null);
+    setRefineError(null);
+    setSaveError(null);
+    setSync('saved');
+    setConflict(false);
+    setMoreOpen(false);
+    void loadDay(fresh.localDate);
+    if (current.draftId) await safely(() => discardMealDraftAction({ draftId: current.draftId }));
+    for (const photo of current.photos) {
+      try {
+        await deleteStagedImage(photo.uploadId);
+      } catch {
+        // Gone with the draft, or offline: the cleanup task removes stale uploads.
+      }
+    }
+  }, [loadDay, replaceComp, startNew, user.id]);
+
+  // ── Opening ─────────────────────────────────────────────────────────────
   const handleRequest = useCallback(
     (request: ComposerRequest) => {
       void (async () => {
         setOpen(true);
         setAnalysis('idle');
         setAnalysisError(null);
+        setRefineError(null);
         setSaveError(null);
         setMoreOpen(false);
         setLastUsed({});
@@ -793,6 +954,7 @@ export function MealComposerIsland({
             replaceComp({
               ...newComposition(result.data.state.localDate, result.data.state.time),
               lateNightAnswered: true,
+              resumed: true,
             });
             adoptDraft(
               result.data,
@@ -835,6 +997,7 @@ export function MealComposerIsland({
         const explicit = !!(request.planSlotId || request.localDate);
         const existing = compRef.current;
         if (!explicit && existing) {
+          if (existing.draftId) setComp((prev) => ({ ...prev, resumed: true }));
           void loadDay(existing.localDate);
           return;
         }
@@ -845,7 +1008,12 @@ export function MealComposerIsland({
               ...mirror,
               photos: mirror.photos.map((p) => ({ ...p, previewUrl: '' })),
               step: mirror.step === 'late-night' ? 'compose' : mirror.step,
+              // Fields a mirror written before they existed would lack.
+              timeUnknown: mirror.timeUnknown ?? mirror.time === null,
+              extraSlotId: mirror.extraSlotId ?? null,
+              analyzedInput: mirror.analyzedInput ?? null,
               lateNightAnswered: true,
+              resumed: true,
             };
             replaceComp(restored);
             void loadDay(restored.localDate);
@@ -938,6 +1106,7 @@ export function MealComposerIsland({
           ...prev,
           localDate,
           time: yesterday ? null : prev.time,
+          timeUnknown: yesterday ? true : prev.timeUnknown,
           step: 'compose',
           lateNightAnswered: true,
         };
@@ -971,7 +1140,9 @@ export function MealComposerIsland({
       : null;
 
   const slotsForDate = dayInfo && comp && dayInfo.date === comp.localDate ? dayInfo.slots : null;
-  const canReestimate = !!comp && (comp.text.trim() !== '' || comp.photos.length > 0);
+  const recordedSlotIds =
+    dayInfo && comp && dayInfo.date === comp.localDate ? dayInfo.recordedSlotIds : [];
+  const canReestimate = !!comp?.state && comp.state.items.length > 0;
 
   const title =
     comp?.step === 'review'
@@ -988,6 +1159,27 @@ export function MealComposerIsland({
         onOpenChange={setOpen}
         title={title}
         description={comp?.step === 'late-night' ? t('meal.compose.lateNight.body') : undefined}
+        leading={
+          comp?.step === 'review' ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="-ms-2 size-9 shrink-0"
+              aria-label={t('meal.review.back')}
+              onClick={() => void goBack()}
+              disabled={saving}
+              data-testid="review-back"
+            >
+              <ArrowLeft className="size-5 rtl:-scale-x-100" aria-hidden="true" />
+            </Button>
+          ) : undefined
+        }
+        actions={
+          comp?.step === 'review' && !comp.resumed ? (
+            <StartOverButton onClick={() => void startOver()} disabled={saving} />
+          ) : undefined
+        }
         testId="meal-composer"
       >
         {!comp ? null : comp.step === 'late-night' ? (
@@ -1014,21 +1206,30 @@ export function MealComposerIsland({
             mode="draft"
             state={comp.state}
             onChange={patchReview}
+            onAnswered={scheduleRefine}
             match={comp.match}
             slots={slotsForDate ?? []}
             lastUsed={lastUsed}
             otherChosen={comp.slotChoice === OTHER_SLOT}
+            extraBecauseRecordedSlotId={comp.extraSlotId}
+            photos={comp.photos}
             sync={sync}
             online={online}
             conflict={conflict}
             saving={saving}
             error={saveError}
+            refineError={refineError}
+            onRetryRefine={() => void runRefine()}
             canReestimate={canReestimate}
-            onReestimate={reestimate}
+            onReestimate={() => void runRefine()}
             onSave={save}
             onReload={reload}
             dateSummary={dateSummary}
             today={today}
+            timeUnknown={comp.timeUnknown}
+            onTimeUnknownChange={(timeUnknown) => setComp((prev) => ({ ...prev, timeUnknown }))}
+            resumed={comp.resumed}
+            onStartOver={() => void startOver()}
           />
         ) : (
           <MealComposer
@@ -1044,6 +1245,7 @@ export function MealComposerIsland({
             slots={slotsForDate}
             hasPlan={dayInfo?.hasPlan ?? false}
             lastUsed={lastUsed}
+            recordedSlotIds={recordedSlotIds}
             onExpandSlot={loadLastUsed}
             onPickPlanned={pickPlanned}
             initialExpandedSlotId={comp.expandSlotId}
@@ -1055,17 +1257,27 @@ export function MealComposerIsland({
             localDate={comp.localDate}
             today={today}
             time={comp.time}
+            timeUnknown={comp.timeUnknown}
             onDateChange={(localDate) => {
-              setComp((prev) => ({
-                ...prev,
-                localDate,
-                time: localDate === today ? prev.time : null,
-                slotChoice: null,
-                optionId: null,
-              }));
+              setComp((prev) => {
+                const isToday = localDate === today;
+                return {
+                  ...prev,
+                  localDate,
+                  time: isToday ? (prev.time ?? localTimeFor(new Date(), timeZone)) : null,
+                  timeUnknown: !isToday,
+                  slotChoice: null,
+                  optionId: null,
+                };
+              });
               void loadDay(localDate);
             }}
             onTimeChange={(time) => setComp((prev) => ({ ...prev, time }))}
+            onTimeUnknownChange={(timeUnknown) =>
+              setComp((prev) => ({ ...prev, timeUnknown, time: null }))
+            }
+            resumed={comp.resumed}
+            onStartOver={() => void startOver()}
             notes={comp.notes}
             onNotesChange={(notes) => setComp((prev) => ({ ...prev, notes }))}
             dateSummary={dateSummary}

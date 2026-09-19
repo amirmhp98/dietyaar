@@ -9,6 +9,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { env, storageConfigured } from '@/lib/env';
 import { ServiceError } from '@/lib/errors';
+import { logger } from '@/lib/logger';
 import { photo } from '@/messages/sections/photo';
 
 /**
@@ -110,6 +111,24 @@ function clientFor(target: StorageTarget, config: TargetConfig): S3Client {
 /** Test hook: drop cached clients so a new mock is picked up. */
 export function resetStorageClients(): void {
   clients.clear();
+}
+
+/**
+ * Best-effort delete of photo objects whose rows are already gone or
+ * `REMOVED`: each failure is logged and the rest continue, so a storage
+ * hiccup never blocks the record change that triggered it. Silently a no-op
+ * when storage is not configured (dev without a bucket).
+ */
+export async function deleteObjects(keys: string[]): Promise<void> {
+  if (keys.length === 0 || !storageConfigured) return;
+  const storage = createStorage('photos');
+  for (const key of keys) {
+    try {
+      await storage.deleteObject(key);
+    } catch (error) {
+      logger.warn({ err: error, key }, 'photo object delete failed; left for the purge');
+    }
+  }
 }
 
 /**

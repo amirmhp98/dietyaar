@@ -19,6 +19,7 @@ const EMPTY: MealAnalysisOutput = {
   suggestedSlot: null,
   suggestedOptionIndex: null,
   questions: [],
+  changes: [],
 };
 
 const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
@@ -51,7 +52,9 @@ export function resolveSuggestion(
 export async function analyzeMeal(input: AnalyzeMealInput): Promise<AiResult<MealAnalysisOutput>> {
   const hasText = input.text !== null && input.text.trim() !== '';
   const hasImages = input.images.length > 0;
-  if (!hasText && !hasImages) {
+  const refine = input.refine ?? null;
+  // A refine of reviewed items needs no description: the items are the input.
+  if (!hasText && !hasImages && !(refine && refine.items.length > 0)) {
     return {
       ok: true,
       data: EMPTY,
@@ -64,7 +67,7 @@ export async function analyzeMeal(input: AnalyzeMealInput): Promise<AiResult<Mea
   const result = await complete({
     kind: hasImages ? 'MEAL_PHOTO' : 'MEAL_TEXT',
     system: hasImages ? mealPhotoSystemPrompt() : mealTextSystemPrompt(),
-    user: mealUserMessage(input.text, input.planContext),
+    user: mealUserMessage(input.text, input.planContext, refine),
     images: hasImages ? input.images : undefined,
     schema: mealAnalysisOutputSchema,
     deadlineAt: input.deadlineAt,
@@ -86,6 +89,11 @@ export async function analyzeMeal(input: AnalyzeMealInput): Promise<AiResult<Mea
   );
   return {
     ...result,
-    data: { items, questions, ...resolveSuggestion(result.data, input.planContext) },
+    data: {
+      items,
+      questions,
+      changes: result.data.changes,
+      ...resolveSuggestion(result.data, input.planContext),
+    },
   };
 }

@@ -82,6 +82,8 @@ export const mealDraftStateSchema = z.object({
   copiedFromMealId: z.string().nullable().default(null),
   /** Neutral reminders computed on the server from Settings restrictions. */
   restrictionHits: z.array(z.object({ itemKey: key, restriction: z.string().max(60) })).default([]),
+  /** What the last REFINE changed, in the model's words; cleared by the next edit. */
+  lastChanges: z.array(z.string().max(200)).max(20).default([]),
 });
 export type MealDraftState = z.infer<typeof mealDraftStateSchema>;
 
@@ -123,10 +125,17 @@ export const updateMealDraftSchema = z.object({
   edits: mealDraftEditsSchema,
 });
 
+export const MEAL_ANALYSIS_MODES = ['ANALYZE', 'REFINE'] as const;
+export type MealAnalysisMode = (typeof MEAL_ANALYSIS_MODES)[number];
+
 export const analyzeMealDraftSchema = z.object({
   draftId: z.string().min(1),
   expectedRevision: z.number().int().positive(),
+  /** REFINE keeps the current items and fills what the answers now make known. */
+  mode: z.enum(MEAL_ANALYSIS_MODES).default('ANALYZE'),
 });
+
+export const discardMealDraftSchema = z.object({ draftId: z.string().min(1) });
 
 export const saveMealSchema = z.object({
   draftId: z.string().min(1),

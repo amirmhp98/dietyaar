@@ -115,6 +115,21 @@ export function matchSlot(
   return { status, reason, missing, added, mixed, crossSlot, matched, countedTotal, presentCount };
 }
 
+/**
+ * Whether saving these items under `slot` needs a chosen option (product
+ * spec § 7, improvement plan B3): only when the slot has several options and
+ * the items share a counted item with at least one of them. A meal that
+ * overlaps none is a different food under the slot and carries no option.
+ */
+export function optionRequiredFor(items: RubricFoodItem[], slot: RubricSlot): boolean {
+  if (slot.options.length <= 1) return false;
+  return slot.options.some((option) =>
+    option.items.some(
+      (planItem) => isCounted(planItem) && items.some((i) => sameFood(i, planItem)),
+    ),
+  );
+}
+
 /** The option of a slot with the highest counted-item overlap (AI/user suggestion helper). */
 export function bestOption(items: RubricFoodItem[], slot: RubricSlot): RubricOption | null {
   let best: { option: RubricOption; score: number } | null = null;

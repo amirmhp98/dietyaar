@@ -164,11 +164,11 @@ export function PlanSlotRow({
 /** The picked option's label is user text: isolated so digits and dots around it never flip. */
 function optionLine(slot: SlotView): ReactNode | null {
   if (slot.state === 'RECORDED' || slot.state === 'NEEDS_REVIEW') {
-    return slot.option?.label
-      ? fillNames(t('slot.option.picked', { label: '{label}' }), {
-          label: <bdi>{slot.option.label}</bdi>,
-        })
-      : null;
+    // A meal saved under the slot without an option (a different food) names none.
+    if (!slot.option?.label) return null;
+    return fillNames(t('slot.option.picked', { label: '{label}' }), {
+      label: <bdi>{slot.option.label}</bdi>,
+    });
   }
   const count = slot.slot.options.length;
   return count > 1 ? t('slot.options', { count }) : null;

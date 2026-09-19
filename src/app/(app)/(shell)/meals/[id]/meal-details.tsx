@@ -80,6 +80,7 @@ function toDraftState(meal: MealView): MealDraftState {
     restrictionHits: meal.items
       .filter((i) => i.restrictionHit)
       .map((i) => ({ itemKey: i.id, restriction: i.restrictionHit as string })),
+    lastChanges: [],
   };
 }
 

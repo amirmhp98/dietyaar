@@ -265,7 +265,8 @@ describe('reflection facts and staleness', () => {
       isFirstDay: false,
     });
     expect(f2.find((f) => f.id === 'completeness')?.signature).toBe('false');
-    expect(f2.find((f) => f.id === `slot:${p.breakfast.id}`)?.signature).toBe('NEEDS_REVIEW');
+    // Tea overlaps no breakfast option: a different food under the slot, not a choice owed (B3).
+    expect(f2.find((f) => f.id === `slot:${p.breakfast.id}`)?.signature).toBe('DIFFERENT_FOOD:');
     expect(f2.find((f) => f.id === 'today:next')?.signature).toBe(p.snack1.id);
     expect(f2.find((f) => f.id === 'today:recorded')?.signature).toBe('1');
     const skippedAndMissing = computeDayView(

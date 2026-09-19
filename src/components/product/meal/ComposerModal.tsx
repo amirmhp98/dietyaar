@@ -33,13 +33,16 @@ export function useIsWide(): boolean {
 /**
  * The composer's container: a bottom sheet on phones (full height, scrolling
  * inside) and a centered dialog on md+ (design-scope screen 4). The header
- * and footer stay fixed; `children` scroll.
+ * and footer stay fixed; `children` scroll. `leading` sits before the title
+ * (the review's back arrow), `actions` after it (Start over).
  */
 export function ComposerModal({
   open,
   onOpenChange,
   title,
   description,
+  leading,
+  actions,
   footer,
   children,
   testId,
@@ -48,11 +51,20 @@ export function ComposerModal({
   onOpenChange: (open: boolean) => void;
   title: ReactNode;
   description?: ReactNode;
+  leading?: ReactNode;
+  actions?: ReactNode;
   footer?: ReactNode;
   children: ReactNode;
   testId?: string;
 }) {
   const wide = useIsWide();
+  const heading = (node: ReactNode) => (
+    <div className="flex min-h-9 items-center gap-2 pe-8">
+      {leading}
+      <div className="min-w-0 flex-1">{node}</div>
+      {actions}
+    </div>
+  );
   const body = (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-2" data-testid="composer-body">
@@ -74,7 +86,7 @@ export function ComposerModal({
           data-testid={testId}
         >
           <DialogHeader className="shrink-0 px-4 pb-2 pt-5 text-start">
-            <DialogTitle>{title}</DialogTitle>
+            {heading(<DialogTitle>{title}</DialogTitle>)}
             <DialogDescription className={cn(!description && 'sr-only')}>
               {description ?? title}
             </DialogDescription>
@@ -93,7 +105,7 @@ export function ComposerModal({
         data-testid={testId}
       >
         <SheetHeader className="shrink-0 px-4 pb-2 pt-5 text-start">
-          <SheetTitle>{title}</SheetTitle>
+          {heading(<SheetTitle>{title}</SheetTitle>)}
           <SheetDescription className={cn(!description && 'sr-only')}>
             {description ?? title}
           </SheetDescription>

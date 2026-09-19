@@ -9,6 +9,7 @@ import {
   mealDraftFactory,
   mealFactory,
   profileFactory,
+  uploadFactory,
 } from '@/__tests__/factories';
 import type { RubricSlot } from '@/lib/rubric/types';
 import { ServiceError } from '@/lib/errors';
@@ -31,19 +32,28 @@ vi.mock('@/services/reflection.service', () => ({ markStaleIfNeeded: vi.fn() }))
 vi.mock('@/services/upload.service', () => ({
   readStagedImages: vi.fn(async () => []),
   removeUpload: vi.fn(),
+  deleteStagedUpload: vi.fn(),
 }));
+vi.mock('@/services/storage/s3', () => ({ deleteObjects: vi.fn(async () => undefined) }));
 
 import { analyzeMeal } from '@/services/ai/analyze-meal';
+import type { MealAnalysisOutput } from '@/services/ai/schemas';
 import { admitOperation, finishOperation } from '@/services/ai-usage.service';
 import { getActivePlan } from '@/services/plan.service';
 import { getProfile, toProfileView } from '@/services/profile.service';
 import { markStaleIfNeeded } from '@/services/reflection.service';
+import { deleteObjects } from '@/services/storage/s3';
+import { deleteStagedUpload } from '@/services/upload.service';
 import {
   analyzeDraft,
   createDraft,
+  deleteMeal,
+  discardDraft,
+  mergeRefinedItems,
   reconcileItem,
   resetRecentMealsCache,
   saveMeal,
+  setMealLink,
   updateDraft,
 } from '@/services/meal.service';
 
@@ -358,6 +368,7 @@ describe('analyzeDraft', () => {
     suggestedSlot: { originalName: 'Lunch', englishLabel: 'Lunch' },
     suggestedOptionIndex: null,
     questions: [{ itemIndex: 0, question: 'How much?', kind: 'PORTION' as const, choices: [] }],
+    changes: [],
   };
 
   beforeEach(() => {
@@ -450,6 +461,238 @@ describe('analyzeDraft', () => {
   });
 });
 
+describe('analyzeDraft in REFINE mode (B1)', () => {
+  const aiItem = (
+    originalName: string,
+    quantity: number | null,
+    unit: string | null,
+    kcal: number | null,
+  ): MealAnalysisOutput['items'][number] => ({
+    originalName,
+    englishLabel: originalName,
+    quantity,
+    unit,
+    quantityUnknown: quantity === null,
+    quantityAssumed: false,
+    preparation: null,
+    category: 'OTHER',
+    alternatives: [],
+    nutrition:
+      kcal === null
+        ? null
+        : {
+            ...eggNutrition,
+            basisQuantity: quantity,
+            basisUnit: unit,
+            values: { ...eggNutrition.values, ENERGY_KCAL: kcal },
+          },
+  });
+  const reply = (
+    items: MealAnalysisOutput['items'],
+    extra: Partial<MealAnalysisOutput> = {},
+  ): MealAnalysisOutput => ({
+    items,
+    suggestedSlot: null,
+    suggestedOptionIndex: null,
+    questions: [],
+    changes: [],
+    ...extra,
+  });
+
+  beforeEach(() => {
+    vi.mocked(admitOperation).mockResolvedValue({ ok: true, callId: 'call-1' });
+  });
+
+  it('sends the reviewed items and the answers, keeps the link, merges by position and records the changes', async () => {
+    const state = draftState({
+      planSlotId: 'slot-lunch',
+      planOptionId: 'opt-a',
+      items: [
+        draftItem({
+          key: 'a',
+          originalName: 'برنج',
+          englishLabel: 'rice',
+          quantity: 150,
+          unit: 'g',
+        }),
+        draftItem({
+          key: 'b',
+          originalName: 'نان',
+          englishLabel: 'bread',
+          quantity: null,
+          unit: null,
+          quantityUnknown: true,
+          nutrition: null,
+        }),
+      ],
+      questions: [
+        {
+          key: 'q1',
+          itemKey: 'b',
+          question: 'How many slices?',
+          kind: 'PORTION',
+          choices: ['1 slice', '2 slices'],
+          answer: '2 slices',
+        },
+        {
+          key: 'q2',
+          itemKey: 'a',
+          question: 'With oil?',
+          kind: 'INGREDIENT',
+          choices: [],
+          answer: null,
+        },
+      ],
+    });
+    const row = mealDraftFactory.build({ userId: OWNER, revision: 4, state });
+    prismaMock.mealDraft.findFirst.mockResolvedValue(row);
+    prismaMock.mealDraft.updateMany.mockResolvedValue({ count: 1 });
+    vi.mocked(analyzeMeal).mockResolvedValue({
+      ok: true,
+      data: reply([aiItem('rice', 999, 'g', 999), aiItem('bread', 2, 'slice_sangak', 320)], {
+        suggestedSlot: { originalName: 'Breakfast', englishLabel: 'Breakfast' },
+        changes: ['Bread: 2 slices of sangak from your answer.'],
+        questions: [{ itemIndex: 0, question: 'With oil?', kind: 'INGREDIENT', choices: [] }],
+      }),
+      attempts: [],
+      usage: { promptTokens: 1, completionTokens: 1 },
+      model: 'm',
+      durationMs: 5,
+    });
+
+    await analyzeDraft(OWNER, row.id, 4, NOW, 'REFINE');
+
+    const input = vi.mocked(analyzeMeal).mock.calls[0]?.[0];
+    expect(input?.refine?.items.map((i) => [i.originalName, i.answer])).toEqual([
+      ['برنج', null],
+      ['نان', '2 slices'],
+    ]);
+    expect(input?.refine?.answers).toEqual([{ question: 'How many slices?', answer: '2 slices' }]);
+
+    const data = prismaMock.mealDraft.updateMany.mock.calls[1]?.[0].data as {
+      state: MealDraftState;
+    };
+    // The link stays as the user had it, whatever the model suggests.
+    expect(data.state.planSlotId).toBe('slot-lunch');
+    expect(data.state.planOptionId).toBe('opt-a');
+    // Item a: known quantity and nutrition untouched (the model's 999 is ignored).
+    expect(data.state.items[0]).toMatchObject({
+      originalName: 'برنج',
+      quantity: 150,
+      nutrition: eggNutrition,
+    });
+    // Item b: the answer filled the portion and the estimate.
+    expect(data.state.items[1]).toMatchObject({
+      originalName: 'نان',
+      quantity: 2,
+      unit: 'slice_sangak',
+      quantityUnknown: false,
+      scaleFlag: 'SCALED',
+    });
+    expect(data.state.items[1]?.nutrition?.values.ENERGY_KCAL).toBe(320);
+    expect(data.state.lastChanges).toEqual(['Bread: 2 slices of sangak from your answer.']);
+    // The answered question is gone; the model's question replaces the unanswered one.
+    expect(data.state.questions.map((q) => [q.itemKey, q.answer])).toEqual([
+      [data.state.items[0]?.key, null],
+    ]);
+  });
+
+  it('falls back to a plain analysis when the draft has no items yet', async () => {
+    const row = mealDraftFactory.build({
+      userId: OWNER,
+      state: draftState({ items: [] }),
+    });
+    prismaMock.mealDraft.findFirst.mockResolvedValue(row);
+    prismaMock.mealDraft.updateMany.mockResolvedValue({ count: 1 });
+    vi.mocked(analyzeMeal).mockResolvedValue({
+      ok: true,
+      data: reply([aiItem('egg', 2, 'egg', 140)]),
+      attempts: [],
+      usage: { promptTokens: 1, completionTokens: 1 },
+      model: 'm',
+      durationMs: 5,
+    });
+    await analyzeDraft(OWNER, row.id, 1, NOW, 'REFINE');
+    expect(vi.mocked(analyzeMeal).mock.calls[0]?.[0].refine).toBeNull();
+  });
+
+  describe('mergeRefinedItems', () => {
+    it("keeps a renamed item's name and preparation and takes only the nutrition it was owed", () => {
+      const current = [
+        draftItem({
+          key: 'a',
+          originalName: 'املت',
+          englishLabel: 'omelette',
+          preparation: 'with oil',
+          nutrition: null,
+          needsReestimate: true,
+          previousNutrition: eggNutrition,
+        }),
+      ];
+      const [merged] = mergeRefinedItems(
+        current,
+        reply([{ ...aiItem('Egg', 2, 'egg', 210), preparation: 'boiled' }]),
+      );
+      expect(merged).toMatchObject({
+        originalName: 'املت',
+        englishLabel: 'omelette',
+        preparation: 'with oil',
+        needsReestimate: false,
+        scaleFlag: 'SCALED',
+        previousNutrition: eggNutrition,
+      });
+      expect(merged?.nutrition?.values.ENERGY_KCAL).toBe(210);
+    });
+
+    it('never replaces a label value the user entered', () => {
+      const override = { ...eggNutrition, source: 'USER_LABEL' as const, userOverride: true };
+      const current = [draftItem({ key: 'a', nutrition: override, needsReestimate: true })];
+      const [merged] = mergeRefinedItems(current, reply([aiItem('egg', 2, 'egg', 500)]));
+      expect(merged?.nutrition).toEqual(override);
+      expect(merged?.needsReestimate).toBe(true);
+    });
+
+    it('fills a quantity only where it was unknown, keeps dropped items and appends extra ones', () => {
+      const current = [
+        draftItem({ key: 'a', quantity: 3, unit: 'egg' }),
+        draftItem({ key: 'b', quantity: null, unit: null, quantityUnknown: true, nutrition: null }),
+        draftItem({ key: 'c', originalName: 'tea', englishLabel: 'tea' }),
+      ];
+      // The model dropped the tea: it stays, at its position.
+      const shorter = mergeRefinedItems(
+        current,
+        reply([aiItem('egg', 1, 'egg', 70), aiItem('bread', 80, 'g', 210)]),
+      );
+      expect(shorter.map((i) => [i.key, i.quantity, i.unit, i.position])).toEqual([
+        ['a', 3, 'egg', 0],
+        ['b', 80, 'g', 1],
+        ['c', 2, 'piece', 2],
+      ]);
+      // A nutrition the item already held is not overwritten without a re-estimate owed.
+      expect(shorter[0]?.nutrition?.values.ENERGY_KCAL).toBe(140);
+
+      // The model added butter: appended as an added item.
+      const longer = mergeRefinedItems(
+        current,
+        reply([
+          aiItem('egg', 1, 'egg', 70),
+          aiItem('bread', 80, 'g', 210),
+          aiItem('tea', 1, 'glass', 30),
+          aiItem('butter', 10, 'g', 75),
+        ]),
+      );
+      expect(longer).toHaveLength(4);
+      expect(longer[3]).toMatchObject({
+        originalName: 'butter',
+        quantity: 10,
+        unit: 'g',
+        position: 3,
+        isAddedItem: true,
+      });
+    });
+  });
+});
+
 describe('saveMeal', () => {
   const savedRow = (overrides = {}) => ({
     ...mealFactory.build({ id: 'meal-new', userId: OWNER, clientRequestId: REQ, ...overrides }),
@@ -468,19 +711,78 @@ describe('saveMeal', () => {
     expect(prismaMock.$transaction).not.toHaveBeenCalled();
   });
 
-  it('refuses OPTION_REQUIRED when the slot has several options and none is chosen', async () => {
+  it('refuses OPTION_REQUIRED when the items overlap an option of a multi-option slot and none is chosen (B3)', async () => {
     prismaMock.meal.findFirst.mockResolvedValue(null);
     prismaMock.mealDraft.findFirst.mockResolvedValue(
       mealDraftFactory.build({
         userId: OWNER,
         clientRequestId: REQ,
-        state: draftState({ planSlotId: 'slot-lunch', planOptionId: null }),
+        state: draftState({
+          planSlotId: 'slot-lunch',
+          planOptionId: null,
+          items: [draftItem({ key: 'a', originalName: 'rice', englishLabel: 'rice' })],
+        }),
       }),
     );
     await expect(saveMeal(OWNER, 'draft-1', 1, REQ, NOW)).rejects.toMatchObject({
       code: 'OPTION_REQUIRED',
     });
     expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('saves a meal that overlaps no option under the slot with no option: a different food (B3, J5)', async () => {
+    useTransaction();
+    const draft = mealDraftFactory.build({
+      userId: OWNER,
+      clientRequestId: REQ,
+      state: draftState({
+        planSlotId: 'slot-lunch',
+        planOptionId: null,
+        items: [draftItem({ key: 'a', originalName: 'ساندویچ همبرگر', englishLabel: 'burger' })],
+      }),
+    });
+    prismaMock.meal.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue(savedRow({ planSlotId: 'slot-lunch', planOptionId: null }) as never);
+    prismaMock.mealDraft.findFirst.mockResolvedValue(draft);
+    prismaMock.dayRecord.upsert.mockResolvedValue(
+      dayRecordFactory.build({ id: 'day-x', userId: OWNER }),
+    );
+    prismaMock.meal.create.mockResolvedValue(mealFactory.build({ id: 'meal-new', userId: OWNER }));
+    prismaMock.foodItem.createMany.mockResolvedValue({ count: 1 });
+    prismaMock.mealDraft.deleteMany.mockResolvedValue({ count: 1 });
+
+    const meal = await saveMeal(OWNER, draft.id, 1, REQ, NOW);
+    expect(meal.droppedPhotos).toBe(0);
+    expect(prismaMock.meal.create.mock.calls[0]?.[0].data).toMatchObject({
+      planSlotId: 'slot-lunch',
+      planOptionId: null,
+      linkConfirmedByUser: true,
+    });
+  });
+
+  it('leaves out staged photos that expired and reports how many (B24)', async () => {
+    useTransaction();
+    const draft = mealDraftFactory.build({
+      userId: OWNER,
+      clientRequestId: REQ,
+      state: draftState({ uploadIds: ['up-1', 'up-gone'] }),
+    });
+    prismaMock.meal.findFirst.mockResolvedValueOnce(null).mockResolvedValue(savedRow() as never);
+    prismaMock.mealDraft.findFirst.mockResolvedValue(draft);
+    prismaMock.upload.findMany.mockResolvedValue([{ id: 'up-1' }] as never);
+    prismaMock.dayRecord.upsert.mockResolvedValue(
+      dayRecordFactory.build({ id: 'day-x', userId: OWNER }),
+    );
+    prismaMock.meal.create.mockResolvedValue(mealFactory.build({ id: 'meal-new', userId: OWNER }));
+    prismaMock.foodItem.createMany.mockResolvedValue({ count: 1 });
+    prismaMock.upload.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.mealDraft.deleteMany.mockResolvedValue({ count: 1 });
+
+    const meal = await saveMeal(OWNER, draft.id, 1, REQ, NOW);
+    expect(meal.droppedPhotos).toBe(1);
+    expect(prismaMock.upload.updateMany).toHaveBeenCalledTimes(1);
+    expect(prismaMock.upload.updateMany.mock.calls[0]?.[0].where).toMatchObject({ id: 'up-1' });
   });
 
   it('refuses FUTURE_TIME for a later time today and for tomorrow even with an unknown time', async () => {
@@ -544,6 +846,7 @@ describe('saveMeal', () => {
         savedRow({ planSlotId: 'slot-breakfast', planOptionId: 'opt-bf' }) as never,
       );
     prismaMock.mealDraft.findFirst.mockResolvedValue(draft);
+    prismaMock.upload.findMany.mockResolvedValue([{ id: 'up-1' }] as never);
     prismaMock.dayRecord.upsert.mockResolvedValue(
       dayRecordFactory.build({ id: 'day-x', userId: OWNER }),
     );
@@ -555,6 +858,7 @@ describe('saveMeal', () => {
     const meal = await saveMeal(OWNER, draft.id, 1, REQ, NOW);
 
     expect(meal.id).toBe('meal-new');
+    expect(meal.droppedPhotos).toBe(0);
     expect(prismaMock.dayRecord.upsert.mock.calls[0]?.[0].create).toMatchObject({
       localDate: '2026-09-17',
       timeZone: 'Asia/Tehran',
@@ -585,5 +889,97 @@ describe('saveMeal', () => {
     prismaMock.meal.findFirst.mockRejectedValue(new Error('boom'));
     await expect(saveMeal(OWNER, 'd', 1, REQ, NOW)).rejects.toThrow('boom');
     await expect(saveMeal(OWNER, 'd', 1, REQ, NOW)).rejects.not.toBeInstanceOf(ServiceError);
+  });
+});
+
+describe('deleteMeal', () => {
+  it('marks the uploads REMOVED, then deletes their objects best-effort (B12)', async () => {
+    useTransaction();
+    const row = {
+      ...mealFactory.build({ id: 'meal-1', userId: OWNER, revision: 2 }),
+      items: [],
+      uploads: [
+        uploadFactory.build({ id: 'up-1', storageKey: 'uploads/user-1/up-1.jpg' }),
+        uploadFactory.build({ id: 'up-2', storageKey: 'uploads/user-1/up-2.jpg' }),
+      ],
+      day: dayRecordFactory.build({ userId: OWNER, localDate: '2026-09-17' }),
+      planSlot: null,
+      planOption: null,
+    };
+    prismaMock.meal.findFirst.mockResolvedValue(row as never);
+    prismaMock.meal.deleteMany.mockResolvedValue({ count: 1 });
+    prismaMock.upload.updateMany.mockResolvedValue({ count: 2 });
+
+    await deleteMeal(OWNER, 'meal-1', 2);
+
+    expect(prismaMock.upload.updateMany).toHaveBeenCalledWith({
+      where: { userId: OWNER, mealId: 'meal-1' },
+      data: { status: 'REMOVED', mealId: null },
+    });
+    expect(deleteObjects).toHaveBeenCalledWith([
+      'uploads/user-1/up-1.jpg',
+      'uploads/user-1/up-2.jpg',
+    ]);
+    expect(markStaleIfNeeded).toHaveBeenCalledWith(OWNER, '2026-09-17');
+  });
+});
+
+describe('setMealLink', () => {
+  const linkedRow = (items: ReturnType<typeof foodItemFactory.build>[]) => ({
+    ...mealFactory.build({ id: 'meal-1', userId: OWNER, revision: 1 }),
+    items,
+    uploads: [],
+    day: dayRecordFactory.build({ userId: OWNER, localDate: '2026-09-17' }),
+    planSlot: null,
+    planOption: null,
+  });
+
+  it('applies the same option rule: a burger links to Lunch without an option, rice needs one', async () => {
+    useTransaction();
+    prismaMock.meal.findFirst.mockResolvedValue(
+      linkedRow([
+        foodItemFactory.build({ originalName: 'burger', englishLabel: 'burger' }),
+      ]) as never,
+    );
+    prismaMock.meal.updateMany.mockResolvedValue({ count: 1 });
+    await setMealLink(OWNER, 'meal-1', 1, 'slot-lunch', null);
+    expect(prismaMock.meal.updateMany.mock.calls[0]?.[0].data).toMatchObject({
+      planSlotId: 'slot-lunch',
+      planOptionId: null,
+    });
+
+    prismaMock.meal.findFirst.mockResolvedValue(
+      linkedRow([foodItemFactory.build({ originalName: 'rice', englishLabel: 'rice' })]) as never,
+    );
+    await expect(setMealLink(OWNER, 'meal-1', 1, 'slot-lunch', null)).rejects.toMatchObject({
+      code: 'OPTION_REQUIRED',
+    });
+  });
+});
+
+describe('discardDraft', () => {
+  it('deletes the staged photos then the draft, and tolerates a photo already gone', async () => {
+    const row = mealDraftFactory.build({
+      userId: OWNER,
+      state: draftState({ uploadIds: ['up-1', 'up-gone'] }),
+    });
+    prismaMock.mealDraft.findFirst.mockResolvedValue(row);
+    prismaMock.mealDraft.deleteMany.mockResolvedValue({ count: 1 });
+    vi.mocked(deleteStagedUpload)
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new ServiceError('gone', 'NOT_FOUND'));
+
+    await discardDraft(OWNER, row.id);
+
+    expect(deleteStagedUpload).toHaveBeenCalledTimes(2);
+    expect(prismaMock.mealDraft.deleteMany).toHaveBeenCalledWith({
+      where: { id: row.id, userId: OWNER },
+    });
+  });
+
+  it("is a no-op for a draft that is not the owner's or already gone", async () => {
+    prismaMock.mealDraft.findFirst.mockResolvedValue(null);
+    await discardDraft(OWNER, 'someone-elses');
+    expect(prismaMock.mealDraft.deleteMany).not.toHaveBeenCalled();
   });
 });

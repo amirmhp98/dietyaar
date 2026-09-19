@@ -12,6 +12,7 @@ import {
 import { Disclosure } from '@/components/product/Disclosure';
 import { NameLabel } from '@/components/product/NameLabel';
 import { PhotoPicker, type StagedPhoto } from '@/components/product/meal/PhotoPicker';
+import { ResumedBanner } from '@/components/product/meal/ResumedBanner';
 import { OTHER_SLOT, PlannedSlotsRow, SlotSelect } from '@/components/product/meal/SlotPicker';
 import { formatNumber } from '@/lib/format';
 import type { RubricSlot } from '@/lib/rubric/types';
@@ -41,6 +42,8 @@ export interface MealComposerProps {
   slots: RubricSlot[] | null;
   hasPlan: boolean;
   lastUsed: Record<string, string | null>;
+  /** Slots that already hold a meal on this date (marked on the chips). */
+  recordedSlotIds: readonly string[];
   onExpandSlot: (slotId: string) => void;
   onPickPlanned: (slotId: string, optionId: string) => void;
   /** Slot to show expanded when the composer opened for a multi-option slot. */
@@ -51,9 +54,15 @@ export interface MealComposerProps {
   onSlotChange: (slotChoice: string | null, optionId: string | null) => void;
   localDate: string;
   today: string;
+  /** null = not entered; whether that means "unknown" is `timeUnknown`. */
   time: string | null;
+  timeUnknown: boolean;
   onDateChange: (localDate: string) => void;
   onTimeChange: (time: string | null) => void;
+  onTimeUnknownChange: (unknown: boolean) => void;
+  /** The sheet opened on a draft from before; Start over discards it. */
+  resumed: boolean;
+  onStartOver: () => void;
   notes: string;
   onNotesChange: (notes: string) => void;
   dateSummary: string;
@@ -95,6 +104,7 @@ export function MealComposer(props: MealComposerProps) {
     slots,
     hasPlan,
     lastUsed,
+    recordedSlotIds,
     onExpandSlot,
     onPickPlanned,
     initialExpandedSlotId,
@@ -104,8 +114,12 @@ export function MealComposer(props: MealComposerProps) {
     localDate,
     today,
     time,
+    timeUnknown,
     onDateChange,
     onTimeChange,
+    onTimeUnknownChange,
+    resumed,
+    onStartOver,
     notes,
     onNotesChange,
     backdatedLabel,
@@ -141,6 +155,8 @@ export function MealComposer(props: MealComposerProps) {
 
   return (
     <div className="space-y-5">
+      {resumed ? <ResumedBanner onStartOver={onStartOver} disabled={busy} /> : null}
+
       {backdatedLabel ? (
         <p
           className="rounded-xl border border-info/40 bg-info/10 px-3 py-2 text-sm font-medium"
@@ -261,6 +277,7 @@ export function MealComposer(props: MealComposerProps) {
           <PlannedSlotsRow
             slots={slots}
             lastUsed={lastUsed}
+            recordedSlotIds={recordedSlotIds}
             initialExpandedSlotId={initialExpandedSlotId}
             onExpand={onExpandSlot}
             onPick={onPickPlanned}
@@ -302,22 +319,25 @@ export function MealComposer(props: MealComposerProps) {
                 type="time"
                 className="h-11 w-32"
                 dir="ltr"
-                disabled={time === null}
+                disabled={timeUnknown}
                 value={time ?? ''}
-                onChange={(event) => {
-                  if (event.target.value) onTimeChange(event.target.value);
-                }}
+                onChange={(event) => onTimeChange(event.target.value || null)}
               />
             </div>
             <label className="flex min-h-11 items-center gap-2 text-sm">
               <Checkbox
-                checked={time === null}
+                checked={timeUnknown}
                 data-testid="time-unknown"
-                onCheckedChange={(checked) => onTimeChange(checked === true ? null : '12:00')}
+                onCheckedChange={(checked) => onTimeUnknownChange(checked === true)}
               />
               {t('meal.compose.timeUnknown')}
             </label>
           </div>
+          {!timeUnknown && time === null ? (
+            <p className="text-sm text-muted-foreground" role="status" data-testid="time-required">
+              {t('meal.review.timeRequired')}
+            </p>
+          ) : null}
           {localDate !== today ? (
             <p className="text-sm text-muted-foreground">{t('meal.compose.confirmTime')}</p>
           ) : null}

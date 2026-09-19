@@ -5,7 +5,7 @@ import { ServiceError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
 import { t } from '@/lib/t';
-import { bestOption, matchSlot } from '@/lib/rubric/match-slot';
+import { bestOption, matchSlot, optionRequiredFor } from '@/lib/rubric/match-slot';
 import { sameFood } from '@/lib/rubric/names';
 import { restrictionHits } from '@/lib/rubric/restrictions';
 import type {
@@ -25,6 +25,7 @@ import {
   type CreateMealDraftInput,
   type DraftFoodItem,
   type DraftQuestion,
+  type MealAnalysisMode,
   type MealDraftEdits,
   type MealDraftState,
   draftFoodItemSchema,
@@ -34,13 +35,14 @@ import { alternativeSchema } from '@/lib/validations/plan';
 import { type Nutrition, nutritionSchema } from '@/lib/validations/nutrition';
 import type { MealAnalysisOutput } from '@/services/ai/schemas';
 import { analyzeMeal } from '@/services/ai/analyze-meal';
-import type { AiKind, AiResult, MealPlanContext } from '@/services/ai/types';
+import type { AiKind, AiResult, MealPlanContext, MealRefineContext } from '@/services/ai/types';
 import { admitOperation, finishOperation } from '@/services/ai-usage.service';
 import { scaleNutrition } from '@/services/food-data/scale';
 import { type ActivePlan, getActivePlan, slotsForWeekday } from '@/services/plan.service';
 import { DEFAULT_TIME_ZONE, getProfile } from '@/services/profile.service';
 import { markStaleIfNeeded } from '@/services/reflection.service';
-import { readStagedImages } from '@/services/upload.service';
+import { deleteObjects } from '@/services/storage/s3';
+import { deleteStagedUpload, readStagedImages } from '@/services/upload.service';
 
 /**
  * Meal module (tech spec § 5 Meal / MealDraft, § 7 "Meal", § 21.8–10).
@@ -126,6 +128,9 @@ export interface RecentMeal {
 
 export type CreateDraftResult =
   { draft: MealDraftView; meal: null } | { draft: null; meal: MealView };
+
+/** `saveMeal`: the meal plus how many staged photos had expired and were left out. */
+export type SaveMealResult = MealView & { droppedPhotos: number };
 
 // ─── Shared helpers ────────────────────────────────────────────────────────
 
@@ -644,6 +649,7 @@ export async function updateDraft(
     notes: edits.notes !== undefined ? edits.notes : previous.notes,
     questions: edits.questions ?? previous.questions,
     items: edits.items ? reconcileItems(edits.items, previous.items) : previous.items,
+    lastChanges: [],
   };
   if (merged.planSlotId !== previous.planSlotId) merged.planOptionId = edits.planOptionId ?? null;
 
@@ -745,23 +751,123 @@ function suggestLink(
   return { planSlotId: slot.id, planOptionId: option?.id ?? null };
 }
 
+function isAnswered(question: DraftQuestion): boolean {
+  return question.answer !== null && question.answer.trim() !== '';
+}
+
+/** The review as the model must see it in REFINE mode: each item with its answered question, plus every answer. */
+function refineContextFor(state: MealDraftState): MealRefineContext {
+  const answered = state.questions.filter(isAnswered);
+  const answerByItem = new Map(answered.map((q) => [q.itemKey, q.answer as string]));
+  return {
+    items: state.items.map((item) => ({
+      key: item.key,
+      originalName: item.originalName,
+      englishLabel: item.englishLabel,
+      quantity: item.quantityUnknown ? null : item.quantity,
+      unit: item.unit,
+      quantityUnknown: item.quantityUnknown,
+      preparation: item.preparation,
+      category: item.category,
+      answer: answerByItem.get(item.key) ?? null,
+    })),
+    answers: answered.map((q) => ({ question: q.question, answer: q.answer as string })),
+  };
+}
+
+/**
+ * Merge a REFINE reply onto the reviewed items by position (improvement plan
+ * B1). The user's names and preparation always win; a label value they
+ * entered is never replaced; the model's quantity is taken only where the
+ * portion was unknown, its nutrition only where none was held or a
+ * re-estimate was owed. Items the model drops stay; extra ones are appended.
+ */
+export function mergeRefinedItems(
+  current: DraftFoodItem[],
+  output: MealAnalysisOutput,
+): DraftFoodItem[] {
+  const merged = current.map((item, index) => {
+    const fresh = output.items[index];
+    if (!fresh) return item;
+    const next: DraftFoodItem = { ...item };
+    if (item.quantityUnknown && !fresh.quantityUnknown && fresh.quantity !== null) {
+      next.quantity = fresh.quantity;
+      next.unit = fresh.unit ?? item.unit;
+      next.quantityUnknown = false;
+      next.quantityAssumed = fresh.quantityAssumed;
+    }
+    const takeNutrition =
+      fresh.nutrition !== null &&
+      !item.nutrition?.userOverride &&
+      (item.nutrition === null || item.needsReestimate);
+    if (takeNutrition) {
+      next.previousNutrition = item.nutrition ?? item.previousNutrition;
+      next.nutrition = fresh.nutrition;
+      next.needsReestimate = false;
+      next.scaleFlag = 'SCALED';
+    }
+    if (item.alternatives.length === 0 && fresh.alternatives.length > 0) {
+      next.alternatives = fresh.alternatives;
+    }
+    return next;
+  });
+  const extra = output.items.slice(current.length).map((item) =>
+    draftFoodItemSchema.parse({
+      key: newKey(),
+      originalName: item.originalName,
+      englishLabel: item.englishLabel,
+      quantity: item.quantity,
+      unit: item.unit,
+      quantityUnknown: item.quantityUnknown,
+      quantityAssumed: item.quantityAssumed,
+      preparation: item.preparation,
+      category: item.category,
+      alternatives: item.alternatives,
+      nutrition: item.nutrition,
+      isAddedItem: true,
+    }),
+  );
+  return [...merged, ...extra].map((item, position) => ({ ...item, position }));
+}
+
+/** Answered questions are done; the unanswered ones give way to the model's new questions. */
+function mergeRefinedQuestions(
+  current: DraftQuestion[],
+  output: MealAnalysisOutput,
+  items: DraftFoodItem[],
+): DraftQuestion[] {
+  const answered = current.filter(isAnswered);
+  return outputToQuestions(output, items).filter(
+    (q) =>
+      !answered.some(
+        (a) => (q.itemKey !== null && a.itemKey === q.itemKey) || a.question === q.question,
+      ),
+  );
+}
+
 /**
  * One MEAL_TEXT / MEAL_PHOTO operation under the 45 s deadline. The result
  * is persisted by a conditional update on `(analysisRunId, revision =
  * analysisStartedRevision)`; an edit in the meantime wins and the run ends
  * FAILED / SUPERSEDED (tech spec § 21.8). Starting a run does not bump the
  * revision, so autosaves keep working while it is in flight.
+ *
+ * `mode` REFINE (with reviewed items present) sends the items and the answers
+ * back and merges the reply onto them (`mergeRefinedItems`); the slot link
+ * stays as the user has it. Without items it is a plain ANALYZE.
  */
 export async function analyzeDraft(
   ownerId: string,
   draftId: string,
   expectedRevision: number,
   now: Date,
+  mode: MealAnalysisMode = 'ANALYZE',
 ): Promise<MealDraftView> {
   const row = await loadDraft(ownerId, draftId);
   if (row.revision !== expectedRevision) throw conflict(row.revision);
   const state = mealDraftStateSchema.parse(row.state);
-  if (!state.text?.trim() && state.uploadIds.length === 0) {
+  const refining = mode === 'REFINE' && state.items.length > 0;
+  if (!refining && !state.text?.trim() && state.uploadIds.length === 0) {
     throw new ServiceError(t('meal.errors.nothingToAnalyze'), 'VALIDATION');
   }
 
@@ -801,6 +907,7 @@ export async function analyzeDraft(
       text: state.text,
       images,
       planContext: planContextFor(plan, state.localDate),
+      refine: refining ? refineContextFor(state) : null,
       deadlineAt: now.getTime() + MEAL_ANALYSIS_DEADLINE_MS,
       userTag: sha256(ownerId).slice(0, 24),
     });
@@ -826,8 +933,10 @@ export async function analyzeDraft(
       : new ServiceError(t('meal.errors.analysisFailed'), 'AI_UNAVAILABLE');
   }
 
-  const items = outputToItems(result.data);
-  const link = suggestLink(state, result.data, items, plan);
+  const items = refining ? mergeRefinedItems(state.items, result.data) : outputToItems(result.data);
+  const link = refining
+    ? { planSlotId: state.planSlotId, planOptionId: state.planOptionId }
+    : suggestLink(state, result.data, items, plan);
   const { slot, option } = resolveLink(plan, state.localDate, link.planSlotId, link.planOptionId);
   const annotated = matchAndAnnotate(items, plan, slot, option);
   const next: MealDraftState = {
@@ -835,8 +944,11 @@ export async function analyzeDraft(
     planSlotId: link.planSlotId,
     planOptionId: link.planOptionId,
     items: annotated.items,
-    questions: outputToQuestions(result.data, annotated.items),
+    questions: refining
+      ? mergeRefinedQuestions(state.questions, result.data, annotated.items)
+      : outputToQuestions(result.data, annotated.items),
     restrictionHits: computeRestrictionHits(annotated.items, restrictions),
+    lastChanges: refining ? result.data.changes : [],
   };
 
   const persisted = await prisma.mealDraft.updateMany({
@@ -858,6 +970,21 @@ export async function analyzeDraft(
     });
   }
   return getDraft(ownerId, draftId);
+}
+
+/** "Start over": the owner's draft and its staged photos go; a draft already gone is fine. */
+export async function discardDraft(ownerId: string, draftId: string): Promise<void> {
+  const row = await prisma.mealDraft.findFirst({ where: { id: draftId, userId: ownerId } });
+  if (!row) return;
+  const parsed = mealDraftStateSchema.safeParse(row.state);
+  for (const uploadId of parsed.success ? parsed.data.uploadIds : []) {
+    try {
+      await deleteStagedUpload(ownerId, uploadId);
+    } catch (error) {
+      if (!(error instanceof ServiceError && error.code === 'NOT_FOUND')) throw error;
+    }
+  }
+  await prisma.mealDraft.deleteMany({ where: { id: row.id, userId: ownerId } });
 }
 
 /** Cleanup task: drafts past `expiresAt` go, and the caller removes their staged uploads. */
@@ -890,15 +1017,20 @@ export function resetRecentMealsCache(): void {
   recentCache.clear();
 }
 
-/** Refuse a slot that has several options and none chosen; auto-resolve a single-option slot. */
+/**
+ * Refuse a multi-option slot without a chosen option only when the items
+ * overlap one of its options (product spec § 7, B3); a meal that overlaps
+ * none saves as a different food under the slot with no option.
+ */
 function requireOption(
   slot: RubricSlot | null,
   option: RubricOption | null,
   planOptionId: string | null,
+  items: DraftFoodItem[],
 ) {
   if (!slot) return;
   if (planOptionId && !option) throw notFound(t('meal.errors.optionNotInSlot'));
-  if (!option && slot.options.length > 1) {
+  if (!option && optionRequiredFor(items.map(toRubricItem), slot)) {
     throw new ServiceError(t('meal.errors.optionRequired'), 'OPTION_REQUIRED');
   }
 }
@@ -916,14 +1048,14 @@ export async function saveMeal(
   expectedRevision: number,
   clientRequestId: string,
   now: Date,
-): Promise<MealView> {
+): Promise<SaveMealResult> {
   const already = await findMealByClientRequestId(ownerId, clientRequestId);
-  if (already) return already;
+  if (already) return { ...already, droppedPhotos: 0 };
 
   const row = await prisma.mealDraft.findFirst({ where: { id: draftId, userId: ownerId } });
   if (!row) {
     const late = await findMealByClientRequestId(ownerId, clientRequestId);
-    if (late) return late;
+    if (late) return { ...late, droppedPhotos: 0 };
     throw notFound(t('meal.errors.draftNotFound'));
   }
   if (row.revision !== expectedRevision) throw conflict(row.revision);
@@ -940,8 +1072,21 @@ export async function saveMeal(
     if (!applies) throw notFound(t('meal.errors.slotNotOnDay'));
   }
   const { slot, option } = resolveLink(plan, state.localDate, state.planSlotId, state.planOptionId);
-  requireOption(slot, option, state.planOptionId);
+  requireOption(slot, option, state.planOptionId, state.items);
   const { items } = matchAndAnnotate(state.items, plan, slot, option);
+
+  // A photo staged over 24 h ago may already be gone (cleanup ran before the
+  // draft expired). The meal still saves — the food record matters more than
+  // the picture — and the count goes back so the user is told, not left to notice.
+  const stillStaged =
+    state.uploadIds.length === 0
+      ? []
+      : await prisma.upload.findMany({
+          where: { id: { in: state.uploadIds }, userId: ownerId, status: 'STAGED' },
+          select: { id: true },
+        });
+  const uploadIds = state.uploadIds.filter((id) => stillStaged.some((u) => u.id === id));
+  const droppedPhotos = state.uploadIds.length - uploadIds.length;
 
   let mealId: string;
   try {
@@ -974,7 +1119,7 @@ export async function saveMeal(
           data: toFoodItemRows(meal.id, items, state.restrictionHits),
         });
       }
-      for (const [position, uploadId] of state.uploadIds.entries()) {
+      for (const [position, uploadId] of uploadIds.entries()) {
         await tx.upload.updateMany({
           where: { id: uploadId, userId: ownerId, status: 'STAGED' },
           data: { status: 'ATTACHED', mealId: meal.id, position, expiresAt: null },
@@ -986,13 +1131,13 @@ export async function saveMeal(
   } catch (error) {
     if (!isUniqueViolation(error)) throw error;
     const winner = await findMealByClientRequestId(ownerId, row.clientRequestId);
-    if (winner) return winner;
+    if (winner) return { ...winner, droppedPhotos: 0 };
     throw error;
   }
 
   invalidateRecent(ownerId);
   await markStaleIfNeeded(ownerId, state.localDate);
-  return getMeal(ownerId, mealId);
+  return { ...(await getMeal(ownerId, mealId)), droppedPhotos };
 }
 
 /**
@@ -1099,6 +1244,8 @@ export async function deleteMeal(
       data: { status: 'REMOVED', mealId: null },
     });
   });
+  // The rows are REMOVED either way; a failed object delete only leaves an orphan for the purge.
+  await deleteObjects(meal.uploads.map((u) => u.storageKey));
   invalidateRecent(ownerId);
   await markStaleIfNeeded(ownerId, meal.day.localDate);
 }
@@ -1124,7 +1271,7 @@ export async function setMealLink(
     if (!applies) throw notFound(t('meal.errors.slotNotOnDay'));
   }
   const { slot, option } = resolveLink(plan, meal.day.localDate, planSlotId, planOptionId);
-  requireOption(slot, option, planOptionId);
+  requireOption(slot, option, planOptionId, meal.items.map(rowToDraftItem));
 
   await prisma.$transaction(async (tx) => {
     if (slot) {
