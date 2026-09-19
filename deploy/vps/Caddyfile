@@ -8,3 +8,8 @@
 	}
 	reverse_proxy app:3000
 }
+
+# Bare IP over HTTP: send to the certified name. (No certificate is possible for an IP.)
+http://85.198.48.114 {
+	redir https://85-198-48-114.sslip.io{uri} permanent
+}
