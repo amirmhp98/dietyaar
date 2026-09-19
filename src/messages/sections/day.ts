@@ -15,17 +15,6 @@ export const day = {
   'day.recordedMeals.one': '{count} of {prescribed} meals recorded',
   'day.recordedMeals.other': '{count} of {prescribed} meals recorded',
 
-  // ── Rule progress (My plan, History detail) ────────────────
-  'day.rule.progress': '{count} of {required} so far',
-  'day.rule.met': 'Met · {count} of {required}',
-  'day.rule.notMet': 'Not met · {count} of {required}',
-  'day.rule.incomplete': 'Not enough complete days to tell',
-  'day.rule.flagged': 'Recorded: {names}',
-  'day.rule.note': 'Not automatically tracked',
-  'day.rule.period.day': 'Today',
-  'day.rule.period.week': 'This week',
-  'day.rule.planChanged': 'Plan changed during this period · progress against the updated plan',
-
   // ── Seven-day summary (product spec § 10) ──────────────────
   'history.summary.notEnough': 'A few more complete days will make patterns clearer.',
   'history.summary.slotDifferent':
@@ -197,8 +186,6 @@ export const day = {
   'history.startsOn': 'Your history starts on {date}',
   'history.row.meals.one': '{count} meal recorded',
   'history.row.meals.other': '{count} meals recorded',
-  'history.weeklyRules': 'Weekly rules',
-  'day.rules': 'Plan rules',
   'history.openDay': 'Open {date}',
   'history.day.backToHistory': 'Back to History',
   'history.day.notFoundTitle': 'No such day',

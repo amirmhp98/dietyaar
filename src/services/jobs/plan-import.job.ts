@@ -3,7 +3,6 @@ import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
 import { localDateFor } from '@/lib/time/local-date';
 import {
-  draftRuleSchema,
   planDraftSchema,
   type DraftQuestion,
   type DraftSlot,
@@ -190,31 +189,13 @@ export function draftFromImport(output: PlanImportOutput): PlanDraft {
     sourceLanguage: output.sourceLanguage,
     slots,
     targets,
-    rules: output.rules.map((rule) => ({
-      key: randomUUID(),
-      kind: rule.kind,
-      tracking: rule.unsupportedReason ? 'NOTE' : 'TRACK',
-      period: rule.period,
-      definition: rule.definition,
-      originalText: rule.originalText,
-      sourceExcerpt: rule.sourceExcerpt,
-      isConflicting: rule.isConflicting,
-      unsupportedReason: rule.unsupportedReason,
-    })),
     notes: output.notes.map((note) => ({ key: randomUUID(), ...note })),
     questions,
-    reviewed: { meals: false, targets: false, rules: false },
+    reviewed: { meals: false, targets: false, notes: false },
     manualStep: null,
   };
   draft.targets = recomputeDerivedTargets(draft);
-  // Rules whose definition does not validate for tracking fall back to notes.
-  return planDraftSchema.parse({
-    ...draft,
-    rules: draft.rules.map((rule) => {
-      const ok = draftRuleSchema.safeParse(rule).success;
-      return ok ? rule : { ...rule, tracking: 'NOTE' };
-    }),
-  });
+  return planDraftSchema.parse(draft);
 }
 
 // ─── Work ─────────────────────────────────────────────────────────────────

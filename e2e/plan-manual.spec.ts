@@ -28,7 +28,7 @@ async function reviewToConfirm(page: Page) {
     timeout: 60_000,
   });
   await page.getByRole('button', { name: t('plan.review.looksRight') }).click();
-  await expect(page.getByRole('heading', { name: t('plan.review.rulesTitle') })).toBeVisible();
+  await expect(page.getByRole('heading', { name: t('plan.review.notesTitle') })).toBeVisible();
   // No recorded meals are linked to these slots, so the "N meals affected" line is omitted.
   await expect(page.getByText(t('plan.review.changeLater'))).toBeVisible();
   await expect(page.getByTestId('affected-meals')).toHaveCount(0);
@@ -54,8 +54,8 @@ test('targets-only plan confirms with no slot (onboarding)', async ({ page }) =>
   await expect(page.getByText('1,800–2,000 kcal')).toBeVisible();
   await expect(page.getByText(t('plan.target.explicit'))).toBeVisible();
   await page.getByRole('button', { name: t('plan.review.looksRight') }).click();
-  await expect(page.getByRole('heading', { name: t('plan.review.rulesTitle') })).toBeVisible();
-  await expect(page.getByText(t('plan.review.noRules'))).toBeVisible();
+  await expect(page.getByRole('heading', { name: t('plan.review.notesTitle') })).toBeVisible();
+  await expect(page.getByText(t('plan.review.noNotes'))).toBeVisible();
   await page.getByTestId('confirm-plan').click();
 
   await expect(page.getByRole('heading', { name: t('plan.ready.title') })).toBeVisible();
@@ -111,8 +111,6 @@ test('same-every-day manual plan: My plan, edit, delete', async ({ page }) => {
   await expect(page.getByRole('heading', { name: t('plan.manual.rangesTitle') })).toBeVisible();
   await page.getByRole('button', { name: t('plan.manual.skip') }).click();
   await expect(page.getByRole('heading', { name: t('plan.manual.targetsTitle') })).toBeVisible();
-  await page.getByRole('button', { name: t('plan.manual.skip') }).click();
-  await expect(page.getByRole('heading', { name: t('plan.manual.rulesTitle') })).toBeVisible();
   await page.getByRole('button', { name: t('plan.manual.skip') }).click();
   await expect(page.getByRole('heading', { name: t('plan.manual.sourceTitle') })).toBeVisible();
   await page.getByLabel(t('plan.manual.sourceLabel')).fill('nutrition specialist');

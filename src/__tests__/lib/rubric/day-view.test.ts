@@ -196,23 +196,12 @@ describe('computeDayView', () => {
     expect(computeDayView(input).contributing).toHaveLength(2);
   });
 
-  it('a tracked TIMING_WINDOW rule feeds the timing component', () => {
+  it("a slot's own window feeds the timing component", () => {
     const p = buildMenuPlan();
-    const view = computeDayView(
-      dayInput(p.slots, {
-        meals: [fullOption(p, 2, 0, '15:00')],
-        rules: [
-          {
-            id: 'r1',
-            kind: 'TIMING_WINDOW',
-            tracking: 'TRACK',
-            period: 'DAY',
-            definition: { slotId: p.lunch.id, start: '12:00', end: '13:00' },
-            originalText: '',
-          },
-        ],
-      }),
+    const slots = p.slots.map((s) =>
+      s.id === p.lunch.id ? { ...s, timeStart: '12:00', timeEnd: '13:00' } : s,
     );
+    const view = computeDayView(dayInput(slots, { meals: [fullOption(p, 2, 0, '15:00')] }));
     expect(view.slots[2].timing).toMatchObject({ kind: 'TIME', band: 'NOTICEABLE', minutes: 120 });
   });
 });

@@ -86,7 +86,7 @@ async function main() {
       `PLAN_IMPORT ${name}`,
       imported,
       imported.ok
-        ? `${imported.data.structure}, ${imported.data.slots.length} slots, ${imported.data.targets.length} targets, ${imported.data.rules.length} rules, ${imported.data.notes.length} notes, ${imported.data.uncertainties.length} uncertainties, ${imported.attempts.length} attempts`
+        ? `${imported.data.structure}, ${imported.data.slots.length} slots, ${imported.data.targets.length} targets, ${imported.data.notes.length} notes, ${imported.data.uncertainties.length} uncertainties, ${imported.attempts.length} attempts`
         : '',
     );
     if (!imported.ok) continue;

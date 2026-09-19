@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
-import { Disclosure } from '@/components/product/Disclosure';
 import { ReflectionCard } from '@/components/product/ReflectionCard';
 import { requireOnboarded } from '@/lib/auth';
 import { t } from '@/lib/t';
@@ -11,7 +10,6 @@ import { requireProfile } from '@/services/profile.service';
 import { getMessageForDate } from '@/services/reflection.service';
 import { DayBlocks } from '../../today/day-blocks';
 import { DayHeader } from '../../today/day-header';
-import { ruleStatus } from '../rule-status';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,11 +32,6 @@ export default async function HistoryDayPage({ params }: { params: Promise<{ dat
     getDayView(user.id, date, now),
     getMessageForDate(user.id, date),
   ]);
-  const rules = day.view.rules.map((observation) => ({
-    observation,
-    text: day.plan?.rules.find((r) => r.id === observation.ruleId)?.originalText ?? null,
-  }));
-
   return (
     <div className="space-y-6">
       <Link
@@ -67,24 +60,6 @@ export default async function HistoryDayPage({ params }: { params: Promise<{ dat
         meals={day.meals}
         draftPending={day.plan?.draft !== null && day.plan?.draft !== undefined}
       />
-
-      {rules.length > 0 ? (
-        <div className="rounded-xl border border-border bg-card px-3 py-1">
-          <Disclosure label={t('day.rules')} testId="day-rules">
-            <ul className="space-y-3 text-sm">
-              {rules.map(({ observation, text }) => (
-                <li key={observation.ruleId} className="space-y-0.5">
-                  {text ? <p className="bidi-plaintext">{text}</p> : null}
-                  <p className="text-xs text-muted-foreground">{ruleStatus(observation)}</p>
-                </li>
-              ))}
-              {day.planChangedInPeriod ? (
-                <li className="text-xs text-muted-foreground">{t('day.rule.planChanged')}</li>
-              ) : null}
-            </ul>
-          </Disclosure>
-        </div>
-      ) : null}
     </div>
   );
 }

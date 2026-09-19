@@ -53,7 +53,6 @@ export const draftFoodItemSchema = foodNameSchema.extend({
     .enum(['SCALED', 'UNCHANGED', 'CHECK_VALUE', 'NEEDS_REESTIMATE', 'NOT_EVALUATED'])
     .nullable()
     .default(null),
-  ruleGroups: z.array(z.string().max(60)).max(10).default([]),
 });
 export type DraftFoodItem = z.infer<typeof draftFoodItemSchema>;
 
@@ -71,7 +70,6 @@ export function toRubricItem(item: DraftFoodItem): RubricFoodItem {
     matchedPlanItemId: item.matchedPlanItemId,
     isAddedItem: item.isAddedItem,
     nutrition: item.nutrition,
-    ruleGroups: item.ruleGroups,
   };
 }
 
