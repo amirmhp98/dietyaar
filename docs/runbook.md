@@ -53,9 +53,13 @@ deadline.
 
 `DEEPSEEK_API_BASE_URL=https://api.deepseek.com npm run ai:eval` (add `-- --meals-only` to skip
 the plans and reflections). Fixtures: `src/__tests__/fixtures/ai-eval/` — both reference plans,
-40 Persian meal descriptions with expected items (all `reviewed: false` until the owner checks
-them; the recall threshold is read only from reviewed rows — O11), and every reflection state
-with the fact ids the paragraph must draw on. Thresholds are tech spec § 19 item 4. Not in CI.
+88 Persian meal descriptions with expected items (40 free-text `OFF_PLAN`, 13 `MENU_PLAN` = every
+option of every slot of the menu plan verbatim, 35 `WEEKDAY_PLAN` = every slot of every weekday
+verbatim; all `reviewed: false` until the owner checks them; the recall threshold is read only
+from reviewed rows — O11), and every reflection state with the fact ids the paragraph must draw
+on. Thresholds are tech spec § 19 item 4. Not in CI. Since A2 a food counts as recalled only when
+it has its own returned item: two named foods folded into one item recall one food (the first
+run's substring check let "Oatmeal with milk" count as both oats and milk).
 
 First run on 2026-09-18 (developer machine, `deepseek-flash`, 49 calls, ≈ $0.06):
 
@@ -72,6 +76,61 @@ Observations for the owner: the model returns `کف دست` / `kaf dast` (a palm
 entries — users write both often, so adding them to the table (with an assumed weight/volume)
 would raise unit resolution further; the assumed-default keys `yogurt_bowl` / `tea_sweet`
 sometimes come back in the `unit` field instead of `assumedDefaultKey`.
+
+#### Second run, 2026-09-19 (improvement plan A2/A3): the reference-plan meals
+
+Meals only, 88 meals per run, `deepseek-flash`, developer machine, ≈ $0.09 per run. "Before" is
+`MEAL_TEXT` prompt v1, "after" is v2 (the item-per-food rules below). Recall is the one-item-per-food
+definition; the before numbers were recomputed from the v1 run's returned labels with it.
+
+| Metric                       | Before (v1)               | After (v2)                | Threshold   |
+| ---------------------------- | ------------------------- | ------------------------- | ----------- |
+| Schema pass                  | 88/88                     | 88/88                     | 98 %        |
+| Expected-item recall (all)   | 97.2 % (175/180)          | 98.9 % (178/180)          | 85 % rev.   |
+| Recall `OFF_PLAN` (40 meals) | 94.0 % (79/84) — 5 merges | 97.6 % (82/84) — 2 merges |             |
+| Recall `MENU_PLAN` (13)      | 100 % (31/31)             | 100 % (31/31)             |             |
+| Recall `WEEKDAY_PLAN` (35)   | 100 % (65/65)             | 100 % (65/65)             |             |
+| Unit resolution              | 91.7 %                    | 91.8 %                    | 90 %        |
+| Meal latency p50 / p75 / p95 | 2.1 / 2.6 / 3.0 s         | 2.1 / 2.6 / 3.2 s         | p75 ≤ 15 s  |
+| Slot suggestion (5 probes)   | —                         | 5/5 slot and option       | 5/5 (O 3.5) |
+
+Every plan-verbatim meal (menu options and weekday slots) came back with every food as its own
+item in both runs; not one side, drink or condiment was dropped. The prompt-quality complaint of
+the walkthrough is therefore explained by the stub (root cause 1), not by the model. The merges
+were all in the free-text set:
+
+**Per-meal misses, before (v1)** — each is two named foods returned as one item:
+
+| Fixture text                            | Returned instead                                                           |
+| --------------------------------------- | -------------------------------------------------------------------------- |
+| یک کاسه جو دوسر با شیر و یک موز کوچک    | "Oatmeal with milk" (oats + milk as one), "Small banana"                   |
+| یک بشقاب چلو خورشت قیمه با سالاد شیرازی | "Chelo khoresh gheymeh (rice with gheymeh stew)" as one, "Shirazi salad"   |
+| چلوکباب کوبیده با گوجه کبابی و دوغ      | "Chelo kabab koobideh (rice with ground meat kabab)" as one, tomato, doogh |
+| زرشک پلو با مرغ                         | "Barberry rice with chicken" as one                                        |
+| سالاد سزار با مرغ گریل                  | "Caesar salad with grilled chicken" as one                                 |
+
+**Per-meal misses, after (v2)** — the first three now split (Oats / Milk; White rice / Gheymeh
+stew; Zereshk polo / Chicken); two remain, both named compound dishes:
+
+| Fixture text                       | Returned instead                                              | Cause                                                  |
+| ---------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------ |
+| چلوکباب کوبیده با گوجه کبابی و دوغ | "Chelo kabab koobideh" as one item, "Grilled tomato", "Doogh" | چلوکباب is a single dish name; the rice is folded in   |
+| سالاد سزار با مرغ گریل             | "Caesar salad with grilled chicken" as one item               | the chicken is read as the salad's topping, not a side |
+
+One further v2 "miss" was a fixture keyword (`soda` vs the returned "Soft drink"); the keyword now
+accepts both. Not counted: خیار و گوجه comes back as one item ("Cucumber and tomato", the
+`cucumber_tomato` assumed default) or as two, run by run; the fixture accepts either.
+
+Prompt change (v2, `MEAL_COMMON_RULES`, shared by `MEAL_TEXT` and `MEAL_PHOTO`, both bumped to
+v2): every named food is its own item — never merge two named foods, never drop a side, drink or
+condiment; a phrase naming several foods is one item per food unless the assumed-defaults table
+lists that phrase as one; a dish named with its ingredient count (املت 2 تخم‌مرغ) stays one item;
+and a final self-check that `items` has one entry per named food.
+
+For the owner: review `expectedItems` in `meals.ts` and flip `reviewed: true` so the threshold
+line reads from real rows; decide whether چلوکباب / سالاد سزار should split (if yes, the two
+dishes go into the prompt's examples; if no, their fixtures get one keyword). The tea-glass and
+palm-of-bread unit observation above still stands.
 
 ### Query counts (implementation plan task 11.6)
 
@@ -101,6 +160,16 @@ then.
 | Local        | `npm run dev`          | docker-compose Postgres (`npm run db:up`) | —                                          | `SKIP_AUTH=true` for UI-only work      |
 | Production   | Darkube app `dietyaar` | Supabase project `uhevhxxyjhgldbmxyfmg`   | Supabase bucket `dietyaar`, prefix `prod/` | Backups to Hamravesh `dietyaar-backup` |
 | Restore test | local app              | second Supabase project                   | —                                          | Used only for step 5 rehearsals        |
+
+### Local AI
+
+`npm run dev` talks to the real DeepSeek API (`DEEPSEEK_API_BASE_URL=https://api.deepseek.com`
+and a real key in `.env`), so meals and plans parsed locally go through the real model and every
+`AiCall` row shows it (improvement plan A1; before 2026-09-19 `.env` pointed at the e2e stub, which
+knows ~20 foods and ignores the rest). Offline or without a key: `npm run dev:stub` starts
+`e2e/stub-ai/server.mjs` on 3999 and `next dev` pointed at it, and stops both together. The e2e
+suite always runs on the stub: `e2e/playwright.config.ts` starts its own and overrides the URL, whatever
+`.env` says.
 
 ## Supabase
 

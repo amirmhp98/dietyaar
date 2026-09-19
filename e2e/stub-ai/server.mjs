@@ -13,6 +13,12 @@
  * INVALID (non-JSON content), WEEKDAY (a Saturday–Friday plan). A plan chunk
  * whose user message says `Chunk weekday: N` answers with that day's slots.
  *
+ * Meal analysis (improvement plan A4), upper-case tokens in the description:
+ * SUGGEST suggests the first slot of the plan context (option 0); ASK makes the
+ * first item quantity-unknown with one portion question; a user message with a
+ * `Mode: REFINE` line and a `Current items (data):` JSON array echoes those
+ * items back, filling answered portions (see `refineAnalysis`).
+ *
  * GET /health → 200.
  */
 import http from 'node:http';
@@ -426,7 +432,104 @@ const FOODS = [
   },
 ];
 
+/**
+ * The first JSON array or object after `header` in `text`, or null. Scans
+ * brackets outside string literals, so it does not depend on indentation.
+ */
+function jsonBlockAfter(text, header) {
+  const at = text.indexOf(header);
+  if (at < 0) return null;
+  const start = text.slice(at + header.length).search(/[[{]/);
+  if (start < 0) return null;
+  const from = at + header.length + start;
+  let depth = 0;
+  let inString = false;
+  for (let i = from; i < text.length; i += 1) {
+    const ch = text[i];
+    if (inString) {
+      if (ch === '\\') i += 1;
+      else if (ch === '"') inString = false;
+    } else if (ch === '"') inString = true;
+    else if (ch === '[' || ch === '{') depth += 1;
+    else if (ch === ']' || ch === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        try {
+          return JSON.parse(text.slice(from, i + 1));
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+const PLAN_CONTEXT_HEADER = "Today's plan slots and options (data):";
+const ASK_QUESTION = {
+  itemIndex: 0,
+  question: 'How much of this did you eat?',
+  kind: 'PORTION',
+  choices: ['1 slice', '2 slices', '3 slices'],
+};
+
+/** SUGGEST: the first slot of the plan context in the user message, option 0. */
+function suggestedFirstSlot(userText) {
+  const slots = jsonBlockAfter(userText, PLAN_CONTEXT_HEADER);
+  const first = Array.isArray(slots) ? slots[0] : null;
+  if (!first || typeof first.originalName !== 'string') return null;
+  return { originalName: first.originalName, englishLabel: String(first.englishLabel ?? '') };
+}
+
+/**
+ * REFINE: echo the current items back in the same order. An item with
+ * `quantityUnknown: true` and a non-null `answer` gets the leading number of
+ * the answer (default 1) as quantity in `serving`s; every item with a quantity
+ * gets nutrition of 100 kcal (5 g protein, 10 g carb, 3 g fat) per unit of
+ * quantity. `changes` names each portion filled.
+ */
+function refineAnalysis(userText) {
+  const current = jsonBlockAfter(userText, 'Current items (data):');
+  const changes = [];
+  const items = (Array.isArray(current) ? current : []).map((item) => {
+    let quantity = typeof item.quantity === 'number' ? item.quantity : null;
+    let unit = item.unit ?? null;
+    let quantityUnknown = Boolean(item.quantityUnknown) || quantity === null;
+    if (item.quantityUnknown && item.answer !== null && item.answer !== undefined) {
+      const leading = /\d+(?:\.\d+)?/.exec(String(item.answer));
+      quantity = leading ? Number(leading[0]) : 1;
+      unit = 'serving';
+      quantityUnknown = false;
+      changes.push(`Filled the portion of ${item.englishLabel}`);
+    }
+    return {
+      originalName: String(item.originalName ?? ''),
+      englishLabel: String(item.englishLabel ?? ''),
+      quantity,
+      unit,
+      quantityUnknown,
+      quantityAssumed: false,
+      preparation: item.preparation ?? null,
+      category: item.category ?? 'OTHER',
+      alternatives: [],
+      nutrition:
+        quantity === null
+          ? null
+          : nutrition(100 * quantity, 5 * quantity, 10 * quantity, 3 * quantity, quantity, unit),
+    };
+  });
+  const suggested = /\bSUGGEST\b/.test(userText) ? suggestedFirstSlot(userText) : null;
+  return {
+    items,
+    suggestedSlot: suggested,
+    suggestedOptionIndex: suggested ? 0 : null,
+    questions: [],
+    changes,
+  };
+}
+
 function mealAnalysis(userText) {
+  if (/^Mode: REFINE$/m.test(userText)) return refineAnalysis(userText);
   const description = userText.split('<<<')[1]?.split('>>>')[0] ?? '';
   const items = [];
   for (const food of FOODS) {
@@ -480,13 +583,28 @@ function mealAnalysis(userText) {
       choices: ['a small portion', 'a medium portion', 'a large portion'],
     });
   }
+  if (/\bASK\b/.test(description)) {
+    Object.assign(items[0], {
+      quantity: null,
+      unit: null,
+      quantityUnknown: true,
+      quantityAssumed: false,
+      nutrition: null,
+    });
+    questions.splice(0, questions.length, ASK_QUESTION);
+  }
   const suggestsBreakfast =
     items.some((i) => i.englishLabel === 'Egg' || i.englishLabel === 'Sangak bread') &&
     /صبحانه|Breakfast/.test(userText);
+  const suggested = /\bSUGGEST\b/.test(description)
+    ? suggestedFirstSlot(userText)
+    : suggestsBreakfast
+      ? { originalName: 'صبحانه', englishLabel: 'Breakfast' }
+      : null;
   return {
     items,
-    suggestedSlot: suggestsBreakfast ? { originalName: 'صبحانه', englishLabel: 'Breakfast' } : null,
-    suggestedOptionIndex: suggestsBreakfast ? 0 : null,
+    suggestedSlot: suggested,
+    suggestedOptionIndex: suggested ? 0 : null,
     questions,
   };
 }
@@ -621,7 +739,15 @@ export const server = http.createServer((req, res) => {
   req.on('end', () => respond(req, res, body));
 });
 
-export { cannedOutput, mealAnalysis, menuPlan, reflection, weekdayChunk, weekdayPlan };
+export {
+  cannedOutput,
+  mealAnalysis,
+  menuPlan,
+  reflection,
+  refineAnalysis,
+  weekdayChunk,
+  weekdayPlan,
+};
 
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop())) {
   server.listen(port, () => console.log(`stub-ai listening on ${port}`));
