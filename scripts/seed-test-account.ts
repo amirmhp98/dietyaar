@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient, Prisma, type FoodCategory } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 /**
@@ -15,7 +15,9 @@ const PASSWORD = 'Test1234!';
 const TZ = 'Asia/Tehran';
 
 const nutrition = (
-  values: Partial<Record<'ENERGY_KCAL' | 'PROTEIN_G' | 'CARB_G' | 'FAT_G' | 'FIBER_G' | 'SODIUM_MG', number>>,
+  values: Partial<
+    Record<'ENERGY_KCAL' | 'PROTEIN_G' | 'CARB_G' | 'FAT_G' | 'FIBER_G' | 'SODIUM_MG', number>
+  >,
 ) => ({
   basis: 'PER_RECORDED_PORTION' as const,
   basisQuantity: null,
@@ -100,7 +102,7 @@ async function main() {
     englishLabel: string;
     quantity: number;
     unit: string;
-    category: Prisma.FoodCategory;
+    category: FoodCategory;
     kcal: number;
     protein: number;
     carb: number;
@@ -119,39 +121,189 @@ async function main() {
       weekday: 6, // Saturday
       label: 'شنبه',
       breakfast: [
-        { originalName: 'تخم‌مرغ', englishLabel: 'egg', quantity: 2, unit: 'egg', category: 'OTHER', kcal: 140, protein: 12, carb: 1, fat: 10 },
-        { originalName: 'نان سنگک', englishLabel: 'sangak bread', quantity: 1, unit: 'slice_sangak', category: 'BREAD', kcal: 210, protein: 7, carb: 42, fat: 1.5 },
+        {
+          originalName: 'تخم‌مرغ',
+          englishLabel: 'egg',
+          quantity: 2,
+          unit: 'egg',
+          category: 'OTHER',
+          kcal: 140,
+          protein: 12,
+          carb: 1,
+          fat: 10,
+        },
+        {
+          originalName: 'نان سنگک',
+          englishLabel: 'sangak bread',
+          quantity: 1,
+          unit: 'slice_sangak',
+          category: 'BREAD',
+          kcal: 210,
+          protein: 7,
+          carb: 42,
+          fat: 1.5,
+        },
       ],
       lunch: [
-        { originalName: 'سینه مرغ گریل', englishLabel: 'grilled chicken breast', quantity: 150, unit: 'g', category: 'MEAT', kcal: 250, protein: 47, carb: 0, fat: 6 },
-        { originalName: 'برنج', englishLabel: 'rice', quantity: 150, unit: 'g', category: 'RICE', kcal: 195, protein: 4, carb: 43, fat: 0.4 },
-        { originalName: 'سالاد فصل', englishLabel: 'mixed salad', quantity: 150, unit: 'g', category: 'VEGETABLE', kcal: 40, protein: 1.5, carb: 7, fat: 0.5 },
+        {
+          originalName: 'سینه مرغ گریل',
+          englishLabel: 'grilled chicken breast',
+          quantity: 150,
+          unit: 'g',
+          category: 'MEAT',
+          kcal: 250,
+          protein: 47,
+          carb: 0,
+          fat: 6,
+        },
+        {
+          originalName: 'برنج',
+          englishLabel: 'rice',
+          quantity: 150,
+          unit: 'g',
+          category: 'RICE',
+          kcal: 195,
+          protein: 4,
+          carb: 43,
+          fat: 0.4,
+        },
+        {
+          originalName: 'سالاد فصل',
+          englishLabel: 'mixed salad',
+          quantity: 150,
+          unit: 'g',
+          category: 'VEGETABLE',
+          kcal: 40,
+          protein: 1.5,
+          carb: 7,
+          fat: 0.5,
+        },
       ],
       snack: [
-        { originalName: 'ماست', englishLabel: 'yogurt', quantity: 150, unit: 'g', category: 'DAIRY', kcal: 90, protein: 6, carb: 8, fat: 3 },
+        {
+          originalName: 'ماست',
+          englishLabel: 'yogurt',
+          quantity: 150,
+          unit: 'g',
+          category: 'DAIRY',
+          kcal: 90,
+          protein: 6,
+          carb: 8,
+          fat: 3,
+        },
       ],
       dinner: [
-        { originalName: 'ماهی سالمون', englishLabel: 'salmon', quantity: 120, unit: 'g', category: 'MEAT', kcal: 250, protein: 25, carb: 0, fat: 16 },
-        { originalName: 'سبزیجات بخارپز', englishLabel: 'steamed vegetables', quantity: 150, unit: 'g', category: 'VEGETABLE', kcal: 60, protein: 3, carb: 10, fat: 0.5 },
+        {
+          originalName: 'ماهی سالمون',
+          englishLabel: 'salmon',
+          quantity: 120,
+          unit: 'g',
+          category: 'MEAT',
+          kcal: 250,
+          protein: 25,
+          carb: 0,
+          fat: 16,
+        },
+        {
+          originalName: 'سبزیجات بخارپز',
+          englishLabel: 'steamed vegetables',
+          quantity: 150,
+          unit: 'g',
+          category: 'VEGETABLE',
+          kcal: 60,
+          protein: 3,
+          carb: 10,
+          fat: 0.5,
+        },
       ],
     },
     {
       weekday: 0, // Sunday
       label: 'یکشنبه',
       breakfast: [
-        { originalName: 'جو دوسر', englishLabel: 'oats', quantity: 60, unit: 'g', category: 'OTHER', kcal: 230, protein: 8, carb: 40, fat: 4 },
-        { originalName: 'موز', englishLabel: 'banana', quantity: 1, unit: 'medium_banana', category: 'FRUIT', kcal: 105, protein: 1.3, carb: 27, fat: 0.4 },
+        {
+          originalName: 'جو دوسر',
+          englishLabel: 'oats',
+          quantity: 60,
+          unit: 'g',
+          category: 'OTHER',
+          kcal: 230,
+          protein: 8,
+          carb: 40,
+          fat: 4,
+        },
+        {
+          originalName: 'موز',
+          englishLabel: 'banana',
+          quantity: 1,
+          unit: 'medium_banana',
+          category: 'FRUIT',
+          kcal: 105,
+          protein: 1.3,
+          carb: 27,
+          fat: 0.4,
+        },
       ],
       lunch: [
-        { originalName: 'خورش قیمه با گوشت کم‌چرب', englishLabel: 'gheimeh stew, lean beef', quantity: 200, unit: 'g', category: 'MEAT', kcal: 320, protein: 28, carb: 18, fat: 14 },
-        { originalName: 'برنج', englishLabel: 'rice', quantity: 120, unit: 'g', category: 'RICE', kcal: 156, protein: 3.2, carb: 34, fat: 0.3 },
+        {
+          originalName: 'خورش قیمه با گوشت کم‌چرب',
+          englishLabel: 'gheimeh stew, lean beef',
+          quantity: 200,
+          unit: 'g',
+          category: 'MEAT',
+          kcal: 320,
+          protein: 28,
+          carb: 18,
+          fat: 14,
+        },
+        {
+          originalName: 'برنج',
+          englishLabel: 'rice',
+          quantity: 120,
+          unit: 'g',
+          category: 'RICE',
+          kcal: 156,
+          protein: 3.2,
+          carb: 34,
+          fat: 0.3,
+        },
       ],
       snack: [
-        { originalName: 'سیب', englishLabel: 'apple', quantity: 1, unit: 'medium_apple', category: 'FRUIT', kcal: 95, protein: 0.5, carb: 25, fat: 0.3 },
-        { originalName: 'گردو', englishLabel: 'walnuts', quantity: 5, unit: 'walnut', category: 'NUTS', kcal: 130, protein: 3, carb: 3, fat: 13 },
+        {
+          originalName: 'سیب',
+          englishLabel: 'apple',
+          quantity: 1,
+          unit: 'medium_apple',
+          category: 'FRUIT',
+          kcal: 95,
+          protein: 0.5,
+          carb: 25,
+          fat: 0.3,
+        },
+        {
+          originalName: 'گردو',
+          englishLabel: 'walnuts',
+          quantity: 5,
+          unit: 'walnut',
+          category: 'NUTS',
+          kcal: 130,
+          protein: 3,
+          carb: 3,
+          fat: 13,
+        },
       ],
       dinner: [
-        { originalName: 'سوپ جو و سبزیجات', englishLabel: 'barley vegetable soup', quantity: 300, unit: 'g', category: 'VEGETABLE', kcal: 180, protein: 7, carb: 28, fat: 4 },
+        {
+          originalName: 'سوپ جو و سبزیجات',
+          englishLabel: 'barley vegetable soup',
+          quantity: 300,
+          unit: 'g',
+          category: 'VEGETABLE',
+          kcal: 180,
+          protein: 7,
+          carb: 28,
+          fat: 4,
+        },
       ],
     },
   ];
@@ -168,7 +320,10 @@ async function main() {
 
   const allWeekdays = [...weekdaySlots, ...remaining];
 
-  const slotIds: Record<string, { slotId: string; optionId: string; items: (ItemDef & { itemId: string })[] }> = {};
+  const slotIds: Record<
+    string,
+    { slotId: string; optionId: string; items: (ItemDef & { itemId: string })[] }
+  > = {};
 
   let slotPosition = 0;
   for (const day of allWeekdays) {
@@ -192,7 +347,14 @@ async function main() {
           position: slotPosition++,
           originalName: originalLabelFor[label],
           englishLabel: label,
-          timeStart: label === 'Breakfast' ? '08:00' : label === 'Lunch' ? '13:30' : label === 'Snack' ? '17:00' : '20:30',
+          timeStart:
+            label === 'Breakfast'
+              ? '08:00'
+              : label === 'Lunch'
+                ? '13:30'
+                : label === 'Snack'
+                  ? '17:00'
+                  : '20:30',
           timeEnd: null,
           sourceExcerpt: '',
         },
@@ -224,7 +386,11 @@ async function main() {
         });
         createdItems.push({ ...item, itemId: row.id });
       }
-      slotIds[`${day.weekday}:${label}`] = { slotId: slot.id, optionId: option.id, items: createdItems };
+      slotIds[`${day.weekday}:${label}`] = {
+        slotId: slot.id,
+        optionId: option.id,
+        items: createdItems,
+      };
     }
   }
 
@@ -403,7 +569,11 @@ async function main() {
       originalText: 'دو تا تخم مرغ و یه تیکه نون سنگک',
       planSlotId: s.breakfast.slotId,
       planOptionId: s.breakfast.optionId,
-      items: s.breakfast.items.map((it) => ({ item: it, matchedPlanItemId: it.itemId, isAddedItem: false })),
+      items: s.breakfast.items.map((it) => ({
+        item: it,
+        matchedPlanItemId: it.itemId,
+        isAddedItem: false,
+      })),
     });
     await makeMeal({
       dayRecordId: day.id,
@@ -428,7 +598,17 @@ async function main() {
       planOptionId: null,
       items: [
         {
-          item: { originalName: 'خرما', englishLabel: 'dates', quantity: 4, unit: 'date', category: 'FRUIT', kcal: 32, protein: 0.2, carb: 8, fat: 0 },
+          item: {
+            originalName: 'خرما',
+            englishLabel: 'dates',
+            quantity: 4,
+            unit: 'date',
+            category: 'FRUIT',
+            kcal: 32,
+            protein: 0.2,
+            carb: 8,
+            fat: 0,
+          },
           matchedPlanItemId: null,
           isAddedItem: true,
         },
@@ -441,7 +621,11 @@ async function main() {
       originalText: 'ماهی سالمون با سبزیجات بخارپز',
       planSlotId: s.dinner.slotId,
       planOptionId: s.dinner.optionId,
-      items: s.dinner.items.map((it) => ({ item: it, matchedPlanItemId: it.itemId, isAddedItem: false })),
+      items: s.dinner.items.map((it) => ({
+        item: it,
+        matchedPlanItemId: it.itemId,
+        isAddedItem: false,
+      })),
     });
     console.log(`Day ${iso}: well-filled, close to plan`);
   }
@@ -453,7 +637,9 @@ async function main() {
       data: { userId: user.id, localDate: iso, timeZone: TZ, logComplete: true },
     });
     const s = slotsFor(iso);
-    await prisma.daySkippedSlot.create({ data: { dayRecordId: day.id, planSlotId: s.breakfast.slotId } });
+    await prisma.daySkippedSlot.create({
+      data: { dayRecordId: day.id, planSlotId: s.breakfast.slotId },
+    });
 
     await makeMeal({
       dayRecordId: day.id,
@@ -465,13 +651,33 @@ async function main() {
       planOptionId: null,
       items: [
         {
-          item: { originalName: 'پیتزا پپرونی', englishLabel: 'pepperoni pizza (2 large slices)', quantity: 300, unit: 'g', category: 'OTHER', kcal: 780, protein: 32, carb: 78, fat: 36 },
+          item: {
+            originalName: 'پیتزا پپرونی',
+            englishLabel: 'pepperoni pizza (2 large slices)',
+            quantity: 300,
+            unit: 'g',
+            category: 'OTHER',
+            kcal: 780,
+            protein: 32,
+            carb: 78,
+            fat: 36,
+          },
           matchedPlanItemId: null,
           isAddedItem: true,
           ruleGroups: ['fast_food'],
         },
         {
-          item: { originalName: 'نوشابه', englishLabel: 'cola', quantity: 330, unit: 'ml', category: 'OTHER', kcal: 140, protein: 0, carb: 35, fat: 0 },
+          item: {
+            originalName: 'نوشابه',
+            englishLabel: 'cola',
+            quantity: 330,
+            unit: 'ml',
+            category: 'OTHER',
+            kcal: 140,
+            protein: 0,
+            carb: 35,
+            fat: 0,
+          },
           matchedPlanItemId: null,
           isAddedItem: true,
           ruleGroups: ['soda'],
@@ -487,13 +693,33 @@ async function main() {
       planOptionId: null,
       items: [
         {
-          item: { originalName: 'همبرگر', englishLabel: 'cheeseburger', quantity: 220, unit: 'g', category: 'OTHER', kcal: 590, protein: 28, carb: 42, fat: 34 },
+          item: {
+            originalName: 'همبرگر',
+            englishLabel: 'cheeseburger',
+            quantity: 220,
+            unit: 'g',
+            category: 'OTHER',
+            kcal: 590,
+            protein: 28,
+            carb: 42,
+            fat: 34,
+          },
           matchedPlanItemId: null,
           isAddedItem: true,
           ruleGroups: ['fast_food'],
         },
         {
-          item: { originalName: 'سیب‌زمینی سرخ‌کرده', englishLabel: 'french fries', quantity: 150, unit: 'g', category: 'POTATO', kcal: 470, protein: 5, carb: 57, fat: 24 },
+          item: {
+            originalName: 'سیب‌زمینی سرخ‌کرده',
+            englishLabel: 'french fries',
+            quantity: 150,
+            unit: 'g',
+            category: 'POTATO',
+            kcal: 470,
+            protein: 5,
+            carb: 57,
+            fat: 24,
+          },
           matchedPlanItemId: null,
           isAddedItem: true,
         },
@@ -516,7 +742,11 @@ async function main() {
       originalText: 'جو دوسر با موز',
       planSlotId: s.breakfast.slotId,
       planOptionId: s.breakfast.optionId,
-      items: s.breakfast.items.map((it) => ({ item: it, matchedPlanItemId: it.itemId, isAddedItem: false })),
+      items: s.breakfast.items.map((it) => ({
+        item: it,
+        matchedPlanItemId: it.itemId,
+        isAddedItem: false,
+      })),
     });
     console.log(`Day ${iso}: partial, only breakfast logged, marked incomplete`);
   }
@@ -535,7 +765,11 @@ async function main() {
       originalText: 'دو تخم مرغ و نان',
       planSlotId: s.breakfast.slotId,
       planOptionId: s.breakfast.optionId,
-      items: s.breakfast.items.map((it) => ({ item: it, matchedPlanItemId: it.itemId, isAddedItem: false })),
+      items: s.breakfast.items.map((it) => ({
+        item: it,
+        matchedPlanItemId: it.itemId,
+        isAddedItem: false,
+      })),
     });
     console.log(`Day ${iso} (today): in progress, breakfast only`);
   }

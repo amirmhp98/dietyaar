@@ -25,3 +25,4 @@ them. 001–007 come from the boilerplate; 008 onwards are Dietyaar's (see `tech
 | [018](018-backups-to-hamravesh-object-storage.md) | Backups go to Hamravesh Object Storage, including photos          |
 | [019](019-design-tokens-from-design-md.md)        | Visual language: design.md tokens on the local shadcn kit         |
 | [020](020-relation-joins-for-read-models.md)      | Nested reads use Prisma `relationJoins` (one statement per tree)  |
+| [021](021-vercel-staging-cron-route.md)           | Vercel is a staging target; a platform cron drives the jobs       |

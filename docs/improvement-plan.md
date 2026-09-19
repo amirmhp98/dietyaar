@@ -138,7 +138,7 @@ Not fixed on purpose: F L4 (Content-Length pre-check; authenticated and rate-lim
 
 Goal: apply decisions 2–7, 9–12 of § 2. Three migrations, all pre-launch (no production data exists; the demo database is disposable). Each migration is named and reviewed before it runs; nothing uses `--force-reset`.
 
-### C1. Time zone fixed to Asia/Dubai (decision 021, supersedes 009)
+### C1. Time zone fixed to Asia/Dubai (decision 022, supersedes 009)
 
 - `src/lib/time/zone.ts`: `export const APP_TIME_ZONE = 'Asia/Dubai'`. Every caller that today reads `profile.timeZone` reads the constant; the `lib/time` functions keep their `zone` parameter (they stay pure and testable; this is not dead code — it is the one place the constant is injected).
 - `Profile.timeZone` stays as a column defaulting to `Asia/Dubai` (day rows carry their zone; the export includes it), but nothing writes it from the UI.
@@ -147,13 +147,13 @@ Goal: apply decisions 2–7, 9–12 of § 2. Three migrations, all pre-launch (n
 - Docs: product-spec § 5 (no time-zone confirmation), § 11 ("user-confirmed IANA zone" → the app zone), design-scope screen 2 row 5, PRD "Locale", decision 009 marked superseded.
 - Size: M.
 
-### C2. Rules & notes deferred (decision 022)
+### C2. Rules & notes deferred (decision 023)
 
 - Plan import extracts **no rules**: the `rules` array leaves the schema and prompt; every instruction that is not a meal, target or schedule becomes a `PlanNote` with its reason (`OTHER` for the ones that were rules). Manual plan setup has no rules step.
 - Review flow: screen 8c becomes a read-only "Notes from your plan" list (verbatim, no choices) shown once, then reachable on My plan under "Notes from your plan". History loses the weekly-rules block.
 - **Remove:** `lib/rubric/rules.ts` and its types, `plan-review/RulesReview.tsx`, rule progress in `lib/rubric/day-view.ts` and `day-view.service.ts`, `FoodItem.ruleGroups`, the `PlanRule` model and its relations, the rule messages, the rule fixtures and tests. The seven-day pattern sentence is unaffected (it never used rules).
 - Migration `0004_defer_rules`: existing `plan_rules` rows are copied into `plan_notes` (`originalText`, reason `OTHER`), then the table and `food_items.ruleGroups` are dropped.
-- Docs: product-spec § 6 "Food/behavior rules …", "Explicit timing windows and variety …", the Track/Note/Don't-compare paragraph, § 8 "Meal and rule comparison" variety paragraphs → one line "Rules are not evaluated in V1; plan instructions are kept as notes (decision 022)"; § 10 weekly rules; design-scope 8c; PRD.
+- Docs: product-spec § 6 "Food/behavior rules …", "Explicit timing windows and variety …", the Track/Note/Don't-compare paragraph, § 8 "Meal and rule comparison" variety paragraphs → one line "Rules are not evaluated in V1; plan instructions are kept as notes (decision 023)"; § 10 weekly rules; design-scope 8c; PRD.
 - Size: M–L (mostly deletion; the migration and prompt/schema change are the careful parts).
 
 ### C3. Option labels are positional
@@ -195,7 +195,7 @@ Goal: apply decisions 2–7, 9–12 of § 2. Three migrations, all pre-launch (n
 
 - `PRIMARY_TABS`: History · Today · My plan. The FAB stays. Size: XS.
 
-### C8. Units (decision 023)
+### C8. Units (decision 024)
 
 - **Unit table = measures only:** `g, kg, ml, l, glass, cup, tsp, tbsp, bowl, slice, sheet, piece, skewer, handful, serving`. Removed keys: `medium_apple, small_banana, medium_banana, date, slice_sangak, slice_barbari, slice_lavash, slice_taftoon, slice_toast, egg, medium_orange, medium_tomato, medium_cucumber, medium_potato, walnut, almond, skewer_kabab`.
 - **New item attribute** `unitGrams Decimal?` on `PlanItem` and `FoodItem`: grams for one unit of _this_ item when the unit is a count (`piece, slice, sheet, skewer, handful, serving, bowl, glass, cup` for foods without a density). The AI fills it from its knowledge plus a _hint table_ the prompt still receives (medium apple ≈ 180 g, date ≈ 8 g, sangak slice ≈ 80 g, egg ≈ 50 g, walnut kernel ≈ 4 g …) — the hints stay, the unit keys go. The size stays in the name as the user wrote it ("سیب کوچک"); when no size was written the AI assumes medium and details show "≈ 180 g each · assumed medium".
@@ -214,7 +214,7 @@ Goal: apply decisions 2–7, 9–12 of § 2. Three migrations, all pre-launch (n
 
 Goal: the app feels like a companion, not a console. Same palette, same kit, same tokens architecture; what changes is what `design.md` allows and how the product surfaces use it.
 
-### D0. `design.md` revision and decision 024 (amends 019)
+### D0. `design.md` revision and decision 025 (amends 019)
 
 Add a "Product UI" section that overrides the marketing austerity for app screens:
 
@@ -268,7 +268,7 @@ Add a "Product UI" section that overrides the marketing austerity for app screen
 
 | ID  | Change                                                                                                                                                                                                                                                                                                                                       | Size |
 | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| E1  | Docs: product-spec (§ 5 time zone, § 6 rules deferred + units + windows, § 7 option rule + extra meals + Start over, § 8 assumed windows excluded, § 9 hierarchy + Got it, § 11 static states, § 12 copy table), design-scope (screens 2, 3, 4, 6, 7, 8c), design.md "Product UI", PRD, runbook, decisions 021–024, decision 009 superseded. | M    |
+| E1  | Docs: product-spec (§ 5 time zone, § 6 rules deferred + units + windows, § 7 option rule + extra meals + Start over, § 8 assumed windows excluded, § 9 hierarchy + Got it, § 11 static states, § 12 copy table), design-scope (screens 2, 3, 4, 6, 7, 8c), design.md "Product UI", PRD, runbook, decisions 022–025, decision 009 superseded. | M    |
 | E2  | Tests: unit suites updated for units/rules/zone; new e2e from B26–B27 and C; a11y spec re-run; `ai:eval` reviewed rows ≥ 95 % recall; the photo evaluation (20 photos) run and recorded in the runbook so `PHOTO_LOGGING_ENABLED=true` in production is a measured decision.                                                                 | M    |
 | E3  | Ops: S3 variables in the Darkube config; MinIO in CI; the existing "Not done yet" checklist in the PRD (Darkube app, Supabase buckets, round trip `R`, ingress timeout, restore rehearsal).                                                                                                                                                  | M    |
 | E4  | Owner phone walkthrough (iOS Safari + Android Chrome), light and dark: sign-up → 7 steps → paste plan → review → Today → planned meal (3 taps) → text meal with a question → photo meal → extra meal after dinner → History → My plan → Settings → log out. Every step green before inviting users.                                          | S    |

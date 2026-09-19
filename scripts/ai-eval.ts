@@ -1,8 +1,10 @@
 /**
  * Evaluation harness (tech spec § 10.5, implementation plan task 11.5). Runs
- * the fixture set — both reference plans, 40 Persian meal descriptions and
+ * the fixture set — both reference plans, the Persian meal descriptions (40
+ * free-text plus one per plan option / weekday slot, improvement plan A2) and
  * every reflection state — against the live provider and reports schema pass
- * rate, expected-item recall, unit resolution rate, unsupported-fact rate,
+ * rate, expected-item recall (overall and per fixture source), unit resolution
+ * rate, unsupported-fact rate,
  * p50 / p75 / p95 latency and token cost, next to the release thresholds of
  * tech spec § 19 item 4. Not part of CI; needs DEEPSEEK_API_KEY in `.env`.
  *
@@ -15,7 +17,7 @@
  * expected items the reviewed line stays empty.
  */
 import { pathToFileURL } from 'node:url';
-import { EVAL_MEALS } from '../src/__tests__/fixtures/ai-eval/meals';
+import { EVAL_MEALS, type EvalMealSource } from '../src/__tests__/fixtures/ai-eval/meals';
 import { MENU_PLAN_TEXT, WEEKDAY_PLAN_TEXT } from '../src/__tests__/fixtures/ai-eval/plans';
 import { unitByKey } from '../src/lib/units';
 
@@ -70,6 +72,32 @@ const NUMBER = /\d+(?:[.,]\d+)?/g;
 function numbersIn(text: string): Set<string> {
   const latin = text.replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
   return new Set((latin.match(NUMBER) ?? []).map((n) => n.replace(',', '.')));
+}
+
+/**
+ * Expected-item recall for one meal: each expected keyword (`a|b` alternates)
+ * must be found in its own returned `englishLabel`; an item already claimed
+ * by another keyword does not count again, so two named foods folded into one
+ * item ("Oatmeal with milk") recall one food, not two. `merged` lists the
+ * keywords that only matched an already-claimed item, `missing` the rest.
+ */
+export function mealRecall(
+  expectedItems: string[],
+  labels: string[],
+): { recalled: number; missing: string[]; merged: string[] } {
+  const lower = labels.map((l) => l.toLowerCase());
+  const claimed = new Set<number>();
+  const missing: string[] = [];
+  const merged: string[] = [];
+  for (const keyword of expectedItems) {
+    const alternates = keyword.split('|');
+    const hits = lower.flatMap((l, i) => (alternates.some((k) => l.includes(k)) ? [i] : []));
+    const free = hits.find((i) => !claimed.has(i));
+    if (free !== undefined) claimed.add(free);
+    else if (hits.length) merged.push(keyword);
+    else missing.push(keyword);
+  }
+  return { recalled: expectedItems.length - missing.length - merged.length, missing, merged };
 }
 
 async function mapLimit<T, R>(
@@ -173,6 +201,11 @@ async function main() {
   let recalledTotal = 0;
   let expectedReviewed = 0;
   let recalledReviewed = 0;
+  const bySource: Record<EvalMealSource, { expected: number; recalled: number; meals: number }> = {
+    OFF_PLAN: { expected: 0, recalled: 0, meals: 0 },
+    MENU_PLAN: { expected: 0, recalled: 0, meals: 0 },
+    WEEKDAY_PLAN: { expected: 0, recalled: 0, meals: 0 },
+  };
   let itemsTotal = 0;
   let itemsWithUnit = 0;
   const mealLatencies: number[] = [];
@@ -193,25 +226,28 @@ async function main() {
       console.log(`MEAL FAIL (${analysed.reason}): ${meal.text}`);
       continue;
     }
-    const labels = analysed.data.items.map((i) => i.englishLabel.toLowerCase());
-    const missing = meal.expectedItems.filter(
-      (keyword) => !keyword.split('|').some((k) => labels.some((l) => l.includes(k))),
+    const { recalled, missing, merged } = mealRecall(
+      meal.expectedItems,
+      analysed.data.items.map((i) => i.englishLabel),
     );
-    const recalled = meal.expectedItems.length - missing.length;
     expectedTotal += meal.expectedItems.length;
     recalledTotal += recalled;
     if (meal.reviewed) {
       expectedReviewed += meal.expectedItems.length;
       recalledReviewed += recalled;
     }
+    bySource[meal.source].expected += meal.expectedItems.length;
+    bySource[meal.source].recalled += recalled;
+    bySource[meal.source].meals += 1;
     // Unit resolution counts items that carry a quantity; a free-text unit the
     // model could not map to the unit table counts as unresolved.
     const quantified = analysed.data.items.filter((i) => i.quantity !== null);
     itemsTotal += quantified.length;
     itemsWithUnit += quantified.filter((i) => unitByKey(i.unit) !== undefined).length;
     console.log(
-      `MEAL ${recalled}/${meal.expectedItems.length} ${String(Math.round(analysed.durationMs)).padStart(6)} ms  ${meal.text}` +
+      `MEAL ${recalled}/${meal.expectedItems.length} ${String(Math.round(analysed.durationMs)).padStart(6)} ms  ${meal.label ? `[${meal.source} ${meal.label}] ` : ''}${meal.text}` +
         (missing.length ? `  (missing: ${missing.join(', ')})` : '') +
+        (merged.length ? `  (merged: ${merged.join(', ')})` : '') +
         `\n      ${analysed.data.items.map((i) => `${i.englishLabel} ${i.quantity ?? '?'} ${i.unit ?? '—'}${i.unit && !unitByKey(i.unit) ? '(!)' : ''}`).join('; ')}`,
     );
   }
@@ -279,6 +315,11 @@ async function main() {
   console.log(
     `${mark(null)} item recall (all)   ${pct(recalledTotal, expectedTotal)} over ${EVAL_MEALS.length} meals, ${EVAL_MEALS.filter((m) => m.reviewed).length} reviewed`,
   );
+  for (const [source, s] of Object.entries(bySource))
+    if (s.meals > 0)
+      console.log(
+        `${mark(null)}   ${source.padEnd(14)}    ${pct(s.recalled, s.expected)} (${s.recalled}/${s.expected} items over ${s.meals} meals)`,
+      );
   console.log(
     `${mark(recallReviewed === null ? null : recallReviewed >= THRESHOLDS.recall)} item recall (rev.)  ${recallReviewed === null ? 'no reviewed meals yet — review src/__tests__/fixtures/ai-eval/meals.ts' : `${pct(recalledReviewed, expectedReviewed)} (threshold ${THRESHOLDS.recall * 100}%)`}`,
   );

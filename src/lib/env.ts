@@ -78,6 +78,12 @@ const schema = z
     USDA_LOOKUP_ENABLED: booleanString('false'),
     USDA_API_KEY: optionalString,
     SCHEDULER_ENABLED: booleanString('true'),
+    /**
+     * Shared secret for `/api/cron/[task]` (decision 021). Set on serverless
+     * hosts where the in-process scheduler is off and a platform cron drives
+     * the tasks instead; absent → the route answers 404.
+     */
+    CRON_SECRET: optionalString,
   })
   .superRefine((value, ctx) => {
     const s3 = [
