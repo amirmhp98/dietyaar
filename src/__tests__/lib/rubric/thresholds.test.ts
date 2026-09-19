@@ -75,6 +75,37 @@ describe('thresholds table (inclusive boundaries)', () => {
     });
   });
 
+  it('time wraps at midnight: 00:30 is 210 min after a 21:00 slot, and a window may cross midnight', () => {
+    expect(timeResult('00:30', { start: '21:00', end: null })).toMatchObject({
+      band: 'LARGE',
+      minutes: 210,
+    });
+    expect(timeResult('23:30', { start: '00:15', end: null })).toMatchObject({
+      band: 'SMALL',
+      minutes: -45,
+    });
+    expect(timeResult('00:15', { start: '23:30', end: '00:30' })).toMatchObject({
+      band: 'SMALL',
+      minutes: 0,
+    });
+    expect(timeResult('01:00', { start: '23:30', end: '00:30' })).toMatchObject({
+      band: 'SMALL',
+      minutes: 30,
+    });
+  });
+
+  it('order wraps at midnight: a 00:30 dinner after a 21:00 snack stays in plan order', () => {
+    const p = buildWeekdayPlan();
+    const [, , lunch, snack, dinner] = p.saturday;
+    const recorded = [
+      { slot: lunch, time: '13:00' },
+      { slot: snack, time: '21:00' },
+      { slot: dinner, time: '00:30' },
+    ];
+    expect(orderResult(dinner, recorded).band).toBe('SMALL');
+    expect(orderResult(snack, recorded).band).toBe('SMALL');
+  });
+
   it('order rule on the weekday plan: in sequence full, snack after lunch noticeable "eaten after lunch"', () => {
     const p = buildWeekdayPlan();
     const [breakfast, snack, lunch, , dinner] = p.saturday;

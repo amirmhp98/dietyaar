@@ -300,7 +300,14 @@ async function processJob(job: ClaimedJob, ctx: JobContext): Promise<void> {
       weightKg: profileRow?.weightKg === null || !profileRow ? null : Number(profileRow.weightKg),
     };
     const zone = profileRow?.timeZone ?? DEFAULT_TIME_ZONE;
-    const admission = await admitOperation(job.userId, 'PLAN_IMPORT', localDateFor(ctx.now, zone));
+    // One import is one user operation: the first attempt takes the day's admission, retries reuse it.
+    const admission = await admitOperation(
+      job.userId,
+      'PLAN_IMPORT',
+      localDateFor(ctx.now, zone),
+      ctx.now,
+      { retryOfAdmitted: job.attempt > 1 },
+    );
     if (!admission.ok) {
       await settleFailure(job, admission.code, true);
       return;

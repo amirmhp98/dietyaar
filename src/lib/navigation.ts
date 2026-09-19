@@ -39,6 +39,11 @@ export const ALL_ITEMS: NavItem[] = [
   ADMIN_ITEMS[1],
 ];
 
+/** Routes reached from a page rather than a tab: a top-bar title, no nav entry. */
+const DETAIL_PAGES: Array<Pick<NavItem, 'label' | 'href'>> = [
+  { label: t('meal.details.title'), href: '/meals' },
+];
+
 export function visibleAdminItems(user: Pick<AuthUser, 'role'>): NavItem[] {
   return user.role === 'ADMIN' ? ADMIN_ITEMS : [];
 }
@@ -47,10 +52,15 @@ export function isNavItemActive(href: string, pathname: string): boolean {
   return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-/** Title for the top bar: longest matching nav item, or empty string. */
+/** Title for the top bar: longest matching nav item or detail page, or empty string. */
 export function pageTitleFor(pathname: string): string {
-  const match = ALL_ITEMS.filter((item) => isNavItemActive(item.href, pathname)).sort(
-    (a, b) => b.href.length - a.href.length,
-  )[0];
+  const match = [...ALL_ITEMS, ...DETAIL_PAGES]
+    .filter((item) => isNavItemActive(item.href, pathname))
+    .sort((a, b) => b.href.length - a.href.length)[0];
   return match?.label ?? '';
+}
+
+/** Meal details already shows the meal and its own actions; the floating Log meal button would cover them. */
+export function showsLogMealButton(pathname: string): boolean {
+  return !isNavItemActive('/meals', pathname);
 }

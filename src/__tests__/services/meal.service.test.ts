@@ -110,6 +110,7 @@ function plan(slots: RubricSlot[]) {
     name: null,
     sourceNote: null,
     confirmedAt: NOW,
+    createdAt: NOW,
     slots,
     targets: [],
     rules: [],

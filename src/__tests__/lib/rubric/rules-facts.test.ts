@@ -176,7 +176,7 @@ describe('restrictionHits', () => {
 });
 
 describe('reflection facts and staleness', () => {
-  const build = (matchedLunch: boolean) => {
+  const build = (matchedLunch: boolean, skipRest = true) => {
     const p = buildMenuPlan();
     const opt = p.lunch.options[0];
     const items = matchedLunch
@@ -190,7 +190,8 @@ describe('reflection facts and staleness', () => {
             eaten(p.breakfast.options[0].items[1], 120),
           ]),
         ],
-        skippedSlotIds: [p.snack1.id],
+        // Every other slot skipped: a fully accounted day, so the energy total is real.
+        skippedSlotIds: skipRest ? [p.snack1.id, p.snack2.id, p.dinner.id] : [p.snack1.id],
         targets: [range(300, 400)],
         rules: [
           {
@@ -232,6 +233,20 @@ describe('reflection facts and staleness', () => {
     expect(isReflectionStale(facts, facts, [lunchFact.id])).toBe(false);
     expect(isReflectionStale(facts, changed, ['unknown-id'])).toBe(false);
     expect(factsHash(facts)).not.toBe(factsHash(changed));
+  });
+
+  it('withholds the energy fact on a day complete by default, keeping coverage (O risk 5)', () => {
+    const { p, yesterday } = build(true, false);
+    expect(yesterday.score.completeByDefault).toBe(true);
+    expect(yesterday.dailyEnergy).not.toBeNull();
+    const facts = reflectionFacts(yesterday, p.slots, null, {
+      greetingName: 'Sara',
+      timeOfDay: 'MORNING',
+      hasPlan: true,
+      isFirstDay: false,
+    });
+    expect(facts.some((f) => f.kind === 'ENERGY')).toBe(false);
+    expect(facts.find((f) => f.id === 'coverage')?.text).toContain('(some slots have no record)');
   });
 
   it('covers the empty, no-plan, unchecked and today-context states', () => {

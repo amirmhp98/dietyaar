@@ -11,7 +11,7 @@ import {
   Textarea,
   toast,
 } from '@/components/UiComponents';
-import { formatDate, formatNumber } from '@/lib/format';
+import { formatLocalDate, formatNumber } from '@/lib/format';
 import { t, tp } from '@/lib/t';
 import { normalizeDigits } from '@/lib/text/normalize';
 import { CM_PER_INCH, KG_PER_LB } from '@/lib/validations/profile';
@@ -119,7 +119,7 @@ export function ProfileSection({ profile }: { profile: ProfileValues }) {
           />
           <Row
             label={t('settings.profile.weight')}
-            value={`${weightLabel(profile.weightKg, profile.unitSystem)}${profile.weightMeasuredAt ? ` · ${formatDate(`${profile.weightMeasuredAt}T00:00:00`, { timeZone: 'UTC' })}` : ''}`}
+            value={`${weightLabel(profile.weightKg, profile.unitSystem)}${profile.weightMeasuredAt ? ` · ${formatLocalDate(profile.weightMeasuredAt)}` : ''}`}
           />
           <Row
             label={t('settings.profile.displayName')}

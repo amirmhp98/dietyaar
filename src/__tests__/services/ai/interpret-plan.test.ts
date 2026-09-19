@@ -36,6 +36,16 @@ const WEEKDAY_PLAN = [
   'شنبه‌ها ماهی بخورید',
 ].join('\n');
 
+const RANGE_PLAN = [
+  'شنبه تا پنجشنبه:',
+  'صبحانه: ۲ عدد تخم‌مرغ آب‌پز',
+  'ناهار: ۱۵۰ گرم مرغ گریل',
+  '',
+  'جمعه:',
+  'صبحانه: یک لیوان شیر',
+  'ناهار: کباب تابه‌ای',
+].join('\n');
+
 function slot(name: string, weekday = 7): PlanImportOutput['slots'][number] {
   return {
     originalName: name,
@@ -79,14 +89,29 @@ beforeEach(() => {
 
 describe('weekdayHeading', () => {
   it('recognises Persian and English weekday headings', () => {
-    expect(weekdayHeading('شنبه')).toBe(6);
-    expect(weekdayHeading('شنبه (روز تمرین)')).toBe(6);
-    expect(weekdayHeading('روز یکشنبه:')).toBe(0);
-    expect(weekdayHeading('## پنج‌شنبه')).toBe(4);
-    expect(weekdayHeading('پنجشنبه - رست')).toBe(4);
-    expect(weekdayHeading('جمعه')).toBe(5);
-    expect(weekdayHeading('Saturday: training day')).toBe(6);
-    expect(weekdayHeading('3. Wednesday')).toBe(3);
+    expect(weekdayHeading('شنبه')).toEqual([6]);
+    expect(weekdayHeading('شنبه (روز تمرین)')).toEqual([6]);
+    expect(weekdayHeading('روز یکشنبه:')).toEqual([0]);
+    expect(weekdayHeading('## پنج‌شنبه')).toEqual([4]);
+    expect(weekdayHeading('پنجشنبه - رست')).toEqual([4]);
+    expect(weekdayHeading('جمعه')).toEqual([5]);
+    expect(weekdayHeading('Saturday: training day')).toEqual([6]);
+    expect(weekdayHeading('3. Wednesday')).toEqual([3]);
+  });
+
+  it('expands a range heading to every day of the span, in plan order', () => {
+    expect(weekdayHeading('شنبه تا پنجشنبه:')).toEqual([6, 0, 1, 2, 3, 4]);
+    expect(weekdayHeading('روز شنبه الی چهارشنبه')).toEqual([6, 0, 1, 2, 3]);
+    expect(weekdayHeading('Monday to Friday:')).toEqual([1, 2, 3, 4, 5]);
+    expect(weekdayHeading('Monday – Wednesday')).toEqual([1, 2, 3]);
+    expect(weekdayHeading('Saturday-Sunday (rest)')).toEqual([6, 0]);
+    expect(weekdayHeading('Tuesday through Thursday')).toEqual([2, 3, 4]);
+    expect(weekdayHeading('Monday till Tuesday')).toEqual([1, 2]);
+    // A wrap walks forward around the week.
+    expect(weekdayHeading('پنجشنبه تا شنبه')).toEqual([4, 5, 6]);
+    expect(weekdayHeading('Friday to Sunday')).toEqual([5, 6, 0]);
+    // "to" followed by something other than a weekday is not a range.
+    expect(weekdayHeading('Saturday to the gym')).toEqual([6]);
   });
 
   it('ignores lines that merely start with a weekday word', () => {
@@ -99,17 +124,26 @@ describe('weekdayHeading', () => {
 describe('splitByWeekday', () => {
   it('chunks a weekday plan and keeps the preamble with the first chunk', () => {
     const chunks = splitByWeekday(WEEKDAY_PLAN);
-    expect(chunks?.map((c) => c.weekday)).toEqual([6, 0]);
+    expect(chunks?.map((c) => c.weekdays)).toEqual([[6], [0]]);
     expect(chunks![0]!.text.startsWith('برنامه غذایی هفتگی')).toBe(true);
     expect(chunks![0]!.text).toContain('۱۵۰ گرم مرغ گریل');
     expect(chunks![1]!.text.startsWith('یکشنبه')).toBe(true);
     expect(chunks![1]!.text).toContain('شنبه‌ها ماهی بخورید');
   });
 
-  it('falls back to one call for a menu plan and for repeated weekdays', () => {
+  it('a Sat–Thu range plus Friday becomes two chunks covering the week', () => {
+    const chunks = splitByWeekday(RANGE_PLAN);
+    expect(chunks?.map((c) => c.weekdays)).toEqual([[6, 0, 1, 2, 3, 4], [5]]);
+    expect(chunks![0]!.text).toContain('۱۵۰ گرم مرغ گریل');
+    expect(chunks![1]!.text.startsWith('جمعه')).toBe(true);
+  });
+
+  it('falls back to one call for a menu plan, repeated weekdays and overlapping ranges', () => {
     expect(splitByWeekday('صبحانه\nناهار\nشام')).toBeNull();
     expect(splitByWeekday('شنبه\nx\nشنبه\ny')).toBeNull();
     expect(splitByWeekday('شنبه\nx')).toBeNull();
+    expect(splitByWeekday('شنبه تا جمعه\nx')).toBeNull();
+    expect(splitByWeekday('شنبه تا سه‌شنبه\nx\nدوشنبه تا جمعه\ny')).toBeNull();
   });
 });
 
@@ -179,7 +213,7 @@ describe('mergeChunks', () => {
   it('re-bases slot indices and stamps weekdays', () => {
     const merged = mergeChunks([
       {
-        weekday: 6,
+        weekdays: [6],
         output: output({
           name: 'Plan',
           slots: [slot('صبحانه'), slot('ناهار')],
@@ -218,7 +252,7 @@ describe('mergeChunks', () => {
         }),
       },
       {
-        weekday: 0,
+        weekdays: [0],
         output: output({
           slots: [slot('شام')],
           targets: [
@@ -268,6 +302,69 @@ describe('mergeChunks', () => {
     expect(merged.uncertainties).toEqual([
       { slotIndex: 2, optionIndex: 0, itemIndex: 0, question: 'How much?' },
     ]);
+  });
+
+  it('repeats a range chunk for every day of the range', () => {
+    const merged = mergeChunks([
+      {
+        weekdays: [6, 0, 1],
+        output: output({
+          slots: [slot('صبحانه'), slot('ناهار')],
+          targets: [
+            {
+              slotIndex: 1,
+              weekday: null,
+              nutrient: 'ENERGY_KCAL',
+              type: 'RANGE',
+              low: 500,
+              high: 600,
+              sourceExcerpt: null,
+            },
+            {
+              slotIndex: null,
+              weekday: 6,
+              nutrient: 'ENERGY_KCAL',
+              type: 'APPROXIMATE',
+              low: 2000,
+              high: null,
+              sourceExcerpt: null,
+            },
+            {
+              slotIndex: null,
+              weekday: null,
+              nutrient: 'PROTEIN_G',
+              type: 'MINIMUM',
+              low: 90,
+              high: null,
+              sourceExcerpt: null,
+            },
+          ],
+          notes: [{ originalText: 'n', reason: 'DAY_TYPE' }],
+          uncertainties: [{ slotIndex: 0, optionIndex: 0, itemIndex: 0, question: 'How much?' }],
+        }),
+      },
+      { weekdays: [5], output: output({ slots: [slot('شام')] }) },
+    ]);
+    expect(merged.slots.map((s) => [s.originalName, s.weekday])).toEqual([
+      ['صبحانه', 6],
+      ['ناهار', 6],
+      ['صبحانه', 0],
+      ['ناهار', 0],
+      ['صبحانه', 1],
+      ['ناهار', 1],
+      ['شام', 5],
+    ]);
+    expect(merged.targets.map((t) => [t.nutrient, t.slotIndex, t.weekday])).toEqual([
+      ['ENERGY_KCAL', 1, 6],
+      ['ENERGY_KCAL', null, 6],
+      ['PROTEIN_G', null, null],
+      ['ENERGY_KCAL', 3, 0],
+      ['ENERGY_KCAL', null, 0],
+      ['ENERGY_KCAL', 5, 1],
+      ['ENERGY_KCAL', null, 1],
+    ]);
+    expect(merged.uncertainties.map((u) => u.slotIndex)).toEqual([0, 2, 4]);
+    expect(merged.notes).toHaveLength(1);
   });
 });
 
@@ -326,6 +423,26 @@ describe('interpretPlan', () => {
     expect(result.data.slots.map((s) => s.weekday)).toEqual([6, 6, 6, 0, 0, 0]);
     expect(result.attempts).toHaveLength(2);
     expect(result.usage).toEqual({ promptTokens: 20, completionTokens: 10 });
+  });
+
+  it('interprets a range chunk once, under its first day, and repeats it per day', async () => {
+    completeMock
+      .mockResolvedValueOnce(okResult(output({ slots: [slot('صبحانه'), slot('ناهار')] })))
+      .mockResolvedValueOnce(okResult(output({ slots: [slot('صبحانه'), slot('ناهار')] })));
+    const result = await interpretPlan({
+      ...base,
+      sourceText: RANGE_PLAN,
+      deadlineAt: Date.now() + 120_000,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(completeMock).toHaveBeenCalledTimes(2);
+    const [first, second] = completeMock.mock.calls.map((c) => c[0]);
+    expect(first!.user).toContain('Chunk weekday: 6 (Saturday)');
+    expect(second!.user).toContain('Chunk weekday: 5 (Friday)');
+    expect(result.data.slots.map((s) => s.weekday)).toEqual([
+      6, 6, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5,
+    ]);
   });
 
   it('fails the whole import when a chunk fails, keeping every attempt', async () => {

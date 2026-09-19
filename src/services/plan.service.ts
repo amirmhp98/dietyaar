@@ -47,6 +47,8 @@ export interface ActivePlan {
   name: string | null;
   sourceNote: string | null;
   confirmedAt: Date | null;
+  /** When the row was first created (the user's first draft); it survives edits, replacements and deletion. */
+  createdAt: Date;
   /** Every slot of the plan, any weekday, with options and items (numbers, not Decimals). */
   slots: RubricSlot[];
   targets: Array<RubricTarget & { id: string; weekday: number | null }>;
@@ -154,6 +156,7 @@ function toPlanView(plan: PlanWithRows, draft: ActivePlan['draft'], error: strin
     sourceLanguage: plan.sourceLanguage,
     sourceText: plan.sourceText,
     confirmedAt: plan.confirmedAt,
+    createdAt: plan.createdAt,
     slots: plan.slots.map(toRubricSlot),
     targets: plan.targets.map((row) => ({
       id: row.id,
@@ -503,7 +506,7 @@ export async function updateDraft(
   payload: unknown,
   draftRevision: number,
 ): Promise<PlanDraft> {
-  const { draft } = await requireDraft(ownerId, draftRevision);
+  const { plan, draft } = await requireDraft(ownerId, draftRevision);
   const parsed = DRAFT_SECTION_PAYLOADS[section].safeParse(payload);
   if (!parsed.success) throw new ServiceError(t('validation.invalid'), 'INVALID_PAYLOAD');
   let next: PlanDraft = { ...draft };
@@ -550,15 +553,31 @@ export async function updateDraft(
       next.manualStep = parsed.data as string | null;
       break;
   }
-  return writeDraft(ownerId, next, draftRevision);
+  return writeDraft(ownerId, plan.draftId, next, draftRevision);
 }
 
-async function writeDraft(ownerId: string, draft: PlanDraft, fromRevision: number) {
+/**
+ * Conditional write, as meals do with `revision`: the row must still hold the
+ * draft and revision that were read, so two edits from the same revision
+ * cannot both succeed and silently overwrite each other. The draft lives in
+ * `draftJson`, hence the JSON path filter.
+ */
+async function writeDraft(
+  ownerId: string,
+  draftId: string | null,
+  draft: PlanDraft,
+  fromRevision: number,
+) {
   const next = { ...draft, draftRevision: fromRevision + 1 };
-  await prisma.plan.update({
-    where: { userId: ownerId },
+  const { count } = await prisma.plan.updateMany({
+    where: {
+      userId: ownerId,
+      draftId,
+      draftJson: { path: ['draftRevision'], equals: fromRevision },
+    },
     data: { draftJson: next as Prisma.InputJsonValue },
   });
+  if (count === 0) throw new ServiceError(t('errors.conflict'), 'CONFLICT');
   return next;
 }
 
@@ -721,7 +740,7 @@ export async function estimateDraftBaseline(
   }
 
   // The draft may have moved on during the call; the revision check repeats.
-  const { draft: current } = await requireDraft(ownerId, draftRevision);
+  const { plan, draft: current } = await requireDraft(ownerId, draftRevision);
   const next: PlanDraft = {
     ...current,
     slots: current.slots.map((slot) => ({
@@ -737,7 +756,7 @@ export async function estimateDraftBaseline(
     })),
   };
   next.targets = recomputeDerivedTargets(next);
-  return writeDraft(ownerId, next, draftRevision);
+  return writeDraft(ownerId, plan.draftId, next, draftRevision);
 }
 
 // ─── Confirm ──────────────────────────────────────────────────────────────

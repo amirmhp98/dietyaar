@@ -231,6 +231,22 @@ export function formatDate(date: Nullable<DateInput>, opts: DateFormatOptions = 
   return formatDateWith({ dateStyle: 'medium' }, date, opts);
 }
 
+const LOCAL_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/**
+ * A calendar date stored as "YYYY-MM-DD" (a local date with no instant), such
+ * as a weight's measured-on day. Formatted as that date wherever the process
+ * or browser runs: parsing it through `new Date()` would read it as local
+ * midnight and shift it a day for anyone east of UTC. Same options as
+ * `formatDate`; `timeZone` is ignored.
+ */
+export function formatLocalDate(localDate: Nullable<string>, opts: DateFormatOptions = {}): string {
+  const match = localDate ? LOCAL_DATE_RE.exec(localDate) : null;
+  if (!match) return '';
+  const [, y, m, d] = match.map(Number);
+  return formatDate(new Date(Date.UTC(y!, m! - 1, d!)), { ...opts, timeZone: 'UTC' });
+}
+
 /** Date and time, medium date + short time by default. */
 export function formatDateTime(date: Nullable<DateInput>, opts: DateFormatOptions = {}): string {
   return formatDateWith({ dateStyle: 'medium', timeStyle: 'short' }, date, opts);

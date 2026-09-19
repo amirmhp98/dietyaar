@@ -190,7 +190,27 @@ describe('updateDraft', () => {
     await expect(updateDraft('user-1', 'meta', { name: 'x' }, 2)).rejects.toMatchObject({
       code: 'CONFLICT',
     });
-    expect(prismaMock.plan.update).not.toHaveBeenCalled();
+    expect(prismaMock.plan.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('writes conditionally on the stored draft and revision, CONFLICT when the row moved on', async () => {
+    prismaMock.plan.findUnique.mockResolvedValue(
+      planFactory.build({
+        draftKind: 'EDIT',
+        draftId: 'draft-7',
+        draftJson: editDraft() as never,
+      }) as never,
+    );
+    // Another edit from the same revision landed between the read and the write.
+    prismaMock.plan.updateMany.mockResolvedValue({ count: 0 });
+    await expect(updateDraft('user-1', 'meta', { name: 'x' }, 0)).rejects.toMatchObject({
+      code: 'CONFLICT',
+    });
+    expect(prismaMock.plan.updateMany.mock.calls[0]?.[0].where).toEqual({
+      userId: 'user-1',
+      draftId: 'draft-7',
+      draftJson: { path: ['draftRevision'], equals: 0 },
+    });
   });
 
   it('replaces one slot by key, flags changed items and bumps the revision', async () => {
@@ -198,7 +218,7 @@ describe('updateDraft', () => {
     prismaMock.plan.findUnique.mockResolvedValue(
       planFactory.build({ draftKind: 'EDIT', draftJson: draft as never }) as never,
     );
-    prismaMock.plan.update.mockResolvedValue(planFactory.build());
+    prismaMock.plan.updateMany.mockResolvedValue({ count: 1 });
     const lunch = draft.slots[1]!;
     const edited = {
       ...lunch,
@@ -214,7 +234,7 @@ describe('updateDraft', () => {
     const next = await updateDraft('user-1', 'slot', edited, 0);
     expect(next.draftRevision).toBe(1);
     expect(next.slots[1]?.options[0]?.items.map((i) => i.needsEstimate)).toEqual([true, false]);
-    expect(prismaMock.plan.update.mock.calls[0]?.[0].data.draftJson).toMatchObject({
+    expect(prismaMock.plan.updateMany.mock.calls[0]?.[0].data.draftJson).toMatchObject({
       draftRevision: 1,
     });
   });
@@ -470,7 +490,7 @@ describe('estimateDraftBaseline', () => {
       planFactory.build({ draftKind: 'MANUAL', draftJson: draft as never }) as never,
     );
     prismaMock.profile.findUnique.mockResolvedValue({ timeZone: 'Asia/Tehran' } as never);
-    prismaMock.plan.update.mockResolvedValue(planFactory.build());
+    prismaMock.plan.updateMany.mockResolvedValue({ count: 1 });
   }
 
   it('estimates only items without nutrition or flagged, then recomputes the targets', async () => {
@@ -522,6 +542,25 @@ describe('estimateDraftBaseline', () => {
     expect(admitOperation).not.toHaveBeenCalled();
     expect(next.draftRevision).toBe(1);
   });
+
+  it('refuses the write with CONFLICT when the draft moved on during the call', async () => {
+    const draft = editDraft();
+    draft.slots[0]!.options[0]!.items[0]!.nutrition = null;
+    arrange(draft);
+    vi.mocked(estimatePlanBaseline).mockResolvedValue({
+      ok: true,
+      data: { items: [{ index: 0, nutrition: nutrition(160) }] },
+      attempts: [],
+      usage: { promptTokens: 1, completionTokens: 1 },
+      model: 'm',
+      durationMs: 1,
+    });
+    prismaMock.plan.updateMany.mockResolvedValue({ count: 0 });
+    await expect(estimateDraftBaseline('user-1', 0)).rejects.toMatchObject({ code: 'CONFLICT' });
+    expect(prismaMock.plan.updateMany.mock.calls[0]?.[0].where).toMatchObject({
+      draftJson: { path: ['draftRevision'], equals: 0 },
+    });
+  });
 });
 
 describe('deletePlan', () => {
@@ -554,7 +593,7 @@ describe('updateDraft meta', () => {
     prismaMock.plan.findUnique.mockResolvedValue(
       planFactory.build({ draftKind: 'EDIT', draftJson: draft as never }) as never,
     );
-    prismaMock.plan.update.mockResolvedValue(planFactory.build());
+    prismaMock.plan.updateMany.mockResolvedValue({ count: 1 });
     const next = await updateDraft('user-1', 'meta', { name: 'new name' }, 0);
     expect(next).toMatchObject({ name: 'new name', sourceNote: 'doctor', draftRevision: 1 });
   });

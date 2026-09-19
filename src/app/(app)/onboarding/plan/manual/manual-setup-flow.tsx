@@ -43,7 +43,7 @@ import {
   type DraftTarget,
   type PlanDraft,
 } from '@/lib/validations/plan';
-import { PlanScreen, planRoutes, type PlanFlowMode } from '../plan-screen';
+import { ONBOARDING_STEP, PlanScreen, planRoutes, type PlanFlowMode } from '../plan-screen';
 import { MANUAL_REVIEW_STEP, isManualStep, type ManualStep } from './steps';
 
 type Structure = PlanDraft['structure'];
@@ -78,7 +78,7 @@ export function ManualSetupFlow({
 }) {
   const router = useRouter();
   const routes = planRoutes(mode);
-  const step = mode === 'onboarding' ? 7 : undefined;
+  const step = mode === 'onboarding' ? ONBOARDING_STEP.ADD_PLAN : undefined;
   const [draft, setDraft] = useState<PlanDraft | null>(initialDraft);
   const [structure, setStructure] = useState<Structure>(
     initialDraft?.structure ?? 'SAME_EVERY_DAY',

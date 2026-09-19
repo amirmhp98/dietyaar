@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import sharp from 'sharp';
-import { requireAuth } from '@/lib/auth';
+import { requireApiAuth } from '@/lib/auth';
 import { env } from '@/lib/env';
 import { ServiceError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
@@ -51,7 +51,9 @@ async function withDecodeSlot<T>(work: () => Promise<T>): Promise<T> {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  const user = await requireAuth();
+  const auth = await requireApiAuth();
+  if (!auth.ok) return auth.response;
+  const { user } = auth;
   const forbidden = assertSameOrigin(request);
   if (forbidden) return forbidden;
   if (!env.PHOTO_LOGGING_ENABLED) return json(403, 'PHOTO_DISABLED', msg('photo.errors.disabled'));

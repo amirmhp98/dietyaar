@@ -19,7 +19,7 @@ import { Button, toast } from '@/components/UiComponents';
 import type { ActionResult } from '@/lib/action-result';
 import { t } from '@/lib/t';
 import type { DraftSection, DraftSlot, PlanDraft } from '@/lib/validations/plan';
-import { PlanScreen, planRoutes, type PlanFlowMode } from './plan-screen';
+import { ONBOARDING_STEP, PlanScreen, planRoutes, type PlanFlowMode } from './plan-screen';
 
 type Screen =
   { kind: 'slot'; key: string } | { kind: 'summary' } | { kind: 'targets' } | { kind: 'rules' };
@@ -46,7 +46,7 @@ export function PlanReviewFlow({
   const [estimate, setEstimate] = useState<EstimateState>('idle');
   const [estimateError, setEstimateError] = useState<string | null>(null);
   const [affected, setAffected] = useState<number | null>(null);
-  const step = mode === 'onboarding' ? 8 : undefined;
+  const stepFor = (step: number) => (mode === 'onboarding' ? step : undefined);
 
   // ── Order of the slot screens ─────────────────────────────
   const byWeekday = draft.structure === 'BY_WEEKDAY';
@@ -68,6 +68,9 @@ export function PlanReviewFlow({
     [firstDaySlots, otherDays, reviewEach],
   );
   const hasSlots = draft.structure !== 'TARGETS_ONLY' && slotOrder.length > 0;
+  const hasSummary = byWeekday && !reviewEach && otherDays.length > 0;
+  /** Screens of the meals step: one per slot, plus the weekday summary when it shows. */
+  const mealScreens = slotOrder.length + (hasSummary ? 1 : 0);
 
   const [screen, setScreen] = useState<Screen>(() => {
     // An edit draft arrives fully "reviewed" (it is the active plan); walk it from the start.
@@ -154,7 +157,7 @@ export function PlanReviewFlow({
       setScreen({ kind: 'slot', key: slotOrder[index + 1].key });
       return;
     }
-    if (byWeekday && !reviewEach && otherDays.length > 0) {
+    if (hasSummary) {
       setScreen({ kind: 'summary' });
       return;
     }
@@ -169,7 +172,7 @@ export function PlanReviewFlow({
   function goBackFromTargets() {
     if (!hasSlots) return;
     estimateRan.current = false;
-    if (byWeekday && !reviewEach && otherDays.length > 0) setScreen({ kind: 'summary' });
+    if (hasSummary) setScreen({ kind: 'summary' });
     else setScreen({ kind: 'slot', key: slotOrder[slotOrder.length - 1].key });
   }
 
@@ -213,7 +216,7 @@ export function PlanReviewFlow({
     const slot = slotOrder[index];
     if (!slot) {
       return (
-        <PlanScreen step={step} title={t('plan.review.mealsTitle')}>
+        <PlanScreen step={stepFor(ONBOARDING_STEP.MEALS)} title={t('plan.review.mealsTitle')}>
           <p className="text-sm text-muted-foreground">{t('plan.review.noDraft')}</p>
         </PlanScreen>
       );
@@ -221,7 +224,8 @@ export function PlanReviewFlow({
     const question = draft.questions.find((q) => q.slotKey === slot.key && !q.answered) ?? null;
     return (
       <PlanScreen
-        step={step}
+        step={stepFor(ONBOARDING_STEP.MEALS)}
+        substep={{ index, count: mealScreens }}
         title={t('plan.review.mealsTitle')}
         backHref={mode === 'plan' && index === 0 ? '/plan' : undefined}
       >
@@ -259,7 +263,11 @@ export function PlanReviewFlow({
 
   if (screen.kind === 'summary' && firstDay !== undefined) {
     return (
-      <PlanScreen step={step} title={t('plan.review.weekdaySummaryTitle')}>
+      <PlanScreen
+        step={stepFor(ONBOARDING_STEP.MEALS)}
+        substep={{ index: mealScreens - 1, count: mealScreens }}
+        title={t('plan.review.weekdaySummaryTitle')}
+      >
         <WeekdaySummary
           reviewedWeekday={firstDay}
           days={otherDays}
@@ -287,7 +295,7 @@ export function PlanReviewFlow({
   if (screen.kind === 'targets') {
     return (
       <PlanScreen
-        step={step}
+        step={stepFor(ONBOARDING_STEP.TARGETS)}
         title={t('plan.review.targetsTitle')}
         backHref={mode === 'plan' && !hasSlots ? '/plan' : undefined}
       >
@@ -322,7 +330,7 @@ export function PlanReviewFlow({
   }
 
   return (
-    <PlanScreen step={step} title={t('plan.review.rulesTitle')}>
+    <PlanScreen step={stepFor(ONBOARDING_STEP.RULES)} title={t('plan.review.rulesTitle')}>
       <RulesReview
         key={draft.draftRevision}
         rules={draft.rules}

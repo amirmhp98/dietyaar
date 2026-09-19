@@ -75,6 +75,8 @@ describe('logoutAction', () => {
 
     expect(revokeSession).toHaveBeenCalledWith('raw-token');
     expect(cookieStore.delete).toHaveBeenCalledWith('session');
+    // The theme is per person, not per device: the next sign-in starts from "system".
+    expect(cookieStore.delete).toHaveBeenCalledWith('appearance');
   });
 
   it('still clears the cookie when there is no token', async () => {

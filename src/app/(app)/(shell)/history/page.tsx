@@ -3,7 +3,7 @@ import { ChevronRight } from 'lucide-react';
 import { Disclosure } from '@/components/product/Disclosure';
 import { fillNames, InlineName } from '@/components/product/InlineName';
 import { requireOnboarded } from '@/lib/auth';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatLocalDate } from '@/lib/format';
 import type { SevenDaySummary } from '@/lib/rubric/seven-day';
 import { t, tp } from '@/lib/t';
 import { addDays, instantFor, localDateFor } from '@/lib/time/local-date';
@@ -90,6 +90,13 @@ export default async function HistoryPage() {
           </li>
         ))}
       </ul>
+      {week.historyStart ? (
+        <p className="text-xs text-muted-foreground" data-testid="history-starts">
+          {t('history.startsOn', {
+            date: formatLocalDate(week.historyStart, { month: 'short', day: 'numeric' }),
+          })}
+        </p>
+      ) : null}
 
       {week.weeklyRules.length > 0 ? (
         <div className="rounded-xl border border-border bg-card px-3 py-1">

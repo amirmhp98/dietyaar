@@ -267,7 +267,9 @@ describe('runPlanImportJobs', () => {
 
     await runPlanImportJobs(ctx);
 
-    expect(admitOperation).toHaveBeenCalledWith('user-1', 'PLAN_IMPORT', '2026-09-16');
+    expect(admitOperation).toHaveBeenCalledWith('user-1', 'PLAN_IMPORT', '2026-09-16', ctx.now, {
+      retryOfAdmitted: false,
+    });
     expect(vi.mocked(interpretPlan).mock.calls[0]?.[0]).toMatchObject({
       sourceText: 'صبحانه: ۲ عدد تخم‌مرغ',
       profile: { ageYears: 30, sex: 'FEMALE', heightCm: 168, weightKg: 64 },
@@ -311,6 +313,22 @@ describe('runPlanImportJobs', () => {
       data: expect.objectContaining({ status: 'FAILED', errorCategory: 'TIMEOUT' }),
     });
     expect(prismaMock.$executeRaw).not.toHaveBeenCalled();
+  });
+
+  it("a retry attempt reuses the job's admission instead of spending another", async () => {
+    arrangeClaim({ ...job, attempt: 2 });
+    vi.mocked(interpretPlan).mockResolvedValue({
+      ok: false,
+      reason: 'PROVIDER_ERROR',
+      attempts: [],
+      usage: { promptTokens: 0, completionTokens: 0 },
+      durationMs: 1,
+    });
+    await runPlanImportJobs(ctx);
+    expect(admitOperation).toHaveBeenCalledWith('user-1', 'PLAN_IMPORT', '2026-09-16', ctx.now, {
+      retryOfAdmitted: true,
+    });
+    expect(finishOperation).toHaveBeenCalledWith('call-1', expect.objectContaining({ ok: false }));
   });
 
   it('a refused admission fails the job with the cap code and calls no provider', async () => {

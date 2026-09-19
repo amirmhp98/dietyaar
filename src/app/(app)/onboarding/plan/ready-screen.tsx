@@ -6,7 +6,7 @@ import { finishOnboardingAction } from '@/actions/onboarding-plan.actions';
 import { NameLabel } from '@/components/product/NameLabel';
 import { Button, toast } from '@/components/UiComponents';
 import { t, tp } from '@/lib/t';
-import { PlanScreen } from './plan-screen';
+import { ONBOARDING_STEP, PlanScreen } from './plan-screen';
 
 export interface ReadySlot {
   id: string;
@@ -36,7 +36,7 @@ export function ReadyScreen({ slots, targetsOnly }: { slots: ReadySlot[]; target
   }
 
   return (
-    <PlanScreen step={8} title={t('plan.ready.title')}>
+    <PlanScreen step={ONBOARDING_STEP.READY} title={t('plan.ready.title')}>
       <section className="space-y-2">
         <h2 className="text-sm font-medium text-muted-foreground">{t('plan.ready.today')}</h2>
         {targetsOnly || slots.length === 0 ? (

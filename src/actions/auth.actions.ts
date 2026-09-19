@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { ServiceError } from '@/lib/errors';
 import { SESSION_COOKIE, sessionCookieOptions } from '@/lib/session-cookie';
 import { t } from '@/lib/t';
+import { APPEARANCE_COOKIE } from '@/lib/theme-cookie';
 import { loginSchema } from '@/lib/validations/auth';
 import { authenticate, revokeSession } from '@/services/auth.service';
 
@@ -33,10 +34,12 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
   redirect('/');
 }
 
+/** Ends the session and forgets the appearance, so the next person on the device starts from system. */
 export async function logoutAction(): Promise<void> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (token) await revokeSession(token);
   cookieStore.delete(SESSION_COOKIE);
+  cookieStore.delete(APPEARANCE_COOKIE);
   redirect('/login');
 }

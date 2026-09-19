@@ -18,7 +18,7 @@ import { Button, FormField, Textarea, toast } from '@/components/UiComponents';
 import { formatNumber } from '@/lib/format';
 import { t } from '@/lib/t';
 import { PLAN_TEXT_MAX } from '@/lib/validations/plan';
-import { PlanScreen, planRoutes, type PlanFlowMode } from './plan-screen';
+import { ONBOARDING_STEP, PlanScreen, planRoutes, type PlanFlowMode } from './plan-screen';
 
 export type ImportState = 'NONE' | 'PENDING' | 'READY' | 'FAILED';
 
@@ -51,7 +51,7 @@ export function AddPlanFlow({
   const [noticeAcknowledged, setNoticeAcknowledged] = useState(aiNoticeShown);
   const [pending, startTransition] = useTransition();
   const [slow, setSlow] = useState(false);
-  const step = mode === 'onboarding' ? 7 : undefined;
+  const step = mode === 'onboarding' ? ONBOARDING_STEP.ADD_PLAN : undefined;
 
   useEffect(() => {
     let mirrored: string | null = null;
@@ -199,7 +199,7 @@ export function AddPlanFlow({
     <PlanScreen
       step={step}
       title={t('plan.add.title')}
-      backHref={mode === 'plan' ? '/plan' : undefined}
+      backHref={mode === 'plan' ? '/plan' : '/onboarding?step=DISPLAY_NAME'}
     >
       {state === 'FAILED' ? (
         <div

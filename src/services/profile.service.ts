@@ -39,6 +39,8 @@ export interface ProfileView {
   lastSeenDeviceTimeZone: string | null;
   timeZoneHintDismissedAt: Date | null;
   completedAt: Date | null;
+  /** The row's creation, the first onboarding answer: the account's first day for history. */
+  createdAt: Date;
 }
 
 /** Until the user confirms a zone (TIME_ZONE step), UTC is the only honest default. */
@@ -67,6 +69,7 @@ export function toProfileView(row: Profile): ProfileView {
     lastSeenDeviceTimeZone: row.lastSeenDeviceTimeZone,
     timeZoneHintDismissedAt: row.timeZoneHintDismissedAt,
     completedAt: row.completedAt,
+    createdAt: row.createdAt,
   };
 }
 

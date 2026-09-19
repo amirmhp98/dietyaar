@@ -139,6 +139,14 @@ export async function skipSlots(username: string, localDate: string, planSlotIds
   });
 }
 
+/** Pretend the account is `days` old: History lists days from the account's first day only. */
+export async function backdateAccount(username: string, days: number) {
+  const user = await userByName(username);
+  const createdAt = new Date(Date.now() - days * 86_400_000);
+  await prisma.user.update({ where: { id: user.id }, data: { createdAt } });
+  await prisma.profile.update({ where: { userId: user.id }, data: { createdAt } });
+}
+
 export async function disconnectMealsDb() {
   await prisma.$disconnect();
 }

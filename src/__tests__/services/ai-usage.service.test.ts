@@ -68,6 +68,26 @@ describe('admitOperation', () => {
     expect(prismaMock.aiCall.create).not.toHaveBeenCalled();
   });
 
+  it('records a retry of an admitted operation without counting it toward the cap', async () => {
+    prismaMock.aiCall.aggregate.mockResolvedValue({
+      _sum: { promptTokens: 0, completionTokens: 0 },
+    } as never);
+    prismaMock.aiCall.count.mockResolvedValue(0);
+    const admission = await admitOperation('u1', 'PLAN_IMPORT', '2026-09-17', NOW, {
+      retryOfAdmitted: true,
+    });
+    expect(admission).toEqual({ ok: true, callId: 'call-1' });
+    // No per-user cap query, and no localDate on the row so later cap counts skip it.
+    expect(prismaMock.aiCall.count).toHaveBeenCalledTimes(1);
+    expect(prismaMock.aiCall.count.mock.calls[0]![0]).toMatchObject({
+      where: { outcome: 'PENDING' },
+    });
+    expect(prismaMock.aiCall.create).toHaveBeenCalledWith({
+      data: { userId: 'u1', kind: 'PLAN_IMPORT', localDate: null, outcome: 'PENDING' },
+      select: { id: true },
+    });
+  });
+
   it('never caps PLAN_BASELINE but still records it', async () => {
     prismaMock.aiCall.aggregate.mockResolvedValue({
       _sum: { promptTokens: 0, completionTokens: 0 },

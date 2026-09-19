@@ -1,6 +1,6 @@
 import { Readable } from 'node:stream';
 import archiver from 'archiver';
-import { requireAuth } from '@/lib/auth';
+import { requireApiAuth } from '@/lib/auth';
 import { storageConfigured } from '@/lib/env';
 import { logger } from '@/lib/logger';
 import { localDateFor } from '@/lib/time';
@@ -16,7 +16,9 @@ export const dynamic = 'force-dynamic';
  * bodies are opened lazily so only one object stream is live at a time.
  */
 export async function GET(): Promise<Response> {
-  const user = await requireAuth();
+  const auth = await requireApiAuth();
+  if (!auth.ok) return auth.response;
+  const { user } = auth;
   const now = new Date();
   const bundle = await buildExport(user.id, now);
   const date = bundle.timeZone
