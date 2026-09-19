@@ -1022,15 +1022,22 @@ export function resetRecentMealsCache(): void {
  * overlap one of its options (product spec § 7, B3); a meal that overlaps
  * none saves as a different food under the slot with no option.
  */
+/**
+ * "I ate this" (a PLANNED draft) always needs the option: the items are only
+ * prefilled once one is picked. Any other path needs it only when what was
+ * eaten overlaps an option; a meal that overlaps nothing is a different food.
+ */
 function requireOption(
   slot: RubricSlot | null,
   option: RubricOption | null,
   planOptionId: string | null,
   items: DraftFoodItem[],
+  kind: MealDraftState['kind'] | null,
 ) {
   if (!slot) return;
   if (planOptionId && !option) throw notFound(t('meal.errors.optionNotInSlot'));
-  if (!option && optionRequiredFor(items.map(toRubricItem), slot)) {
+  const planned = kind === 'PLANNED' && slot.options.length > 1;
+  if (!option && (planned || optionRequiredFor(items.map(toRubricItem), slot))) {
     throw new ServiceError(t('meal.errors.optionRequired'), 'OPTION_REQUIRED');
   }
 }
@@ -1072,7 +1079,7 @@ export async function saveMeal(
     if (!applies) throw notFound(t('meal.errors.slotNotOnDay'));
   }
   const { slot, option } = resolveLink(plan, state.localDate, state.planSlotId, state.planOptionId);
-  requireOption(slot, option, state.planOptionId, state.items);
+  requireOption(slot, option, state.planOptionId, state.items, state.kind);
   const { items } = matchAndAnnotate(state.items, plan, slot, option);
 
   // A photo staged over 24 h ago may already be gone (cleanup ran before the
@@ -1271,7 +1278,7 @@ export async function setMealLink(
     if (!applies) throw notFound(t('meal.errors.slotNotOnDay'));
   }
   const { slot, option } = resolveLink(plan, meal.day.localDate, planSlotId, planOptionId);
-  requireOption(slot, option, planOptionId, meal.items.map(rowToDraftItem));
+  requireOption(slot, option, planOptionId, meal.items.map(rowToDraftItem), null);
 
   await prisma.$transaction(async (tx) => {
     if (slot) {

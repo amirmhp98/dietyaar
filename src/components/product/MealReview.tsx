@@ -141,7 +141,10 @@ export function MealReview(props: MealReviewProps) {
         .findIndex((o) => o.id === option?.id)
     : -1;
   const optionRequired =
-    slot !== null && option === null && optionRequiredFor(state.items.map(toRubricItem), slot);
+    slot !== null &&
+    option === null &&
+    ((state.kind === 'PLANNED' && slot.options.length > 1) ||
+      optionRequiredFor(state.items.map(toRubricItem), slot));
   const extraSlot = slots.find((s) => s.id === extraBecauseRecordedSlotId) ?? null;
   const hitByKey = new Map(state.restrictionHits.map((h) => [h.itemKey, h.restriction]));
   const addedNames = match?.added.map((a) => a.englishLabel) ?? [];
