@@ -32,6 +32,7 @@ import {
   getDayView,
   getRuleProgress,
   getSevenDayView,
+  historyStartFor,
 } from '@/services/day-view.service';
 
 resetPrismaMock();
@@ -52,6 +53,7 @@ function activePlan(overrides: Partial<ActivePlan> = {}) {
     name: null,
     sourceNote: null,
     confirmedAt: new Date('2026-09-01T00:00:00Z'),
+    createdAt: new Date('2026-08-30T00:00:00Z'),
     slots: p.slots,
     targets: p.targets.map((t, i) => ({ ...t, id: `target-${i}`, weekday: null })),
     rules: [],
@@ -101,10 +103,17 @@ function dayRow(localDate: string, meals: ReturnType<typeof mealRow>[], override
   };
 }
 
-beforeEach(() => {
+/** The profile (and so the account) dates from 2026-09-10 unless a test says otherwise. */
+function useProfile(overrides: Partial<Parameters<typeof profileFactory.build>[0]> = {}) {
   vi.mocked(getProfile).mockResolvedValue(
-    toProfileView(profileFactory.build({ userId: OWNER, timeZone: ZONE, weekStart: 6 })),
+    toProfileView(
+      profileFactory.build({ userId: OWNER, timeZone: ZONE, weekStart: 6, ...overrides }),
+    ),
   );
+}
+
+beforeEach(() => {
+  useProfile();
   prismaMock.dayRecord.findMany.mockResolvedValue([]);
 });
 
@@ -338,11 +347,84 @@ describe('getSevenDayView', () => {
     expect(result.planChangedInWindow).toBe(true);
   });
 
+  it("lists days from the account's first day and says where history starts", async () => {
+    useProfile({ createdAt: new Date('2026-09-14T05:00:00Z') });
+    vi.mocked(getActivePlan).mockResolvedValue(activePlan().plan);
+    const result = await getSevenDayView(OWNER, '2026-09-17', NOW);
+    expect(result.historyStart).toBe('2026-09-14');
+    expect(result.rows.map((r) => r.localDate)).toEqual([
+      '2026-09-14',
+      '2026-09-15',
+      '2026-09-16',
+      '2026-09-17',
+    ]);
+    expect(result.startDate).toBe('2026-09-11');
+  });
+
+  it('keeps an earlier day the user logged a meal for, back to that day', async () => {
+    useProfile({ createdAt: new Date('2026-09-15T05:00:00Z') });
+    const { plan, lunch } = activePlan();
+    vi.mocked(getActivePlan).mockResolvedValue(plan);
+    prismaMock.dayRecord.findMany.mockResolvedValue([
+      dayRow('2026-09-13', [
+        mealRow('m1', lunch.id, lunch.options[0].id, '13:00', [
+          itemFrom(lunch.options[0].items[0], 'm1'),
+        ]),
+      ]),
+    ] as never);
+    const result = await getSevenDayView(OWNER, '2026-09-17', NOW);
+    expect(result.historyStart).toBe('2026-09-13');
+    expect(result.rows.map((r) => r.localDate)).toEqual([
+      '2026-09-13',
+      '2026-09-14',
+      '2026-09-15',
+      '2026-09-16',
+      '2026-09-17',
+    ]);
+  });
+
   it('does not flag a plan confirmed before the window', async () => {
     vi.mocked(getActivePlan).mockResolvedValue(activePlan().plan);
     const result = await getSevenDayView(OWNER, '2026-09-17', NOW);
     expect(result.planChangedInWindow).toBe(false);
     expect(result.weeklyRules).toEqual([]);
+  });
+
+  it('does not flag a first plan: confirmed on the day its row was created', async () => {
+    // Import started 09:00 Tehran, confirmed 09:20 the same local day.
+    vi.mocked(getActivePlan).mockResolvedValue(
+      activePlan({
+        createdAt: new Date('2026-09-13T05:30:00Z'),
+        confirmedAt: new Date('2026-09-13T05:50:00Z'),
+      }).plan,
+    );
+    const result = await getSevenDayView(OWNER, '2026-09-17', NOW);
+    expect(result.planChangedInWindow).toBe(false);
+  });
+
+  it('flags an edit confirmed on a later day than the row was created', async () => {
+    vi.mocked(getActivePlan).mockResolvedValue(
+      activePlan({
+        createdAt: new Date('2026-09-10T05:30:00Z'),
+        confirmedAt: new Date('2026-09-13T05:50:00Z'),
+      }).plan,
+    );
+    const result = await getSevenDayView(OWNER, '2026-09-17', NOW);
+    expect(result.planChangedInWindow).toBe(true);
+  });
+});
+
+describe('historyStartFor', () => {
+  it('is null when the account predates the window, else the earlier of account and first record', () => {
+    expect(historyStartFor('2026-09-11', '2026-09-01', [])).toBeNull();
+    expect(historyStartFor('2026-09-11', '2026-09-11', [])).toBeNull();
+    expect(historyStartFor('2026-09-11', null, [])).toBeNull();
+    expect(historyStartFor('2026-09-11', '2026-09-14', [])).toBe('2026-09-14');
+    expect(historyStartFor('2026-09-11', '2026-09-14', ['2026-09-16', '2026-09-12'])).toBe(
+      '2026-09-12',
+    );
+    // A record before the window: the whole window is history.
+    expect(historyStartFor('2026-09-11', '2026-09-14', ['2026-09-05'])).toBeNull();
   });
 });
 

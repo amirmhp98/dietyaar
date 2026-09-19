@@ -1,6 +1,6 @@
 import { Readable } from 'node:stream';
 import { cookies } from 'next/headers';
-import { requireAuth } from '@/lib/auth';
+import { requireApiAuth } from '@/lib/auth';
 import { ServiceError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import { photoTag } from '@/lib/photo-url';
@@ -20,7 +20,9 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const user = await requireAuth();
+  const auth = await requireApiAuth();
+  if (!auth.ok) return auth.response;
+  const { user } = auth;
   const { id } = await params;
   const tag = new URL(request.url).searchParams.get('s');
   const token = (await cookies()).get(SESSION_COOKIE)?.value;

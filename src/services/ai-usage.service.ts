@@ -15,6 +15,16 @@ import type { AiFailureReason, AiKind, AiResult } from '@/services/ai/types';
 export type Admission =
   { ok: true; callId: string } | { ok: false; code: 'DAILY_AI_CAP' | 'AI_UNAVAILABLE' };
 
+export interface AdmissionOptions {
+  /**
+   * A retry of an operation admitted earlier (an import job's second or third
+   * attempt): the row is still recorded for the global budget and the ops
+   * table, but it carries no `localDate`, so the per-day cap counts the
+   * operation once and the cap check is skipped.
+   */
+  retryOfAdmitted?: boolean;
+}
+
 /** Per user per local day. MEAL_TEXT and MEAL_PHOTO share one cap; PLAN_BASELINE is free. */
 export const DAILY_MEAL_ANALYSES = 30;
 export const DAILY_PLAN_IMPORTS = 6;
@@ -40,13 +50,14 @@ export async function admitOperation(
   kind: AiKind,
   localDate: string,
   now: Date = new Date(),
+  options: AdmissionOptions = {},
 ): Promise<Admission> {
   if (!aiAvailable()) return { ok: false, code: 'AI_UNAVAILABLE' };
   return prisma.$transaction(async (tx) => {
     // Serialises concurrent admissions for one user for the rest of the transaction.
     await tx.$queryRaw`SELECT id FROM users WHERE id = ${ownerId} FOR UPDATE`;
 
-    const cap = CAPS[kind];
+    const cap = options.retryOfAdmitted ? undefined : CAPS[kind];
     if (cap) {
       const used = await tx.aiCall.count({
         where: { userId: ownerId, localDate, kind: { in: cap.kinds } },
@@ -70,7 +81,12 @@ export async function admitOperation(
       return { ok: false, code: 'AI_UNAVAILABLE' } as const;
 
     const row = await tx.aiCall.create({
-      data: { userId: ownerId, kind, localDate, outcome: 'PENDING' },
+      data: {
+        userId: ownerId,
+        kind,
+        localDate: options.retryOfAdmitted ? null : localDate,
+        outcome: 'PENDING',
+      },
       select: { id: true },
     });
     return { ok: true, callId: row.id } as const;

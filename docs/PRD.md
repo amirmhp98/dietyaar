@@ -43,26 +43,27 @@ text is accepted in any language and stored verbatim; a normalised parsing copy 
 
 Navigation (`src/lib/navigation.ts`): bottom tabs **Today · History · My plan** (`BottomNav`), a
 top bar with the page title and a profile button to Settings (`TopBar`), and a persistent
-**Log meal** button on the three tabs that opens the composer sheet (`(app)/(shell)/layout.tsx`).
+**Log meal** button on the three tabs that opens the composer sheet (`(app)/(shell)/layout.tsx`);
+Meal details titles the bar "Meal" and hides the button.
 Onboarding and the plan-import screens render outside the shell. The boilerplate sidebar is gone;
 admin pages use the same shell.
 
-| Route                                                   | Who       | What                                                                                                                                                                                                          |
-| ------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/login`                                                | everyone  | Username/password sign-in (cookie session, throttled after 5 failures) _(boilerplate)_                                                                                                                        |
-| `/signup`                                               | everyone  | Username/password sign-up (common-password list, per-IP rate limit `SIGNUP_RATE_LIMIT`); says a forgotten password cannot be recovered; sets the session and the `appearance` cookie, redirects to onboarding |
-| `/onboarding`                                           | signed-in | One question per screen: age (under-18 stop deletes the account), sex, height, weight (metric/imperial), time zone, display name; resumable from `Profile.onboardingStep`                                     |
-| `/onboarding/plan`, `/plan/add`, `/plan/review`         | signed-in | Plan entry: paste text → import job with progress/retry/cancel, or the manual wizard (`/onboarding/plan/manual`); review draft (slots, options, items, targets, rules, questions) → confirm; "No plan yet"    |
-| `/today` (`/`)                                          | signed-in | Date header, device-zone hint, reflection card, "Your plan today" (score card, slot rows with match/portion/timing, Why this score, nutrition details), recorded meals, completeness checkbox                 |
-| `/history`, `/history/[date]`                           | signed-in | Seven-day list with day states and weekly rules; a past day's full view with its reflection; date picker for older days                                                                                       |
-| `/plan`                                                 | signed-in | The one plan: today's slots with options and items, targets, rules, notes; Edit (in place through a draft), Replace, Delete; pending-draft banner                                                             |
-| `/meals/[id]`                                           | signed-in | One meal: items, nutrition, photos, slot link and match, edit in place (revisioned), delete with confirmation, reuse                                                                                          |
-| `/settings`                                             | signed-in | Profile (edit), preferences (appearance, units, time zone, week start), account (change password, log out), privacy text, export zip, delete account                                                          |
-| `/admin/users`                                          | Admin     | List, create, edit, activate/deactivate users, reset passwords _(boilerplate)_                                                                                                                                |
-| `/components`                                           | signed-in | Component gallery incl. the product components _(boilerplate)_                                                                                                                                                |
-| `/api/health`, `/api/live`                              | ops       | Readiness (database check) and liveness probes, no auth                                                                                                                                                       |
-| `/api/uploads`, `/api/uploads/[id]`, `/api/photos/[id]` | owner     | Photo upload (JPEG/PNG/WebP, re-encoded by sharp, `STORAGE_FULL` above the soft limit), staged delete, owner-checked photo stream (`?s=` session tag)                                                         |
-| `/api/export`                                           | signed-in | Streams a zip of profile, plan, meals, messages and photos                                                                                                                                                    |
+| Route                                                   | Who       | What                                                                                                                                                                                                                                                                                                                         |
+| ------------------------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/login`                                                | everyone  | Username/password sign-in (cookie session, throttled after 5 failures) _(boilerplate)_                                                                                                                                                                                                                                       |
+| `/signup`                                               | everyone  | Username/password sign-up (common-password list, per-IP rate limit `SIGNUP_RATE_LIMIT`); says a forgotten password cannot be recovered; sets the session and the `appearance` cookie, redirects to onboarding                                                                                                                |
+| `/onboarding`                                           | signed-in | One question per screen: age (under-18 stop deletes the account), sex, height, weight (metric/imperial), time zone, display name; resumable from `Profile.onboardingStep`; `?step=` reopens an answered question (Back from the plan step). Progress counts 11 steps: six questions, plan text, meals, targets, rules, ready |
+| `/onboarding/plan`, `/plan/add`, `/plan/review`         | signed-in | Plan entry: paste text → import job with progress/retry/cancel, or the manual wizard (`/onboarding/plan/manual`); review draft (slots, options, items, targets, rules, questions) → confirm; "No plan yet"                                                                                                                   |
+| `/today` (`/`)                                          | signed-in | Date header, device-zone hint, reflection card, "Your plan today" (score card, slot rows with match/portion/timing, Why this score, nutrition details), recorded meals, completeness checkbox                                                                                                                                |
+| `/history`, `/history/[date]`                           | signed-in | Seven-day list with day states and weekly rules, starting at the account's first day ("Your history starts on …"); a past day's full view with its reflection; date picker for older days                                                                                                                                    |
+| `/plan`                                                 | signed-in | The one plan: today's slots with options and items, targets, rules, notes; Edit (in place through a draft), Replace, Delete; pending-draft banner                                                                                                                                                                            |
+| `/meals/[id]`                                           | signed-in | One meal: items, nutrition, photos, slot link and match, edit in place (revisioned), delete with confirmation, reuse                                                                                                                                                                                                         |
+| `/settings`                                             | signed-in | Profile (edit), preferences (appearance, units, time zone, week start), account (change password, log out), privacy text, export zip, delete account                                                                                                                                                                         |
+| `/admin/users`                                          | Admin     | List, create, edit, activate/deactivate users, reset passwords _(boilerplate)_                                                                                                                                                                                                                                               |
+| `/components`                                           | signed-in | Component gallery incl. the product components _(boilerplate)_                                                                                                                                                                                                                                                               |
+| `/api/health`, `/api/live`                              | ops       | Readiness (database check) and liveness probes, no auth                                                                                                                                                                                                                                                                      |
+| `/api/uploads`, `/api/uploads/[id]`, `/api/photos/[id]` | owner     | Photo upload (JPEG/PNG/WebP, re-encoded by sharp, `STORAGE_FULL` above the soft limit), staged delete, owner-checked photo stream (`?s=` session tag)                                                                                                                                                                        |
+| `/api/export`                                           | signed-in | Streams a zip of profile, plan, meals, messages and photos                                                                                                                                                                                                                                                                   |
 
 Module inventory (tech spec § 4): `account`, `profile`, `plan`, `meal`, `day` / `day-view`,
 `reflection`, `export`, `upload`, `ai` (`services/ai/*`: DeepSeek adapter, interpret-plan,
@@ -83,14 +84,17 @@ lives in `lib/rubric` (matching, portions, timing, score, nutrition, rules, fact
   says how many meals are affected (decision 017). While a draft exists `Plan.status` is
   `DRAFT_PENDING`; "has an active plan" means confirmed with slots.
 - Plan import runs as a job under the scheduler lease (claimed atomically, 120 s AI deadline, one
-  retry from the banner); menu plans are one call, weekday plans one call per weekday, then a
-  batched baseline estimate (20 items per call).
+  retry from the banner; a job's internal retries share its one daily admission); menu plans are
+  one call, weekday plans one call per weekday heading (a range such as "شنبه تا پنجشنبه" is one
+  call applied to every day of the range), then a batched baseline estimate (20 items per call).
 - The composer never preselects an option for a multi-option slot; the last-used option is only
   suggested ("Last time"). A meal under "Other" counts in nutrition only.
 - A meal belongs wholly to the date the user chose; between 00:00 and 04:00 in the profile zone
   the composer asks "Was this for yesterday?". Backdated meals need a time.
 - Saving is idempotent per `clientRequestId`; meals and drafts carry a `revision`, stale writes
-  return `CONFLICT`. Analysis failures keep the text and offer manual entry.
+  return `CONFLICT` (plan-draft writes are conditional on the stored `draftRevision`). Analysis
+  failures keep the text and offer manual entry. Skips and completeness refuse a future day like
+  meals do.
 - AI proposes; the user confirms; application code computes totals, matches and the score on
   read, with no stored score (decision 013). The AI notice is shown once per kind (plan, meal,
   photo) and acknowledged on the profile.
@@ -100,7 +104,13 @@ lives in `lib/rubric` (matching, portions, timing, score, nutrition, rules, fact
   downscaled on the device, stored in a private bucket, and served only through an owner-checked
   route.
 - Appearance (system / light / dark) is stored on the profile and mirrored in an `appearance`
-  cookie so the first paint has the right theme.
+  cookie so the first paint has the right theme; logging out clears the cookie.
+- Route handlers (`/api/uploads*`, `/api/photos/[id]`, `/api/export`) answer an expired session
+  with `401 { error: 'UNAUTHENTICATED' }` rather than the page redirect.
+- The score card names the date on a past day and, before any planned meal is scored, says that
+  the number appears after two; "Why this score" shows only once a meal is scored. The reflection
+  withholds the daily energy fact on a day that is complete by default. "Your plan changed" is
+  shown only for a confirmation after the plan's first day.
 - Account deletion is scheduled (`deletionScheduledFor`) and purged by the purge job, including
   backup copies of photos.
 

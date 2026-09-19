@@ -54,9 +54,9 @@ test.describe('Today', () => {
     await expect(checkbox).not.toBeChecked();
     await page.reload();
     await expect(page.getByTestId('completeness')).not.toBeChecked();
-    await expect(page.getByTestId('why-this-score')).toBeVisible();
-    await page.getByTestId('why-this-score').click();
-    await expect(page.getByText(t('day.why.basedOnRecorded'))).toBeVisible();
+    // Nothing scored yet: the hint says what unlocks the number and there is no "Why this score".
+    await expect(page.getByTestId('score-hint')).toHaveText(t('score.notEnoughHint'));
+    await expect(page.getByTestId('why-this-score')).toHaveCount(0);
 
     // J5: a sandwich saved under Lunch → "A different food was recorded".
     const today = await localDateOf(username, 0);
@@ -83,6 +83,10 @@ test.describe('Today', () => {
     await expect(page.getByTestId('score-number')).toHaveCount(0);
     await expect(page.getByTestId('meal-row')).toHaveCount(1);
     await expect(page.getByTestId('meal-row').first()).toContainText('sandwich');
+    // One scored meal: "Why this score" appears and names the incomplete log.
+    await expect(page.getByTestId('why-this-score')).toBeVisible();
+    await page.getByTestId('why-this-score').click();
+    await expect(page.getByText(t('day.why.basedOnRecorded'))).toBeVisible();
 
     // J2: breakfast option 1 as prescribed → "Matches your plan"; two scored meals show the number.
     const breakfast = plan.slots[0];

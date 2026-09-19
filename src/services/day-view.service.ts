@@ -83,7 +83,14 @@ export interface DayRow {
 export interface SevenDayResult {
   startDate: string;
   endDate: string;
+  /** The window's days from `historyStart` on, oldest first. */
   rows: DayRow[];
+  /**
+   * The first listed day when it lies inside the window: the account's
+   * first day, or an earlier day the user logged a meal for. Null when all
+   * seven days are listed.
+   */
+  historyStart: string | null;
   summary: SevenDaySummary;
   planChangedInWindow: boolean;
   /** Weekly rules over the anchored week containing `endDate`. */
@@ -235,6 +242,15 @@ function hasWeeklyRule(plan: ActivePlan | null): boolean {
   return trackedRules(plan).some((r) => r.period === 'WEEK');
 }
 
+/**
+ * A confirmation inside the window counts as a change only when a plan was
+ * already in force before it; a first plan has nothing to differ from. The
+ * schema keeps no confirmation history and `Plan.createdAt` is the first
+ * draft, not the first confirmation, so "first" is read as: confirmed on the
+ * local day the row was created (an import is confirmed minutes after it was
+ * started; edits and replacements come later). A first plan reviewed
+ * overnight is the one case still labelled a change.
+ */
 function planChangedBetween(
   plan: ActivePlan | null,
   start: string,
@@ -242,8 +258,9 @@ function planChangedBetween(
   zone: string,
 ): boolean {
   if (!plan?.confirmedAt) return false;
-  const date = localDateFor(plan.confirmedAt, zone);
-  return date >= start && date <= end;
+  const confirmed = localDateFor(plan.confirmedAt, zone);
+  if (confirmed < start || confirmed > end) return false;
+  return localDateFor(plan.createdAt, zone) !== confirmed;
 }
 
 // ─── Building one day ───────────────────────────────────────────────────────
@@ -430,9 +447,28 @@ export function dayRowState(view: DayView): DayRowState {
 }
 
 /**
+ * The first day History lists: days before the account existed carry no
+ * information, unless the user logged a meal for one (backdating is allowed).
+ */
+export function historyStartFor(
+  windowStart: string,
+  accountStart: string | null,
+  recordedDates: string[],
+): string | null {
+  if (accountStart === null || accountStart <= windowStart) return null;
+  const earliestRecord = recordedDates.reduce<string | null>(
+    (min, d) => (min === null || d < min ? d : min),
+    null,
+  );
+  const start = earliestRecord && earliestRecord < accountStart ? earliestRecord : accountStart;
+  return start > windowStart ? start : null;
+}
+
+/**
  * Seven days ending at `endDate` in one range query plus the plan and profile
  * (tech spec § 17 "History 7 days"). The pattern summary counts only
- * trend-eligible days; a plan confirmed inside the window is labelled.
+ * trend-eligible days; a plan confirmed inside the window is labelled; days
+ * before the account existed are left out.
  */
 export async function getSevenDayView(
   ownerId: string,
@@ -469,13 +505,19 @@ export async function getSevenDayView(
     }
   }
 
+  const historyStart = historyStartFor(
+    startDate,
+    profile ? localDateFor(profile.createdAt, settings.zone) : null,
+    [...rows.keys()],
+  );
   const rows7 = built
-    .filter((d) => d.view.localDate >= startDate && d.view.localDate <= endDate)
+    .filter((d) => d.view.localDate >= (historyStart ?? startDate) && d.view.localDate <= endDate)
     .map((d) => ({ localDate: d.view.localDate, state: dayRowState(d.view), view: d.view }));
   return {
     startDate,
     endDate,
     rows: rows7,
+    historyStart,
     summary: sevenDaySummary(rows7.map((r) => r.view)),
     planChangedInWindow: planChangedBetween(active, startDate, endDate, settings.zone),
     weeklyRules,

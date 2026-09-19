@@ -1,4 +1,4 @@
-import { requireAuth } from '@/lib/auth';
+import { requireApiAuth } from '@/lib/auth';
 import { ServiceError } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import { assertSameOrigin } from '@/lib/request-origin';
@@ -11,7 +11,9 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const user = await requireAuth();
+  const auth = await requireApiAuth();
+  if (!auth.ok) return auth.response;
+  const { user } = auth;
   const forbidden = assertSameOrigin(request);
   if (forbidden) return forbidden;
 

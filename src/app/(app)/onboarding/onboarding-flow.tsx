@@ -31,6 +31,7 @@ import {
 } from '@/lib/validations/profile';
 import type { OnboardingState } from '@/services/profile.service';
 import type { OnboardingStep } from '@prisma/client';
+import { ONBOARDING_TOTAL_STEPS, progressPercent } from './plan/plan-screen';
 
 const STEPS: OnboardingInputStep[] = [
   'AGE',
@@ -40,9 +41,6 @@ const STEPS: OnboardingInputStep[] = [
   'TIME_ZONE',
   'DISPLAY_NAME',
 ];
-/** Truthful count: six questions plus the plan and the review. */
-const TOTAL_STEPS = 8;
-
 type Values = OnboardingState['values'];
 
 function round1(n: number) {
@@ -247,12 +245,12 @@ function Screen({
             </Button>
           ) : null}
           <span className="text-xs text-muted-foreground">
-            {t('onboarding.progress', { current, total: TOTAL_STEPS })}
+            {t('onboarding.progress', { current, total: ONBOARDING_TOTAL_STEPS })}
           </span>
         </div>
         <Progress
-          value={(current / TOTAL_STEPS) * 100}
-          aria-label={t('onboarding.progress', { current, total: TOTAL_STEPS })}
+          value={progressPercent(current)}
+          aria-label={t('onboarding.progress', { current, total: ONBOARDING_TOTAL_STEPS })}
         />
       </div>
       <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>

@@ -45,42 +45,75 @@ const WEEKDAY_HEADINGS: Array<[RegExp, number]> = [
 const HEADING_PREFIX = /^[\s#*_\-–—•·>[\]()\d.:]*(?:روز\s+)?/u;
 /** What may follow the weekday name for the line to count as a heading. */
 const HEADING_SUFFIX = /^(?:$|[\s:：\-–—(\[،,*_.)])/u;
+/** "شنبه تا پنجشنبه", "Monday to Friday", "Mon–Fri": the words and dashes that join a range. */
+const RANGE_SEPARATOR = /^\s*(?:تا|الی|to|till|until|through|[-–—])\s*/iu;
 
-export function weekdayHeading(line: string): number | null {
-  const rest = line.replace(HEADING_PREFIX, '');
+function matchWeekday(text: string): { weekday: number; length: number } | null {
   for (const [pattern, weekday] of WEEKDAY_HEADINGS) {
-    const match = pattern.exec(rest);
-    if (match && HEADING_SUFFIX.test(rest.slice(match[0].length))) return weekday;
+    const match = pattern.exec(text);
+    if (match) return { weekday, length: match[0].length };
   }
   return null;
 }
 
+/** Every weekday from `from` to `to` inclusive, walking forward around the week. */
+export function weekdayRange(from: number, to: number): number[] {
+  const days = [from];
+  for (let day = from; day !== to;) {
+    day = (day + 1) % 7;
+    days.push(day);
+  }
+  return days;
+}
+
+/**
+ * The weekdays a heading line stands for: one for "جمعه:", the whole span for
+ * a range such as "شنبه تا پنجشنبه:" (a common Sat–Thu / Friday layout), or
+ * null when the line is not a heading.
+ */
+export function weekdayHeading(line: string): number[] | null {
+  const rest = line.replace(HEADING_PREFIX, '');
+  const first = matchWeekday(rest);
+  if (!first) return null;
+  const afterFirst = rest.slice(first.length);
+  const separator = RANGE_SEPARATOR.exec(afterFirst);
+  if (separator && separator[0].length > 0) {
+    const afterSeparator = afterFirst.slice(separator[0].length);
+    const second = matchWeekday(afterSeparator);
+    if (second && HEADING_SUFFIX.test(afterSeparator.slice(second.length))) {
+      return weekdayRange(first.weekday, second.weekday);
+    }
+  }
+  return HEADING_SUFFIX.test(afterFirst) ? [first.weekday] : null;
+}
+
 export interface WeekdayChunk {
-  weekday: number;
+  /** The days this chunk's text applies to, in plan order; one for a single-day heading. */
+  weekdays: number[];
   text: string;
 }
 
 /**
  * Splits normalised plan text at weekday headings. Returns null unless at
- * least two distinct weekdays head their own sections (then one call per
+ * least two sections head their own distinct weekdays (then one call per
  * chunk); text before the first heading joins the first chunk.
  */
 export function splitByWeekday(normalizedText: string): WeekdayChunk[] | null {
   const lines = normalizedText.split(/\r?\n/);
-  const sections: Array<{ weekday: number | null; lines: string[] }> = [
-    { weekday: null, lines: [] },
+  const sections: Array<{ weekdays: number[] | null; lines: string[] }> = [
+    { weekdays: null, lines: [] },
   ];
   for (const line of lines) {
-    const weekday = weekdayHeading(line);
-    if (weekday !== null) sections.push({ weekday, lines: [line] });
+    const weekdays = weekdayHeading(line);
+    if (weekdays) sections.push({ weekdays, lines: [line] });
     else sections[sections.length - 1]!.lines.push(line);
   }
-  const headed = sections.filter((s) => s.weekday !== null);
-  const weekdays = new Set(headed.map((s) => s.weekday));
-  if (headed.length < 2 || headed.length > 7 || weekdays.size !== headed.length) return null;
+  const headed = sections.filter((s) => s.weekdays !== null);
+  const covered = headed.flatMap((s) => s.weekdays!);
+  if (headed.length < 2 || new Set(covered).size !== covered.length) return null;
   const preamble = sections[0]!.lines.join('\n').trim();
   return headed.map((section, index) => ({
-    weekday: section.weekday!,
+    weekdays: section.weekdays!,
     text:
       index === 0 && preamble
         ? `${preamble}\n${section.lines.join('\n')}`.trim()
@@ -118,9 +151,13 @@ export function sanitizeExcerpts(
   };
 }
 
-/** Concatenates weekday chunks: slots get their chunk's weekday and indices are re-based. */
+/**
+ * Concatenates weekday chunks: slots get their chunk's weekday and indices are
+ * re-based. A range chunk repeats its slots, slot targets and questions for
+ * every day of the range; rules, notes and every-day targets appear once.
+ */
 export function mergeChunks(
-  chunks: Array<{ weekday: number; output: PlanImportOutput }>,
+  chunks: Array<{ weekdays: number[]; output: PlanImportOutput }>,
 ): PlanImportOutput {
   const merged: PlanImportOutput = {
     structure: 'BY_WEEKDAY',
@@ -134,18 +171,9 @@ export function mergeChunks(
   };
   const seenRules = new Set<string>();
   const seenNotes = new Set<string>();
-  for (const { weekday, output } of chunks) {
-    const offset = merged.slots.length;
+  for (const { weekdays, output } of chunks) {
     merged.name ??= output.name;
     merged.sourceLanguage ??= output.sourceLanguage;
-    merged.slots.push(...output.slots.map((slot) => ({ ...slot, weekday })));
-    for (const target of output.targets) {
-      if (target.slotIndex === null) {
-        merged.targets.push(target);
-      } else if (target.slotIndex < output.slots.length) {
-        merged.targets.push({ ...target, slotIndex: target.slotIndex + offset, weekday });
-      }
-    }
     for (const rule of output.rules) {
       const key = `${rule.kind}:${rule.originalText}`;
       if (seenRules.has(key)) continue;
@@ -157,9 +185,21 @@ export function mergeChunks(
       seenNotes.add(note.originalText);
       merged.notes.push(note);
     }
-    for (const u of output.uncertainties) {
-      if (u.slotIndex < output.slots.length)
-        merged.uncertainties.push({ ...u, slotIndex: u.slotIndex + offset });
+    for (const [dayIndex, weekday] of weekdays.entries()) {
+      const offset = merged.slots.length;
+      merged.slots.push(...output.slots.map((slot) => ({ ...slot, weekday })));
+      for (const target of output.targets) {
+        if (target.slotIndex === null) {
+          if (target.weekday !== null) merged.targets.push({ ...target, weekday });
+          else if (dayIndex === 0) merged.targets.push(target);
+        } else if (target.slotIndex < output.slots.length) {
+          merged.targets.push({ ...target, slotIndex: target.slotIndex + offset, weekday });
+        }
+      }
+      for (const u of output.uncertainties) {
+        if (u.slotIndex < output.slots.length)
+          merged.uncertainties.push({ ...u, slotIndex: u.slotIndex + offset });
+      }
     }
   }
   return merged;
@@ -187,7 +227,7 @@ export async function interpretPlan(
   }
 
   const results: Array<AiResult<PlanImportOutput>> = [];
-  const outputs: Array<{ weekday: number; output: PlanImportOutput }> = [];
+  const outputs: Array<{ weekdays: number[]; output: PlanImportOutput }> = [];
   for (let index = 0; index < chunks.length; index += 1) {
     const chunk = chunks[index]!;
     const now = Date.now();
@@ -199,7 +239,8 @@ export async function interpretPlan(
       user: planImportUserMessage({
         sourceText: chunk.text,
         profile: input.profile,
-        chunkWeekday: chunk.weekday,
+        // A range chunk is interpreted once, under its first day; the merge repeats it.
+        chunkWeekday: chunk.weekdays[0],
         chunkPosition: { index, total: chunks.length },
       }),
       schema: planImportOutputSchema,
@@ -209,7 +250,7 @@ export async function interpretPlan(
     });
     results.push(result);
     if (!result.ok) return { ok: false, reason: result.reason, ...mergeMeta(results) };
-    outputs.push({ weekday: chunk.weekday, output: result.data });
+    outputs.push({ weekdays: chunk.weekdays, output: result.data });
   }
   const last = results[results.length - 1]!;
   return {

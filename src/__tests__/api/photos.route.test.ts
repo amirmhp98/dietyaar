@@ -3,12 +3,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { cookies } from 'next/headers';
 
 vi.mock('@/lib/auth', () => ({
-  requireAuth: vi.fn(async () => ({ id: 'u1', username: 'sara', role: 'USER' })),
+  requireApiAuth: vi.fn(async () => ({
+    ok: true,
+    user: { id: 'u1', username: 'sara', role: 'USER' },
+  })),
 }));
 vi.mock('@/services/upload.service', () => ({ getUploadForView: vi.fn() }));
 const storage = vi.hoisted(() => ({ getObjectStream: vi.fn() }));
 vi.mock('@/services/storage/s3', () => ({ createStorage: vi.fn(() => storage) }));
 
+import { requireApiAuth } from '@/lib/auth';
 import { ServiceError } from '@/lib/errors';
 import { photoTag, photoUrl } from '@/lib/photo-url';
 import { hashSessionToken } from '@/services/auth.service';
@@ -52,6 +56,15 @@ describe('GET /api/photos/[id]', () => {
     expect(response.headers.get('content-length')).toBe('4');
     expect(Buffer.from(await response.arrayBuffer()).toString()).toBe('jpeg');
     expect(getUploadForView).toHaveBeenCalledWith('u1', 'up1');
+  });
+
+  it('answers 401 without touching storage when the session is gone', async () => {
+    vi.mocked(requireApiAuth).mockResolvedValueOnce({
+      ok: false,
+      response: Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 }),
+    });
+    expect((await GET(request(photoTag(TOKEN)), { params })).status).toBe(401);
+    expect(getUploadForView).not.toHaveBeenCalled();
   });
 
   it('answers 404 for a wrong or missing tag without touching storage (TS-§21.16)', async () => {

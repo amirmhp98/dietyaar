@@ -71,10 +71,13 @@ export const day = {
   'day.plan.logForDate': 'Log meal for this date',
   'day.plan.import.retried': 'Import started again',
 
+  // ── Score card ─────────────────────────────────────────────
+  'score.titleDate': 'Your plan · {date}',
+  'score.notEnoughHint': 'Your number appears after two planned meals are logged.',
+
   // ── Why this score ─────────────────────────────────────────
   'day.why.title': 'Why this score',
   'day.why.basedOnRecorded': "Based on the meals you've recorded.",
-  'day.why.noneScored': 'No prescribed meal has been scored yet.',
   'day.why.slotScore': '{score} of 100',
   'day.why.food': 'Food',
   'day.why.portion': 'Portion',
@@ -191,6 +194,7 @@ export const day = {
   'history.pickDate': 'Choose an older day',
   'history.today': 'Today',
   'history.yesterday': 'Yesterday',
+  'history.startsOn': 'Your history starts on {date}',
   'history.row.meals.one': '{count} meal recorded',
   'history.row.meals.other': '{count} meals recorded',
   'history.weeklyRules': 'Weekly rules',

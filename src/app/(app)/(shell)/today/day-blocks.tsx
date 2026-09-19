@@ -11,7 +11,7 @@ import { PlanSlotRow } from '@/components/product/PlanSlotRow';
 import { ScoreCard } from '@/components/product/ScoreCard';
 import { WhyThisScore } from '@/components/product/WhyThisScore';
 import { useComposerOpener } from '@/components/product/composer-bus';
-import { formatNumber, formatTime } from '@/lib/format';
+import { formatLocalDate, formatNumber, formatTime } from '@/lib/format';
 import type { DayView } from '@/lib/rubric/types';
 import { t, tp } from '@/lib/t';
 import { instantFor } from '@/lib/time/local-date';
@@ -98,7 +98,11 @@ export function DayBlocks({ localDate, zone, view, meals, draftPending }: DayBlo
           </div>
         ) : (
           <>
-            <ScoreCard score={view.score} ongoing={ongoing}>
+            <ScoreCard
+              score={view.score}
+              ongoing={ongoing}
+              dateLabel={formatLocalDate(localDate, { month: 'short', day: 'numeric' })}
+            >
               <WhyThisScore view={view} className="mt-3" />
             </ScoreCard>
             <div className="rounded-xl border border-border bg-card">

@@ -5,10 +5,27 @@ import { ArrowLeft } from 'lucide-react';
 import { Button, Progress } from '@/components/UiComponents';
 import { t } from '@/lib/t';
 
-/** Onboarding shows "Step 7 of 8" / "Step 8 of 8" above the plan screens. */
-export const ONBOARDING_TOTAL_STEPS = 8;
+/**
+ * Onboarding steps after the six profile questions: the plan text (7), then
+ * the review screens each count as a step (meals 8, targets 9, rules 10) and
+ * "You're all set" closes the count, so the bar reaches 100 % only there.
+ */
+export const ONBOARDING_STEP = { ADD_PLAN: 7, MEALS: 8, TARGETS: 9, RULES: 10, READY: 11 } as const;
+export const ONBOARDING_TOTAL_STEPS = ONBOARDING_STEP.READY;
 
 export type PlanFlowMode = 'onboarding' | 'plan';
+
+/** Position inside a step made of several screens; the bar advances within the step. */
+export interface Substep {
+  index: number;
+  count: number;
+}
+
+/** Bar fill for `step`, or a fraction of the way through it when it has several screens. */
+export function progressPercent(step: number, substep?: Substep): number {
+  const within = substep ? (substep.index + 1) / substep.count : 1;
+  return ((step - 1 + within) / ONBOARDING_TOTAL_STEPS) * 100;
+}
 
 /**
  * Screen chrome for the plan screens (7, 7b, 8a–8c, 9, manual wizard): the
@@ -17,12 +34,14 @@ export type PlanFlowMode = 'onboarding' | 'plan';
  */
 export function PlanScreen({
   step,
+  substep,
   title,
   children,
   onBack,
   backHref,
 }: {
   step?: number;
+  substep?: Substep;
   title: string;
   children: React.ReactNode;
   onBack?: () => void;
@@ -60,7 +79,7 @@ export function PlanScreen({
         </div>
         {step ? (
           <Progress
-            value={(step / ONBOARDING_TOTAL_STEPS) * 100}
+            value={progressPercent(step, substep)}
             aria-label={t('onboarding.progress', { current: step, total: ONBOARDING_TOTAL_STEPS })}
           />
         ) : null}

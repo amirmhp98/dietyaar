@@ -1,9 +1,10 @@
 import type { RubricSlot, TimingResult } from '@/lib/rubric/types';
-import { minutesBetween, timeBand } from '@/lib/time/bands';
+import { circularMinutesBetween, timeBand } from '@/lib/time/bands';
 
 /**
  * Consumed time against a stated time or window: descriptive detail with the
- * 60 / 120-minute bands. Unknown time → not evaluated.
+ * 60 / 120-minute bands, measured around the clock so a late supper at 00:30
+ * counts as after a 21:00 slot. Unknown time → not evaluated.
  */
 export function timeResult(
   slotTime: string | null,
@@ -19,9 +20,9 @@ export function timeResult(
     };
   }
   const end = window.end ?? window.start;
-  let minutes = 0;
-  if (minutesBetween(window.start, slotTime) < 0) minutes = minutesBetween(window.start, slotTime);
-  else if (minutesBetween(end, slotTime) > 0) minutes = minutesBetween(end, slotTime);
+  const fromStart = circularMinutesBetween(window.start, slotTime);
+  const fromEnd = circularMinutesBetween(end, slotTime);
+  const minutes = fromStart < 0 ? fromStart : fromEnd > 0 ? fromEnd : 0;
   return {
     kind: 'TIME',
     band: timeBand(minutes),
@@ -65,7 +66,7 @@ export function orderResult(slot: RubricSlot, recorded: OrderEntry[]): TimingRes
   }
   for (const other of others) {
     const plannedBefore = other.slot.position < slot.position;
-    const eatenBefore = minutesBetween(me.time, other.time as string) < 0;
+    const eatenBefore = circularMinutesBetween(me.time, other.time as string) < 0;
     if (plannedBefore !== eatenBefore) {
       return {
         kind: 'ORDER',

@@ -40,6 +40,25 @@ export async function requireAuth(): Promise<AuthUser> {
   return user;
 }
 
+export type ApiAuth = { ok: true; user: AuthUser } | { ok: false; response: Response };
+
+/**
+ * For route handlers: a missing or expired session answers 401 JSON
+ * (`{ error: 'UNAUTHENTICATED' }`) instead of the page redirect, so a fetch
+ * caller can tell "sign in again" from a network failure.
+ */
+export async function requireApiAuth(): Promise<ApiAuth> {
+  const user = await getSession();
+  if (user) return { ok: true, user };
+  return {
+    ok: false,
+    response: Response.json(
+      { error: 'UNAUTHENTICATED' },
+      { status: 401, headers: { 'Cache-Control': 'no-store' } },
+    ),
+  };
+}
+
 /**
  * Product pages: a signed-in user who has not finished onboarding is sent back
  * to the step they left. Admin and tooling pages do not use this.

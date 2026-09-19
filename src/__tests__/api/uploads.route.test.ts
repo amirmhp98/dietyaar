@@ -9,7 +9,10 @@ const envMock = vi.hoisted(() => ({
 vi.mock('@/lib/env', () => ({ env: envMock, storageConfigured: true }));
 
 vi.mock('@/lib/auth', () => ({
-  requireAuth: vi.fn(async () => ({ id: 'u1', username: 'sara', role: 'USER' })),
+  requireApiAuth: vi.fn(async () => ({
+    ok: true,
+    user: { id: 'u1', username: 'sara', role: 'USER' },
+  })),
 }));
 
 const sharpChain = vi.hoisted(() => ({
@@ -32,6 +35,7 @@ vi.mock('@/services/upload.service', () => ({
 }));
 
 import sharp from 'sharp';
+import { requireApiAuth } from '@/lib/auth';
 import { ServiceError } from '@/lib/errors';
 import { sniffImageType } from '@/lib/image-type';
 import { resetRateLimits } from '@/services/rate-limit.service';
@@ -161,6 +165,17 @@ describe('POST /api/uploads', () => {
     expect(storage.putObject).not.toHaveBeenCalled();
   });
 
+  it('answers 401 JSON, not a redirect, when the session is gone', async () => {
+    vi.mocked(requireApiAuth).mockResolvedValueOnce({
+      ok: false,
+      response: Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 }),
+    });
+    const response = await POST(upload(JPEG));
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ error: 'UNAUTHENTICATED' });
+    expect(storage.putObject).not.toHaveBeenCalled();
+  });
+
   it('answers 403 PHOTO_DISABLED when the flag is off', async () => {
     envMock.PHOTO_LOGGING_ENABLED = false;
     const response = await POST(upload(JPEG));
@@ -209,5 +224,14 @@ describe('DELETE /api/uploads/[id]', () => {
     vi.mocked(deleteStagedUpload).mockRejectedValue(new ServiceError('nope', 'NOT_FOUND'));
     expect((await DELETE(request(), { params })).status).toBe(404);
     expect((await DELETE(request('https://evil.example'), { params })).status).toBe(403);
+  });
+
+  it('answers 401 when the session is gone', async () => {
+    vi.mocked(requireApiAuth).mockResolvedValueOnce({
+      ok: false,
+      response: Response.json({ error: 'UNAUTHENTICATED' }, { status: 401 }),
+    });
+    expect((await DELETE(request(), { params })).status).toBe(401);
+    expect(deleteStagedUpload).not.toHaveBeenCalled();
   });
 });

@@ -25,6 +25,7 @@ export const meal = {
   'meal.errors.draftNotFound': 'This draft has expired. Start the meal again.',
   'meal.errors.mealNotFound': 'This meal no longer exists.',
   'meal.errors.uploadNotFound': 'This photo no longer exists.',
+  'meal.errors.sessionEnded': 'Your session ended. Sign in again to continue.',
 
   // ── Composer (design-scope screen 4 "Compose") ─────────────
   'meal.compose.textLabel': 'What did you eat?',

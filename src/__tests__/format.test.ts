@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect } from 'vitest';
 import { LOCALES, locale } from '@/lib/locale';
 import {
   compare,
@@ -7,6 +7,7 @@ import {
   formatDate,
   formatDateTime,
   formatList,
+  formatLocalDate,
   formatNumber,
   formatPercent,
   formatRelative,
@@ -132,6 +133,37 @@ describe('formatDate / formatDateTime / formatTime', () => {
   it('accepts timestamps and ISO strings', () => {
     expect(formatDate(NOWRUZ.getTime(), en)).toBe('Mar 21, 2025');
     expect(formatDate('2025-03-21T12:00:00Z', en)).toBe('Mar 21, 2025');
+  });
+});
+
+describe('formatLocalDate', () => {
+  const processZone = process.env.TZ;
+  afterEach(() => {
+    process.env.TZ = processZone;
+  });
+
+  it('formats a "YYYY-MM-DD" day as that day whatever the process zone', () => {
+    for (const zone of ['Asia/Tehran', 'Pacific/Kiritimati', 'America/Los_Angeles', 'UTC']) {
+      process.env.TZ = zone;
+      expect(formatLocalDate('2026-09-19', en)).toBe('Sep 19, 2026');
+      expect(formatLocalDate('2026-09-19', { ...en, month: 'short', day: 'numeric' })).toBe(
+        'Sep 19',
+      );
+    }
+    // The shape this replaces: "T00:00:00" parses as process-local midnight, a day earlier in UTC.
+    process.env.TZ = 'Asia/Tehran';
+    expect(formatDate('2026-09-19T00:00:00', { ...en, timeZone: 'UTC' })).toBe('Sep 18, 2026');
+    expect(formatLocalDate('2026-01-01', { ...en, timeZone: 'Pacific/Kiritimati' })).toBe(
+      'Jan 1, 2026',
+    );
+    expect(formatLocalDate('2025-03-21', fa)).toBe('۱ فروردین ۱۴۰۴');
+  });
+
+  it('returns empty for nullish or malformed input', () => {
+    expect(formatLocalDate(null)).toBe('');
+    expect(formatLocalDate(undefined)).toBe('');
+    expect(formatLocalDate('2026-9-1')).toBe('');
+    expect(formatLocalDate('2026-09-19T00:00:00')).toBe('');
   });
 
   it('returns empty for nullish or invalid dates', () => {

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { isNavItemActive, pageTitleFor, PRIMARY_TABS, visibleAdminItems } from '@/lib/navigation';
+import {
+  isNavItemActive,
+  pageTitleFor,
+  PRIMARY_TABS,
+  showsLogMealButton,
+  visibleAdminItems,
+} from '@/lib/navigation';
 import { sessionCookieOptions } from '@/lib/session-cookie';
 import { t } from '@/lib/t';
 
@@ -21,6 +27,14 @@ describe('navigation', () => {
     expect(pageTitleFor('/today')).toBe(t('nav.today'));
     expect(pageTitleFor('/admin/users')).toBe(t('nav.users'));
     expect(pageTitleFor('/nothing-here')).toBe('');
+  });
+
+  it('titles Meal details, which is not a tab, and hides the Log meal button there', () => {
+    expect(pageTitleFor('/meals/abc123')).toBe(t('meal.details.title'));
+    expect(PRIMARY_TABS.some((i) => i.href === '/meals')).toBe(false);
+    expect(showsLogMealButton('/meals/abc123')).toBe(false);
+    expect(showsLogMealButton('/today')).toBe(true);
+    expect(showsLogMealButton('/history/2026-09-18')).toBe(true);
   });
 });
 

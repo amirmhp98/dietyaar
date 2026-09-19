@@ -167,7 +167,15 @@ export function reflectionFacts(
       });
     }
     for (const s of yesterday.slots) facts.push(...slotFacts(s));
-    if (yesterday.dailyEnergy && yesterday.logComplete && yesterday.dayPhase === 'PAST') {
+    // A day checked with slots left unrecorded is "complete by default": its total
+    // is a partial sum, so "950 kcal short" would reprimand an unfinished log
+    // (product spec § 8). The coverage fact above already says what is missing.
+    if (
+      yesterday.dailyEnergy &&
+      yesterday.logComplete &&
+      yesterday.dayPhase === 'PAST' &&
+      !yesterday.score.completeByDefault
+    ) {
       const e = yesterday.dailyEnergy;
       const text =
         e.status === 'WITHIN'
