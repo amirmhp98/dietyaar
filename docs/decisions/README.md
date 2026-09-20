@@ -29,4 +29,5 @@ them. 001–007 come from the boilerplate; 008 onwards are Dietyaar's (see `tech
 | [022](022-fixed-time-zone.md)                     | One app time zone (Asia/Dubai); the user never sees a zone        |
 | [023](023-rules-deferred.md)                      | Rules are deferred; plan instructions are kept as notes           |
 | [024](024-count-units.md)                         | Units are measures; grams per unit is an item attribute           |
+| [025](025-consumer-visual-language.md)            | Consumer visual language on the Supabase palette (amends 019)     |
 | [026](026-self-hosted-vps-stack.md)               | Self-hosted VPS: app, Postgres and MinIO on one box               |

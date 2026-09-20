@@ -223,6 +223,119 @@ components:
     padding: 64px 24px
 ---
 
+## Product UI (Dietyaar)
+
+This section governs the app screens and overrides the marketing rules of the imported Supabase
+sheet below wherever the two disagree (decision 025, amending 019). The sheet stays as the
+**palette source**: emerald `{colors.primary}` `#3ecf8e` with near-black `on-primary` text, the
+ink / hairline grey ladder, `canvas-night` for dark surfaces. What changes is the character:
+Dietyaar is a warm consumer companion, not a database console. Grouping comes from surfaces,
+icons and headers, not from font size alone; actions are icon-first; chips are pills; empty
+states get illustrations. Tokens live in `src/app/globals.css`; components never hold a hex.
+
+**Rules that stay from 019:** emerald appears once per viewport as the filled primary action;
+status is never colour-only; every control and list row is at least 44 × 44 CSS px; every colour
+is a CSS variable; both themes; logical Tailwind utilities; UI is imported through the barrel.
+
+### Surfaces — three, no other card recipe
+
+| Surface | Recipe                                                                                                            | Used for                                          |
+| ------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `hero`  | `bg-tint-2`, radius `--radius-card` (16 px), `shadow-1`, padding 16 px. **The one elevated surface per screen.**  | The score card                                    |
+| `list`  | 1 px `--border` hairline container, `bg-card`, radius 12 px (`rounded-xl`), rows divided by hairlines, no padding | Plan slots, recorded meals, History days, options |
+| `note`  | Borderless: `bg-muted` fill, or a 3 px emerald start rule (`border-s-[3px] border-primary`) with no fill; 16 px   | Reflection, hints, empty states, plan notes       |
+
+`src/components/product/Surface.tsx` (`variant`, `as`, `padding`, `rule`). Plain `Card` from the
+kit is for admin and settings forms, not product screens.
+
+### Section headers — the header groups, not a border
+
+Icon 20 px (`size-5`, `--muted-foreground`) + title (`text-base font-semibold`, display face) +
+optional trailing action (one `IconAction`). Sections sit **24 px** apart (`space-y-6`), content
+inside a section **12 px** (`space-y-3`). Icons per section: `Sun` Your plan today, `Utensils`
+Recorded meals, `Sparkles` reflection, `CalendarDays` History, `ClipboardList` My plan.
+`src/components/product/SectionHeader.tsx`.
+
+### Status glyph set — shape carries the meaning
+
+Neutral colour (`--foreground`); the shape is the state, the sr-only name comes from `t()`.
+
+| State                | Glyph | Lucide        |
+| -------------------- | ----- | ------------- |
+| `NOT_RECORDED`       | ○     | `Circle`      |
+| `RECORDED` / matched | ●     | `CircleCheck` |
+| `PARTLY`             | ◐     | `CircleDot`   |
+| `DIFFERENT`          | ⊘     | `CircleSlash` |
+| `SKIPPED`            | —     | `CircleMinus` |
+| `NEEDS_REVIEW`       | ?     | `CircleHelp`  |
+| `UPCOMING`           | ◷     | `Clock`       |
+
+Score bands: `CLOSELY` `Sparkles`, `MOSTLY` `ThumbsUp`, `DIFFERENT` `Compass`, `IN_PROGRESS`
+`Hourglass`. `src/components/product/StatusGlyph.tsx` (`StatusGlyph`, `BandGlyph`; sizes
+16 / 20 / 24 px).
+
+### Icon-first actions
+
+- **Primary**: filled emerald (`Button` default), icon + one word ("Log", "Save"). One per viewport.
+- **Secondary and row actions**: `IconAction` — `outline` or `ghost` icon button with a required
+  `label` (its `aria-label`), **44 px** on rows and headers (`size="row"`), **36 px** only inside
+  dense editors (`size="dense"`).
+- **Text-only buttons** only where the verb needs a sentence: destructive confirmations.
+
+### Shape and tint
+
+| Token           | Value                                              | Use                                     |
+| --------------- | -------------------------------------------------- | --------------------------------------- |
+| `--radius`      | 0.625rem (10 px) → `rounded-lg`                    | Buttons; inputs use `rounded-md` (8 px) |
+| `--radius-card` | 1rem (16 px) → `rounded-card`                      | Cards, hero, dialogs, bottom sheets     |
+| `rounded-xl`    | 12 px                                              | List and note surfaces, toasts          |
+| `rounded-full`  | pill                                               | Chips, badges, the Log meal button      |
+| `--tint-1`      | primary at 4 % (light) / 10 % (dark) → `bg-tint-1` | Hover on tinted rows                    |
+| `--tint-2`      | primary at 8 % / 16 % → `bg-tint-2`                | Hero surface, selected chip             |
+| `--tint-3`      | primary at 14 % / 24 % → `bg-tint-3`               | Pressed state                           |
+
+Tints are the primary over the surface beneath (`hsl(var(--primary) / a)`); body text on
+`--tint-2` keeps ≥ 4.5:1 in both themes (`--muted-foreground` on the hero reads 5.4:1 light,
+5.3:1 dark).
+
+### Typography
+
+- **Display face: Manrope** (`next/font/google`, self-hosted, one variable file; weights 500–700
+  in use), on `<html>` as `--font-display`. Headings `h1`–`h6` take it from `globals.css`; the
+  `font-display` utility applies it to section titles and the score numeral. To try
+  **Plus Jakarta Sans**, change one import in `src/app/layout.tsx`:
+  `import { Plus_Jakarta_Sans as Manrope } from 'next/font/google';`.
+- **Body**: the system stack (`--font-family`), unchanged.
+- **Score numeral**: 40 px (`text-numeral`), weight 700, `tabular-nums`, display face
+  (`src/components/product/ScoreNumeral.tsx`).
+- **Weight ceiling**: 700 for the numeral, 600 everywhere else. Sizes: page title `text-2xl`,
+  section title `text-base`, row name `text-base`, status line `text-xs`–`text-sm`.
+
+### Illustrations
+
+Simple two-tone inline SVG line illustrations — ink from `currentColor`, emerald from
+`hsl(var(--primary))` — 96–120 px, decorative (`aria-hidden`). Four: `noPlan`, `noMeals`,
+`firstDay`, `ready` (`src/components/product/Illustration.tsx`). Never photography.
+
+### Motion
+
+150–250 ms ease-out on state changes. The score numeral counts up (or down) **once per change**,
+600 ms ease-out, from the number on screen; `prefers-reduced-motion` jumps straight to the new
+value. Skip / unskip are optimistic.
+
+### Feedback
+
+- Toaster **top-centre**, offset below the top bar (`--toast-top`), level-2 shadow.
+- Focus ring **2 px with a 2 px offset** (`focus-visible:ring-2 ring-offset-2`) on every control.
+- Skeletons are neutral (`bg-muted`), never emerald-tinted.
+- Elevation: `shadow-1` (level 1, hero and kit cards) and `shadow-2` (level 2, toasts and
+  popovers); dialogs keep the kit's `shadow-lg`.
+
+Everything below this line is the imported Supabase-inspired sheet: the palette source and the
+marketing rules that the section above overrides for app screens.
+
+---
+
 ## Overview
 
 Supabaze's design language is engineered for clarity above all else. The marketing surfaces sit on `{colors.canvas}` (pure white), with text rendered in `{colors.ink}` (`#171717` — near-black, never pure black). Across the entire system the only consistent chromatic event is the **emerald green primary** (`{colors.primary}` — `#3ecf8e`) — used as the filled CTA, occasional accent dot, and the signature highlight color in the wordmark. Everything else is a calibrated grey ladder from `#ededed` hairline-cool to `#171717` ink, with thin black-on-white typography doing most of the visual work.

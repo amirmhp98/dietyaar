@@ -1,11 +1,27 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
+import { Manrope } from 'next/font/google';
 import { cookies } from 'next/headers';
 import './globals.css';
 import { DirectionProvider, Toaster } from '@/components/UiComponents';
 import { APP_DESCRIPTION, APP_NAME } from '@/lib/app-config';
 import { locale } from '@/lib/locale';
 import { APPEARANCE_COOKIE, parseAppearance } from '@/lib/theme-cookie';
+import { cn } from '@/lib/utils';
+
+/**
+ * Display face for headings, section titles and the score numeral (design.md
+ * "Product UI" › Typography, decision 025); body text stays on the system
+ * stack. Self-hosted by next/font, one variable file, weights 500–700 in use.
+ * To try Plus Jakarta Sans instead, change the import to
+ * `import { Plus_Jakarta_Sans as Manrope } from 'next/font/google';`.
+ */
+const display = Manrope({
+  subsets: ['latin'],
+  weight: 'variable',
+  display: 'swap',
+  variable: '--font-display',
+});
 
 export const metadata: Metadata = {
   title: APP_NAME,
@@ -41,7 +57,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     <html
       lang={locale.lang}
       dir={locale.dir}
-      className={serverDark ? 'dark' : undefined}
+      className={cn(display.variable, serverDark && 'dark')}
       data-theme={serverDark ? 'dark' : 'light'}
       data-appearance={appearance}
       suppressHydrationWarning

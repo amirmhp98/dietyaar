@@ -95,8 +95,26 @@
     --surface-3: 0 0% 100%;
     --surface-4: 0 0% 96%;
 
-    /* 8px base: rounded-md = 6px (buttons), rounded-xl = 12px (cards) */
-    --radius: 0.5rem;
+    /* rounded-lg = 10px (buttons, inputs), rounded-xl = 12px (list surface),
+       rounded-card = 16px (cards, hero surface) — design.md "Product UI" › Shape */
+    --radius: 0.625rem;
+
+    /* ─── Product UI (decision 025) ─────────────────────────────────── */
+    /* Tint ladder: primary over the surface beneath — hero, selected, pressed. */
+    --tint-1: hsl(var(--primary) / 0.04);
+    --tint-2: hsl(var(--primary) / 0.08);
+    --tint-3: hsl(var(--primary) / 0.14);
+    /* Elevation levels 1 and 2 (design.md); exposed as shadow-1 / shadow-2. */
+    --elevation-1: 0 1px 3px rgb(0 0 0 / 0.06);
+    --elevation-2: 0 8px 24px rgb(0 0 0 / 0.08);
+    /* Toasts sit under the sticky top bar (3.5rem); md+ adds the tab row above it. */
+    --toast-top: 4rem;
+  }
+
+  @media (min-width: 48rem) {
+    :root {
+      --toast-top: 7.5rem;
+    }
   }
 
   .dark {
@@ -156,6 +174,13 @@
     --surface-2: 0 0% 15%;
     --surface-3: 0 0% 18%;
     --surface-4: 0 0% 21%;
+
+    /* Tints read darker on the night canvas, so the ladder steps up. */
+    --tint-1: hsl(var(--primary) / 0.1);
+    --tint-2: hsl(var(--primary) / 0.16);
+    --tint-3: hsl(var(--primary) / 0.24);
+    --elevation-1: 0 1px 3px rgb(0 0 0 / 0.5);
+    --elevation-2: 0 8px 24px rgb(0 0 0 / 0.55);
   }
 }
 
@@ -218,13 +243,34 @@
   --color-warning-200: hsl(var(--warning-200));
   --color-destructive-200: hsl(var(--destructive-200));
 
+  /* Product UI tint ladder (bg-tint-1 … bg-tint-3) and elevation (shadow-1, shadow-2). */
+  --color-tint-1: var(--tint-1);
+  --color-tint-2: var(--tint-2);
+  --color-tint-3: var(--tint-3);
+  --shadow-1: var(--elevation-1);
+  --shadow-2: var(--elevation-2);
+
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
+  /* Cards, the hero surface, dialogs and bottom sheets. */
+  --radius-card: 1rem;
 
   /* Extra-small text scale below Tailwind's built-in text-xs (12px) */
   --text-2xs: 0.625rem; /* 10px */
   --text-2xs--line-height: 1rem;
+  /* The score numeral (design.md "Product UI" › Typography) */
+  --text-numeral: 2.5rem; /* 40px */
+  --text-numeral--line-height: 1;
+}
+
+/*
+ * Display face (design.md "Product UI" › Typography): `--font-display` is set
+ * on <html> by next/font in src/app/layout.tsx. Headings pick it up below;
+ * `font-display` applies it to the score numeral and section titles.
+ */
+@utility font-display {
+  font-family: var(--font-display), var(--font-family);
 }
 
 @layer base {
@@ -284,7 +330,7 @@
   h4,
   h5,
   h6 {
-    @apply font-sans;
+    font-family: var(--font-display), var(--font-family);
   }
 
   /* Custom scrollbar */
