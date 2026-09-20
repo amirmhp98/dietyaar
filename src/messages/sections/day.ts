@@ -105,7 +105,6 @@ export const day = {
   'slot.reason.crossSlot': 'This is a {slot} option',
   'slot.reason.added': 'Added: {names}',
   'slot.options': '{count} options · choose what you ate',
-  'slot.option.picked': 'Option: {label}',
   'slot.energy.range': '{low}–{high} kcal',
   'slot.energy.min': 'At least {value} kcal',
   'slot.energy.max': 'Up to {value} kcal',

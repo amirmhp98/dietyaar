@@ -16,7 +16,7 @@ export function ruleStatus(observation: RuleObservation): string {
       return t('day.rule.incomplete');
     case 'FLAGGED':
       return t('day.rule.flagged', {
-        names: observation.hits.map((h) => h.englishLabel).join(', '),
+        names: observation.hits.map((h) => h.originalName).join(', '),
       });
     case 'NOTE':
       return t('day.rule.note');

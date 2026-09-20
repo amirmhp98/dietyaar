@@ -127,8 +127,10 @@ test('same-every-day manual plan: My plan, edit, delete', async ({ page }) => {
   await expect(
     page.getByText(t('plan.page.source', { note: 'nutrition specialist' })),
   ).toBeVisible();
-  await expect(page.getByText('Sangak bread')).toBeVisible();
-  await expect(page.getByText('Rice')).toBeVisible();
+  // My plan shows the names as typed; the English labels stay data (decision 10).
+  await expect(page.getByText('نان سنگک')).toBeVisible();
+  await expect(page.getByText('برنج')).toBeVisible();
+  await expect(page.getByText('Sangak bread')).toHaveCount(0);
   await expect(page.getByText(/^150( g)?$/)).toBeVisible();
 
   // Edit → review → confirm: no meals are linked, so the affected line is omitted.

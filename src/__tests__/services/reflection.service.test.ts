@@ -544,8 +544,8 @@ describe('fallbacks', () => {
     const f = facts(yesterdayView());
     const out = fallbackParagraph('COMPLETE', f, ctx);
     check(out.paragraph);
-    expect(out.paragraph).toContain('ناهار (Lunch) matched the plan.');
-    expect(out.paragraph).toContain("Today's plan starts with صبحانه (Breakfast).");
+    expect(out.paragraph).toContain('ناهار matched the plan.');
+    expect(out.paragraph).toContain("Today's plan starts with صبحانه.");
     expect(out.usedFactIds).toEqual(
       expect.arrayContaining(['coverage', `slot:${plan.lunch.id}`, 'today:next']),
     );
@@ -610,7 +610,7 @@ describe('fallbacks', () => {
       greetingName: 'Sara',
       timeOfDay: 'AFTERNOON',
     });
-    expect(out.paragraph).toContain('The next meal in your plan is میان‌وعده اول (First snack).');
+    expect(out.paragraph).toContain('The next meal in your plan is میان‌وعده اول.');
     expect(out.paragraph).not.toContain('starts with');
   });
 });

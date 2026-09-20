@@ -217,7 +217,7 @@ describe('reflection facts and staleness', () => {
       isFirstDay: false,
     });
     const lunchFact = facts.find((f) => f.id === `slot:${p.lunch.id}`)!;
-    expect(lunchFact.text).toContain('ناهار (Lunch) matched the plan.');
+    expect(lunchFact.text).toContain('ناهار matched the plan.');
     expect(facts.some((f) => f.kind === 'PORTION')).toBe(true);
     expect(facts.some((f) => f.id === 'today:next')).toBe(true);
     expect(facts.find((f) => f.kind === 'ENERGY')?.signature).toBe('ABOVE:LARGE');
@@ -302,7 +302,8 @@ describe('reflection facts and staleness', () => {
     expect(f3.find((f) => f.id === `slot:${p.dinner.id}`)?.signature).toBe(
       'PARTLY_MATCHED:MISSING',
     );
-    expect(quoted({ originalName: 'Lunch', englishLabel: 'Lunch' })).toBe('Lunch');
+    expect(quoted({ originalName: 'ناهار', englishLabel: 'Lunch' })).toBe('ناهار');
+    expect(quoted({ originalName: ' ', englishLabel: 'Lunch' })).toBe('Lunch');
   });
 });
 

@@ -1,6 +1,7 @@
 export * from './constants';
 export * from './types';
 export * from './names';
+export * from './options';
 export * from './match-slot';
 export * from './portion';
 export * from './energy';

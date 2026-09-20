@@ -171,9 +171,7 @@ function OptionEditor({
     <fieldset className="space-y-4 rounded-xl border border-border bg-card p-4">
       {showHeader ? (
         <div className="flex items-center justify-between gap-2">
-          <legend className="text-sm font-medium">
-            {option.label ? <bdi>{option.label}</bdi> : t('plan.option.label', { n: index + 1 })}
-          </legend>
+          <legend className="text-sm font-medium">{t('plan.option.n', { n: index + 1 })}</legend>
           {onRemove ? (
             <Button
               type="button"

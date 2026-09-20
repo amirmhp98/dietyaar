@@ -634,12 +634,7 @@ function ItemsScreen({
 function SlotLabel({ slot, byWeekday }: { slot: DraftSlot; byWeekday: boolean }) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-2">
-      <NameLabel
-        originalName={slot.originalName}
-        englishLabel={slot.englishLabel}
-        size="sm"
-        inline
-      />
+      <NameLabel originalName={slot.originalName} englishLabel={slot.englishLabel} size="sm" />
       {byWeekday ? (
         <span className="text-xs text-muted-foreground">{weekdayName(slot.weekday, 'short')}</span>
       ) : null}

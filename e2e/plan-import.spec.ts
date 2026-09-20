@@ -70,7 +70,8 @@ test('J1: paste a Persian plan, review 8a–8c, confirm, ready, today', async ({
   await expect(page.getByRole('heading', { name: t('plan.ready.title') })).toBeVisible({
     timeout: 20_000,
   });
-  await expect(page.getByText('Breakfast')).toBeVisible();
+  await expect(page.getByText('صبحانه', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('Breakfast')).toHaveCount(0);
   await expect(page.getByText(t('plan.ready.reflection'))).toBeVisible();
   await page.getByRole('button', { name: t('plan.ready.goToToday') }).click();
   await page.waitForURL(/\/today/);
