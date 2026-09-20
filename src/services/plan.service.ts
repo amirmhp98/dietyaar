@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { Prisma, type PlanItem, type PlanOption, type PlanSlot } from '@prisma/client';
 import { ServiceError } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
-import type { RubricPlanItem, RubricRule, RubricSlot, RubricTarget } from '@/lib/rubric/types';
+import type { RubricPlanItem, RubricSlot, RubricTarget } from '@/lib/rubric/types';
 import { t } from '@/lib/t';
 import { localDateFor } from '@/lib/time/local-date';
 import { NUTRIENT_KEYS, type NutrientKey, nutritionSchema } from '@/lib/validations/nutrition';
@@ -13,7 +13,6 @@ import {
   alternativeSchema,
   planDraftSchema,
   targetScopeKey,
-  timingWindowDefinitionSchema,
   type DraftItem,
   type DraftSection,
   type DraftSlot,
@@ -28,7 +27,7 @@ import { markStaleIfNeeded } from '@/services/reflection.service';
 
 /**
  * Plan module (tech spec § 5 "Plan", § 7 "Plan", decision 017): one plan per
- * user. The active plan is the slot/option/item/target/rule/note rows; a
+ * user. The active plan is the slot/option/item/target/note rows; a
  * pending import, a manual setup or an edit lives in `Plan.draftJson` until
  * `confirmPlan` applies it in one transaction. Every function takes the
  * owner id first and scopes its root query by it.
@@ -52,9 +51,7 @@ export interface ActivePlan {
   /** Every slot of the plan, any weekday, with options and items (numbers, not Decimals). */
   slots: RubricSlot[];
   targets: Array<RubricTarget & { id: string; weekday: number | null }>;
-  rules: Array<
-    RubricRule & { sourceExcerpt: string; isConflicting: boolean; unsupportedReason: string | null }
-  >;
+  /** Plan instructions kept verbatim, never evaluated (decision 023). */
   notes: Array<{ id: string; originalText: string; reason: string }>;
   /** Pending draft, if any. */
   draft: { kind: 'IMPORT' | 'MANUAL' | 'EDIT'; state: DraftState } | null;
@@ -79,7 +76,6 @@ type PlanWithRows = Prisma.PlanGetPayload<{
   include: {
     slots: { include: { options: { include: { items: true } } } };
     targets: true;
-    rules: true;
     notes: true;
   };
 }>;
@@ -95,7 +91,6 @@ const planInclude = {
     },
   },
   targets: true,
-  rules: true,
   notes: true,
 } satisfies Prisma.PlanInclude;
 
@@ -167,17 +162,6 @@ function toPlanView(plan: PlanWithRows, draft: ActivePlan['draft'], error: strin
       low: row.low === null ? null : Number(row.low),
       high: row.high === null ? null : Number(row.high),
       source: row.source,
-    })),
-    rules: plan.rules.map((row) => ({
-      id: row.id,
-      kind: row.kind,
-      tracking: row.tracking,
-      period: row.period,
-      definition: row.definition,
-      originalText: row.originalText,
-      sourceExcerpt: row.sourceExcerpt,
-      isConflicting: row.isConflicting,
-      unsupportedReason: row.unsupportedReason,
     })),
     notes: plan.notes.map((row) => ({
       id: row.id,
@@ -411,25 +395,6 @@ export function draftFromRows(plan: PlanWithRows): PlanDraft {
     source: row.source,
     sourceExcerpt: row.sourceExcerpt,
   }));
-  const rules = plan.rules.map((row) => {
-    let definition: unknown = row.definition;
-    if (row.kind === 'TIMING_WINDOW') {
-      const parsed = timingWindowDefinitionSchema.safeParse(row.definition);
-      if (parsed.success) definition = { ...parsed.data, slotKey: parsed.data.slotId };
-    }
-    return {
-      key: row.id,
-      id: row.id,
-      kind: row.kind,
-      tracking: row.tracking,
-      period: row.period,
-      definition,
-      originalText: row.originalText,
-      sourceExcerpt: row.sourceExcerpt,
-      isConflicting: row.isConflicting,
-      unsupportedReason: row.unsupportedReason,
-    };
-  });
   const notes = plan.notes.map((row) => ({
     key: row.id,
     originalText: row.originalText,
@@ -443,10 +408,9 @@ export function draftFromRows(plan: PlanWithRows): PlanDraft {
     sourceLanguage: plan.sourceLanguage,
     slots,
     targets,
-    rules,
     notes,
     questions: [],
-    reviewed: { meals: true, targets: true, rules: true },
+    reviewed: { meals: true, targets: true, notes: true },
     manualStep: null,
   });
 }
@@ -536,9 +500,6 @@ export async function updateDraft(
     }
     case 'targets':
       next.targets = parsed.data as DraftTarget[];
-      break;
-    case 'rules':
-      next.rules = parsed.data as PlanDraft['rules'];
       break;
     case 'notes':
       next.notes = parsed.data as PlanDraft['notes'];
@@ -838,7 +799,7 @@ function targetData(
  * Applies the draft to the rows in one transaction: rows with an id are
  * updated in place, rows without one inserted, active rows absent from the
  * draft deleted (skipped-slot rows cascade; meal links go null through
- * `SetNull`). Targets, rules and notes are replaced. Returns the count of
+ * `SetNull`). Targets and notes are replaced. Returns the count of
  * past linked meals affected, computed before the write.
  */
 export async function confirmPlan(
@@ -955,31 +916,6 @@ export async function confirmPlan(
       data: targets.filter((row) => !seen.has(row.scopeKey) && seen.add(row.scopeKey)),
     });
 
-    await tx.planRule.deleteMany({ where: { planId: plan.id } });
-    await tx.planRule.createMany({
-      data: draft.rules.map((rule) => {
-        let definition = rule.definition;
-        if (rule.kind === 'TIMING_WINDOW') {
-          const parsed = timingWindowDefinitionSchema.safeParse(rule.definition);
-          if (parsed.success) {
-            const slotId = parsed.data.slotKey ? (slotIds.get(parsed.data.slotKey) ?? null) : null;
-            definition = { ...parsed.data, slotId: slotId ?? parsed.data.slotId };
-          }
-        }
-        return {
-          planId: plan.id,
-          kind: rule.kind,
-          tracking: rule.tracking,
-          period: rule.period,
-          definition: (definition ?? {}) as Prisma.InputJsonValue,
-          originalText: rule.originalText,
-          sourceExcerpt: rule.sourceExcerpt,
-          isConflicting: rule.isConflicting,
-          unsupportedReason: rule.unsupportedReason,
-        };
-      }),
-    });
-
     await tx.planNote.deleteMany({ where: { planId: plan.id } });
     await tx.planNote.createMany({
       data: draft.notes.map((note) => ({
@@ -1037,7 +973,6 @@ export async function deletePlan(
   await prisma.$transaction([
     prisma.planSlot.deleteMany({ where: { planId: plan.id } }),
     prisma.planTarget.deleteMany({ where: { planId: plan.id } }),
-    prisma.planRule.deleteMany({ where: { planId: plan.id } }),
     prisma.planNote.deleteMany({ where: { planId: plan.id } }),
     prisma.plan.update({
       where: { id: plan.id },

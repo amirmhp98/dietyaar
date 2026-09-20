@@ -89,26 +89,6 @@ enum TargetSource {
   SUM_OF_MEALS
 }
 
-enum RuleKind {
-  SERVING_COUNT
-  DISTINCT_GROUPS
-  NAMED_WEEKDAY_FOOD
-  EXCLUSION
-  TIMING_WINDOW
-  INSTRUCTION
-}
-
-enum RuleTracking {
-  TRACK
-  NOTE
-  IGNORE
-}
-
-enum RulePeriod {
-  DAY
-  WEEK
-}
-
 enum NoteReason {
   TRAINING_CONDITIONAL
   EXERCISE
@@ -303,7 +283,6 @@ model Plan {
 
   slots   PlanSlot[]
   targets PlanTarget[]
-  rules   PlanRule[]
   notes   PlanNote[]
 
   @@map("plans")
@@ -402,26 +381,6 @@ model PlanTarget {
   @@unique([planId, scopeKey])
   @@index([planSlotId])
   @@map("plan_targets")
-}
-
-model PlanRule {
-  id                String       @id @default(cuid())
-  planId            String
-  kind              RuleKind
-  tracking          RuleTracking @default(NOTE)
-  period            RulePeriod?
-  /// Per-kind shape validated in lib/validations/plan.ts.
-  definition        Json         @default("{}")
-  originalText      String
-  sourceExcerpt     String       @default("")
-  isConflicting     Boolean      @default(false)
-  unsupportedReason String?
-  createdAt         DateTime     @default(now()) @db.Timestamptz(3)
-  updatedAt         DateTime     @updatedAt @db.Timestamptz(3)
-  plan              Plan         @relation(fields: [planId], references: [id], onDelete: Cascade)
-
-  @@index([planId])
-  @@map("plan_rules")
 }
 
 model PlanNote {
@@ -543,8 +502,6 @@ model FoodItem {
   matchedPlanItemId String?
   isAddedItem       Boolean      @default(false)
   restrictionHit    String?
-  /// User-confirmed food-group memberships for DISTINCT_GROUPS rules.
-  ruleGroups        String[]     @default([])
   nutrition         Json?
   createdAt         DateTime     @default(now()) @db.Timestamptz(3)
   updatedAt         DateTime     @updatedAt @db.Timestamptz(3)

@@ -8,7 +8,6 @@ import {
   planFactory,
   planItemFactory,
   planOptionFactory,
-  planRuleFactory,
   planSlotFactory,
   planTargetFactory,
   profileFactory,
@@ -44,7 +43,6 @@ function seed() {
     ...planFactory.build({ id: 'plan-1', userId: 'user-1', status: 'ACTIVE' }),
     slots: [{ ...slot, options: [{ ...option, items: [item] }] }],
     targets: [planTargetFactory.build({ planId: 'plan-1', low: new Prisma.Decimal('1800') })],
-    rules: [planRuleFactory.build({ planId: 'plan-1' })],
     notes: [],
   } as never);
   const day = dayRecordFactory.build({ localDate: '2026-09-16', timeZone: 'Asia/Tehran' });
@@ -139,7 +137,6 @@ describe('buildExport', () => {
       ...planFactory.build({ userId: 'user-1', status: 'DRAFT_PENDING' }),
       slots: [],
       targets: [],
-      rules: [],
       notes: [],
     } as never);
     const bundle = await buildExport('user-1', now);

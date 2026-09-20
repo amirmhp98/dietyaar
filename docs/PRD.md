@@ -52,11 +52,11 @@ admin pages use the same shell.
 | ------------------------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `/login`                                                | everyone  | Username/password sign-in (cookie session, throttled after 5 failures) _(boilerplate)_                                                                                                                                                                                                                                       |
 | `/signup`                                               | everyone  | Username/password sign-up (common-password list, per-IP rate limit `SIGNUP_RATE_LIMIT`); says a forgotten password cannot be recovered; sets the session and the `appearance` cookie, redirects to onboarding                                                                                                                |
-| `/onboarding`                                           | signed-in | One question per screen: age (under-18 stop deletes the account), sex, height, weight (metric/imperial), time zone, display name; resumable from `Profile.onboardingStep`; `?step=` reopens an answered question (Back from the plan step). Progress counts 11 steps: six questions, plan text, meals, targets, rules, ready |
-| `/onboarding/plan`, `/plan/add`, `/plan/review`         | signed-in | Plan entry: paste text → import job with progress/retry/cancel, or the manual wizard (`/onboarding/plan/manual`); review draft (slots, options, items, targets, rules, questions) → confirm; "No plan yet"                                                                                                                   |
+| `/onboarding`                                           | signed-in | One question per screen: age (under-18 stop deletes the account), sex, height, weight (metric/imperial), time zone, display name; resumable from `Profile.onboardingStep`; `?step=` reopens an answered question (Back from the plan step). Progress counts 11 steps: six questions, plan text, meals, targets, notes, ready |
+| `/onboarding/plan`, `/plan/add`, `/plan/review`         | signed-in | Plan entry: paste text → import job with progress/retry/cancel, or the manual wizard (`/onboarding/plan/manual`); review draft (slots, options, items, targets, questions; notes shown read-only) → confirm; "No plan yet"                                                                                                   |
 | `/today` (`/`)                                          | signed-in | Date header, device-zone hint, reflection card, "Your plan today" (score card, slot rows with match/portion/timing, Why this score, nutrition details), recorded meals, completeness checkbox                                                                                                                                |
-| `/history`, `/history/[date]`                           | signed-in | Seven-day list with day states and weekly rules, starting at the account's first day ("Your history starts on …"); a past day's full view with its reflection; date picker for older days                                                                                                                                    |
-| `/plan`                                                 | signed-in | The one plan: today's slots with options and items, targets, rules, notes; Edit (in place through a draft), Replace, Delete; pending-draft banner                                                                                                                                                                            |
+| `/history`, `/history/[date]`                           | signed-in | Seven-day list with day states, starting at the account's first day ("Your history starts on …"); a past day's full view with its reflection; date picker for older days                                                                                                                                                     |
+| `/plan`                                                 | signed-in | The one plan: today's slots with options and items, targets, "Notes from your plan"; Edit (in place through a draft), Replace, Delete; pending-draft banner                                                                                                                                                                  |
 | `/meals/[id]`                                           | signed-in | One meal: items, nutrition, photos, slot link and match, edit in place (revisioned), delete with confirmation, reuse                                                                                                                                                                                                         |
 | `/settings`                                             | signed-in | Profile (edit), preferences (appearance, units, time zone, week start), account (change password, log out), privacy text, export zip, delete account                                                                                                                                                                         |
 | `/admin/users`                                          | Admin     | List, create, edit, activate/deactivate users, reset passwords _(boilerplate)_                                                                                                                                                                                                                                               |
@@ -70,7 +70,7 @@ Module inventory (tech spec § 4): `account`, `profile`, `plan`, `meal`, `day` /
 analyze-meal, generate-reflection, prompts, usage caps), `jobs` (scheduler under a `JobLock`
 lease: plan import, hourly cleanup, purge, prune, backup), `food-data` (unit table, scaling, USDA
 lookup behind `USDA_LOOKUP_ENABLED`), `storage/s3`, plus the boilerplate `user` module. Pure logic
-lives in `lib/rubric` (matching, portions, timing, score, nutrition, rules, facts, seven-day) and
+lives in `lib/rubric` (matching, portions, timing, score, nutrition, facts, seven-day) and
 `lib/time` (zone-aware local dates).
 
 ## Behaviour worth knowing
@@ -79,6 +79,10 @@ lives in `lib/rubric` (matching, portions, timing, score, nutrition, rules, fact
 - An admin cannot change their own role or deactivate themselves. _(boilerplate)_
 - Sessions last `SESSION_MAX_AGE_DAYS` (90). Changing the password signs out every other device.
 - No password recovery and no email of any kind. A lost password loses the account.
+- Rules are not evaluated in V1 (decision 023): every plan instruction that is not a meal, target
+  or schedule is a `PlanNote`, kept verbatim, shown once on review and under "Notes from your
+  plan" on My plan, never compared. The import prompt extracts notes only; the manual wizard has
+  no rules step.
 - One plan per user, edited in place through a draft (`Plan.draftJson`, `draftRevision`).
   Confirming an edit or replacement changes how every past day is compared, and the confirm screen
   says how many meals are affected (decision 017). While a draft exists `Plan.status` is
@@ -140,7 +144,7 @@ lives in `lib/rubric` (matching, portions, timing, score, nutrition, rules, fact
 - `User` — `username`, `usernameLower` (`citext`, unique), `passwordHash`, optional `fullName`, `role`, `isActive`, `lastLoginAt`, `onboardingStep`, `deletionRequestedAt`, `deletionScheduledFor`
 - `Session` — `tokenHash` (SHA-256 of the cookie token, unique), `expiresAt`, cascades on user delete
 - `Profile` — one per user: age, sex, height, weight, time zone, unit system, week start, appearance, display name, goal, restrictions, AI-notice timestamps, device-zone hint
-- `Plan`, `PlanSlot`, `PlanOption`, `PlanItem`, `PlanTarget`, `PlanRule`, `PlanNote`, `PlanImportJob` — the one plan and its pending draft (`draftJson`, `draftRevision`)
+- `Plan`, `PlanSlot`, `PlanOption`, `PlanItem`, `PlanTarget`, `PlanNote`, `PlanImportJob` — the one plan and its pending draft (`draftJson`, `draftRevision`)
 - `DayRecord`, `DaySkippedSlot` — a calendar day in the user's zone, created lazily on the first meal, skip or completeness change
 - `Meal`, `FoodItem`, `Upload`, `MealDraft` — confirmed meals (revisioned, `clientRequestId`), their items and photos, and server-held drafts
 - `MorningMessage` — one reflection per user per day, overwritten in place, with the facts hash and claimed fact ids
