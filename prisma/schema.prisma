@@ -563,24 +563,27 @@ model MealDraft {
 
 // ─── REFLECTION ────────────────────────────────────
 model MorningMessage {
-  id            String         @id @default(cuid())
-  userId        String
-  localDate     String         @db.VarChar(10)
-  status        MessageStatus  @default(GENERATING)
-  paragraph     String?
-  isFallback    Boolean        @default(false)
-  fallbackState FallbackState?
-  factsSnapshot Json           @default("[]")
-  factsHash     String         @default("")
-  usedFactIds   String[]       @default([])
-  generatedAt   DateTime?      @db.Timestamptz(3)
-  claimedAt     DateTime       @default(now()) @db.Timestamptz(3)
-  providerModel String?
-  stale         Boolean        @default(false)
-  collapsed     Boolean        @default(false)
-  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
-  updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String         @id @default(cuid())
+  userId         String
+  localDate      String         @db.VarChar(10)
+  status         MessageStatus  @default(GENERATING)
+  paragraph      String?
+  isFallback     Boolean        @default(false)
+  fallbackState  FallbackState?
+  factsSnapshot  Json           @default("[]")
+  factsHash      String         @default("")
+  usedFactIds    String[]       @default([])
+  generatedAt    DateTime?      @db.Timestamptz(3)
+  claimedAt      DateTime       @default(now()) @db.Timestamptz(3)
+  providerModel  String?
+  stale          Boolean        @default(false)
+  /// A deterministic paragraph for an empty data state (first day, no records yesterday, no plan): no provider call, not a failure.
+  isStatic       Boolean        @default(false)
+  /// "Got it" on Today: from then on the card sits at the bottom of the day, collapsed to its title.
+  acknowledgedAt DateTime?      @db.Timestamptz(3)
+  createdAt      DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime       @updatedAt @db.Timestamptz(3)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, localDate])
   @@map("morning_messages")

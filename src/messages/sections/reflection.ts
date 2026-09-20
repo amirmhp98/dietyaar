@@ -4,8 +4,9 @@ export const reflection = {
   'reflection.title': "Today's reflection",
   'reflection.staleBadge': 'Based on an earlier log',
   'reflection.update': 'Update reflection',
+  'reflection.gotIt': 'Got it',
   'reflection.collapse': 'Collapse',
-  'reflection.expand': 'Show reflection',
+  'reflection.readAgain': 'Read again',
   'reflection.preparing': 'Preparing your reflection…',
   'reflection.stillPreparing': 'Still preparing your reflection',
   'reflection.retry': 'Retry',
@@ -17,25 +18,37 @@ export const reflection = {
   'reflection.errors.aiUnavailable': "Reflections can't be updated right now. Try again later.",
   'reflection.errors.notFound': 'There is no reflection for this day yet.',
 
-  // ── Deterministic fallback paragraphs (product spec § 11 states) ──
+  // ── Deterministic paragraphs (product spec § 11 states) ──
   // Every sentence is either template glue or the verbatim text of a fact,
-  // so a fallback never states something its input snapshot does not contain.
+  // so a paragraph never states something its input snapshot does not contain.
+  // The static states (first day, no records yesterday, no plan) are written
+  // without an AI call and read exactly as below plus the greeting and close.
   'reflection.fallback.greeting.morning': 'Good morning, {name}.',
   'reflection.fallback.greeting.afternoon': 'Good afternoon, {name}.',
   'reflection.fallback.greeting.evening': 'Good evening, {name}.',
 
   'reflection.fallback.firstDay.welcome':
-    "Welcome to Dietyaar. There's nothing to look back on yet, and that's fine.",
-  'reflection.fallback.firstDay.plan':
-    'Log each meal when you eat it and adjust the portions to match what you actually had.',
+    "Welcome — there's nothing to look back on yet, and today is day one.",
+  'reflection.fallback.firstDay.startsWith':
+    'Your plan starts with {slot}; when you eat it, log it and adjust the portions to what you actually had.',
+  'reflection.fallback.firstDay.next':
+    'The next meal in your plan is {slot}; when you eat it, log it and adjust the portions to what you actually had.',
   'reflection.fallback.firstDay.noPlan':
-    "Once you add your plan, each day's meals will be compared with it. Until then you can still log what you eat and keep your totals up to date.",
+    "Once you add your plan from the Plan tab, each day's meals will be compared with it; until then, everything you log still counts towards your totals.",
+  'reflection.fallback.firstDay.tomorrow':
+    'From tomorrow on, this card will tell you how the day before went.',
 
   'reflection.fallback.noPlan.body':
-    "There's no active plan yet, so your meals can't be compared with anything. Add your plan from the Plan tab whenever you're ready; until then you can still log what you eat and keep your totals up to date.",
+    "Your meals can't be compared with anything yet because there's no plan. Add it from the Plan tab whenever you're ready; until then, everything you log still counts towards your totals.",
 
-  'reflection.fallback.noRecords.body':
-    "No meals were recorded yesterday, so there's nothing to compare for that day. If you ate and didn't get to log it, you can still add those meals from History at any time.",
+  'reflection.fallback.noRecords.intro':
+    'Yesterday went by without any meals logged — that happens, and nothing is lost.',
+  'reflection.fallback.noRecords.startsWith':
+    'Today is a fresh page: your plan starts with {slot}, and logging it takes a few taps.',
+  'reflection.fallback.noRecords.next':
+    'Today is a fresh page: the next meal in your plan is {slot}, and logging it takes a few taps.',
+  'reflection.fallback.noRecords.history':
+    "If you'd like to fill in yesterday, History is always open.",
 
   'reflection.fallback.unchecked.intro':
     "Yesterday's log is marked incomplete, so this reflection covers the meals you recorded rather than your full day.",
@@ -51,11 +64,11 @@ export const reflection = {
 
   'reflection.fallback.anythingToAdd':
     "If there's anything to add to yesterday, you can do that at any time.",
-  'reflection.fallback.close.morning': 'The day is just starting; one meal at a time is enough.',
+  'reflection.fallback.close.morning': 'One meal at a time is plenty.',
   'reflection.fallback.close.afternoon':
-    "There's still most of the day ahead; one meal at a time is enough.",
+    "There's still most of the day ahead — one meal at a time is plenty.",
   'reflection.fallback.close.evening':
-    "There's still time to log the rest of today; one meal at a time is enough.",
+    "There's still time to log the rest of today — one meal at a time is plenty.",
 
   // ── Card island (task 8.2) ─────────────────────────────────
   'reflection.updating': 'Updating…',

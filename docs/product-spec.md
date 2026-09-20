@@ -445,13 +445,13 @@ This layout is a product-design proposal, not an owner-approved screen. The revi
 
 The dashboard should answer: **What is recorded? How does that compare? What is useful next?**
 
-1. **Date and morning paragraph.** Compact greeting, today's date, the daily paragraph, and its link to yesterday. The paragraph can be collapsed after reading.
+1. **Date and morning paragraph.** Compact greeting, today's date, the daily paragraph, and its link to yesterday. The paragraph carries one action, **Got it**: tapping it moves the card to the bottom of Today (above the completeness checkbox) for the rest of that date, collapsed to its title with **Read again**. The choice is remembered per date across devices.
 2. **Your plan today.** The primary progress card: a compact overall adherence score with its coverage label and a “Why this score” expansion, followed by a checklist of today's slots in plan order, with neutral recorded/not-recorded status and specific differences. A slot with several options shows the slot name, its energy range when given, and “3 options”; the options expand on tap and the picked option is named once recorded. Highlight the next unrecorded slot in plan order and **Log this meal** inside this block. Completed rows stay compact; food, quantity, order/timing, and applicable variety details expand. When every slot is recorded, offer **Log another meal** rather than guessing. Do not prescribe a different meal based on remaining calories. A target-only plan shows an explanation that no meal schedule is defined and no score. Untracked notes are reachable from **View today's plan**, not repeated here.
 3. **Recorded meals.** A chronological list with time, name, and edit access. Nutrition is available in meal details rather than repeated across every collapsed list row. Put day-completeness control at the end.
 
 Inside **Your plan today**, include a collapsed **Today's nutrition details** control. Its expanded content shows totals for energy, protein, carbohydrate, and fat from confirmed recorded meals, alongside explicit plan targets or the confirmed AI-estimated plan baseline, with their source clearly labeled. State the number of recorded meals, log completeness, estimates, and missing values. This is the meaning of “daily nutrition summary”; it is not a general nutrition report, additional input requirement, or new dietary advice. Other nutrients expand further only when available and relevant to the plan. A food-based plan uses its confirmed AI-estimated baseline where available; no new personalized nutrient goals are invented. Weekly variety progress belongs in the prescribed-plan details or History, not another dashboard widget.
 
-The logging action stays accessible as the user scrolls. The morning paragraph is the primary interpretation; avoid adding multiple advice cards repeating it. An essential uncertainty notice may appear inline with the affected data.
+The logging action stays accessible as the user scrolls. The morning paragraph is the primary interpretation and the first block until the user taps Got it; avoid adding multiple advice cards repeating it. A reflection that became stale shows its badge and **Update reflection** wherever it sits. An essential uncertainty notice may appear inline with the affected data.
 
 ### Illustrative content layout
 
@@ -535,10 +535,12 @@ Every factual statement must map to a provided fact. The model does not calculat
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | Yesterday checked, nonempty, and comparable | Treat the log as complete; give a grounded observation and one plan-based focus without ever claiming the user confirmed completeness |
 | Yesterday unchecked                         | Say that the reflection covers recorded meals; avoid whole-day judgments                                                              |
-| No records yesterday                        | Acknowledge the absence of records neutrally; suggest an easy first logging action                                                    |
-| First day                                   | Welcome the user and orient them to today's plan without mentioning invented yesterday performance                                    |
-| No active plan today                        | Reflect only where possible and invite plan setup; do not invent today's targets                                                      |
+| No records yesterday                        | A fixed paragraph, written without an AI call: acknowledge the absence warmly; name the next slot; point to History for filling in    |
+| First day                                   | A fixed paragraph, written without an AI call: welcome the user and orient them to today's plan; no invented yesterday performance    |
+| No active plan today                        | A fixed paragraph, written without an AI call: invite plan setup; do not invent today's targets; state nothing about yesterday's log  |
 | AI unavailable or rejected output           | Show a deterministic fallback for the appropriate state                                                                               |
+
+The three fixed paragraphs are not failures: no provider call is admitted or recorded for them, and they are never marked stale, with one exception. A meal added to yesterday after a "no records" paragraph makes it stale; **Update reflection** then generates a real reflection because there is something to reflect on.
 
 Illustrative copy for partial data:
 
@@ -558,7 +560,7 @@ Use a user-confirmed IANA time zone and the local date, not the device's UTC dat
 
 Inputs are captured at request time. A late first visit can include today's confirmed recorded meals solely to avoid an inappropriate next-step suggestion. Yesterday remains the basis of the retrospective paragraph. No catch-up judgments about the user's absence.
 
-If AI is slow or unavailable, show a deterministic fallback for the relevant data state and retain it for that day until the user deliberately requests an update. Do not repeatedly replace prose while the user is reading. The user can collapse the paragraph; remember that choice for the current date and show the next day's new paragraph normally.
+If AI is slow or unavailable, show a deterministic fallback for the relevant data state and retain it for that day until the user deliberately requests an update. Do not repeatedly replace prose while the user is reading. The user acknowledges the paragraph with **Got it**; remember that choice for the current date (across devices), move the card to the bottom of Today collapsed to its title with **Read again**, and show the next day's new paragraph at the top normally.
 
 If yesterday's records change after generation, compare the new deterministic facts with the input snapshot. Mark the in-app reflection as based on an earlier log and offer **Update reflection** only when a fact the paragraph used changed: a match status, a portion band, an order or timing band, the energy result, coverage, or completeness. A note edit, a photo removal, or a portion change that stays within the same band does not mark it stale. Replace it with a new revision after regeneration. Apply the same rule if the referenced plan or today's referenced records change. Keep the creation context and revision metadata; do not present outdated feedback as current.
 

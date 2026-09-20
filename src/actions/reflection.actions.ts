@@ -1,14 +1,12 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { z } from 'zod';
 import { type ActionResult, fromError, fromZodError, ok } from '@/lib/action-result';
 import { requireOnboarded } from '@/lib/auth';
 import { localDateSchema } from '@/lib/validations/meal';
+import { acknowledgeReflectionSchema } from '@/lib/validations/reflection';
 import { recordEvent } from '@/services/analytics.service';
 import * as reflections from '@/services/reflection.service';
-
-const collapsedSchema = z.boolean();
 
 /**
  * First visit of the local day (product spec § 11): claims or reads the
@@ -24,7 +22,11 @@ export async function getMorningMessageAction(
   try {
     const card = await reflections.getOrCreateMessage(user.id, parsed.data, new Date());
     if (card.status === 'READY') {
-      await recordEvent('reflection_opened', { isFallback: card.isFallback }, user.id);
+      await recordEvent(
+        'reflection_opened',
+        { isFallback: card.isFallback, isStatic: card.isStatic },
+        user.id,
+      );
     }
     return ok(card);
   } catch (error) {
@@ -41,7 +43,11 @@ export async function updateReflectionAction(
   if (!parsed.success) return fromZodError(parsed.error);
   try {
     const card = await reflections.updateMessage(user.id, parsed.data, new Date());
-    await recordEvent('reflection_updated', { isFallback: card.isFallback }, user.id);
+    await recordEvent(
+      'reflection_updated',
+      { isFallback: card.isFallback, isStatic: card.isStatic },
+      user.id,
+    );
     revalidatePath('/today');
     revalidatePath(`/history/${parsed.data}`);
     return ok(card);
@@ -50,17 +56,13 @@ export async function updateReflectionAction(
   }
 }
 
-export async function setReflectionCollapsedAction(
-  localDate: unknown,
-  collapsed: unknown,
-): Promise<ActionResult> {
+/** "Got it": the card moves to the bottom of Today for the rest of that date, on every device. */
+export async function acknowledgeReflectionAction(input: unknown): Promise<ActionResult> {
   const user = await requireOnboarded();
-  const parsedDate = localDateSchema.safeParse(localDate);
-  if (!parsedDate.success) return fromZodError(parsedDate.error);
-  const parsedCollapsed = collapsedSchema.safeParse(collapsed);
-  if (!parsedCollapsed.success) return fromZodError(parsedCollapsed.error);
+  const parsed = acknowledgeReflectionSchema.safeParse(input);
+  if (!parsed.success) return fromZodError(parsed.error);
   try {
-    await reflections.setCollapsed(user.id, parsedDate.data, parsedCollapsed.data);
+    await reflections.acknowledge(user.id, parsed.data.localDate, new Date());
     return ok();
   } catch (error) {
     return fromError(error);
