@@ -50,7 +50,7 @@ export function PreferencesSection(props: Props) {
   }
 
   return (
-    <div className="space-y-5 rounded-xl border border-border bg-card p-4">
+    <div className="space-y-5 rounded-card border border-border bg-card p-4">
       <div className="space-y-1.5">
         <span className="text-sm font-medium">{t('settings.preferences.appearance')}</span>
         <RadioGroup
@@ -66,7 +66,7 @@ export function PreferencesSection(props: Props) {
           {(['SYSTEM', 'LIGHT', 'DARK'] as const).map((option) => (
             <label
               key={option}
-              className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-md border border-border text-sm hover:bg-accent has-[[data-state=checked]]:border-primary"
+              className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-full border border-border text-sm font-medium hover:bg-accent has-[[data-state=checked]]:border-primary/40 has-[[data-state=checked]]:bg-tint-2"
             >
               <RadioGroupItem value={option} className="sr-only" />
               {t(`settings.preferences.appearance.${option}`)}

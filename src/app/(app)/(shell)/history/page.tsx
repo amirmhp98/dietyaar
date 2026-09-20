@@ -1,8 +1,23 @@
 import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
+import {
+  CalendarDays,
+  ChevronRight,
+  CircleCheck,
+  CircleDashed,
+  Info,
+  type LucideIcon,
+} from 'lucide-react';
 import { fillNames, InlineName } from '@/components/product/InlineName';
+import { SectionHeader } from '@/components/product/SectionHeader';
+import {
+  BandGlyph,
+  StatusGlyph,
+  type BandGlyphName,
+  type StatusGlyphName,
+} from '@/components/product/StatusGlyph';
+import { Surface } from '@/components/product/Surface';
 import { requireOnboarded } from '@/lib/auth';
-import { formatLocalDate } from '@/lib/format';
+import { formatLocalDate, formatNumber } from '@/lib/format';
 import type { SevenDaySummary } from '@/lib/rubric/seven-day';
 import { t, tp } from '@/lib/t';
 import { addDays, localDateFor } from '@/lib/time/local-date';
@@ -15,8 +30,9 @@ export const dynamic = 'force-dynamic';
 
 /**
  * History, seven days ending today (design-scope screen 7, product spec § 10):
- * one pattern sentence with denominators, day rows, a date picker for older
- * days.
+ * the pattern sentence with its denominators as one note surface, day rows
+ * with a glyph, the band and the number, a date picker for older days. The
+ * top bar carries the page title.
  */
 export default async function HistoryPage() {
   const user = await requireOnboarded();
@@ -24,78 +40,114 @@ export default async function HistoryPage() {
   const now = new Date();
   const today = localDateFor(now, APP_TIME_ZONE);
   const week = await getSevenDayView(user.id, today, now);
+  const { summary } = week;
 
   return (
     <div className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold">{t('history.title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('history.subtitle')}</p>
-      </header>
-
-      <section className="space-y-2 rounded-xl border border-border bg-card p-4">
-        <p className="text-sm" data-testid="history-summary">
-          {summarySentence(week.summary)}
-        </p>
-        {week.summary.incompleteDays > 0 ? (
-          <p className="text-xs text-muted-foreground" data-testid="history-incomplete-days">
-            {tp('history.summary.incompleteDays', week.summary.incompleteDays)}
+      <section className="space-y-3" aria-labelledby="history-summary-title">
+        <SectionHeader
+          icon={CalendarDays}
+          title={t('history.subtitle')}
+          id="history-summary-title"
+        />
+        <Surface variant="note">
+          <p
+            className="font-display text-base font-semibold leading-snug"
+            data-testid="history-summary"
+          >
+            {summarySentence(summary)}
           </p>
-        ) : null}
-        {week.planChangedInWindow ? (
-          <p className="text-xs text-muted-foreground" data-testid="history-plan-changed">
-            {t('history.planChanged')}
-          </p>
-        ) : null}
+          <ul className="mt-3 space-y-1.5 text-xs text-muted-foreground">
+            <SummaryLine icon={CircleCheck} testId="history-complete-days">
+              {tp('history.summary.completeDays', summary.completeDays)}
+            </SummaryLine>
+            {summary.incompleteDays > 0 ? (
+              <SummaryLine icon={CircleDashed} testId="history-incomplete-days">
+                {tp('history.summary.incompleteDays', summary.incompleteDays)}
+              </SummaryLine>
+            ) : null}
+            {week.planChangedInWindow ? (
+              <SummaryLine icon={Info} testId="history-plan-changed">
+                {t('history.planChanged')}
+              </SummaryLine>
+            ) : null}
+            {week.historyStart ? (
+              <SummaryLine icon={CalendarDays} testId="history-starts">
+                {t('history.startsOn', {
+                  date: formatLocalDate(week.historyStart, { month: 'short', day: 'numeric' }),
+                })}
+              </SummaryLine>
+            ) : null}
+          </ul>
+        </Surface>
       </section>
 
-      <ul
-        className="divide-y divide-border rounded-xl border border-border bg-card"
-        data-testid="history-rows"
-      >
+      <Surface variant="list" as="ul" data-testid="history-rows">
         {[...week.rows].reverse().map((row) => (
-          <li key={row.localDate}>
-            <Link
-              href={`/history/${row.localDate}`}
-              className="flex min-h-14 items-center gap-3 px-3 py-3 hover:bg-accent"
-              data-testid="history-row"
-              data-state={row.state}
-              aria-label={t('history.openDay', { date: rowDate(row.localDate, today) })}
-            >
-              <span className="min-w-0 flex-1 space-y-0.5">
-                <span className="block text-sm font-medium">{rowDate(row.localDate, today)}</span>
-                <span
-                  className="block text-xs text-muted-foreground"
-                  data-testid="history-row-state"
-                >
-                  {rowState(row)}
-                </span>
-              </span>
-              {row.view.score.showNumber && row.view.score.dayScore !== null ? (
-                <span
-                  className="text-xl font-semibold tabular-nums"
-                  data-testid="history-row-score"
-                >
-                  {row.view.score.dayScore}
-                </span>
-              ) : null}
-              <ChevronRight
-                className="size-4 shrink-0 text-muted-foreground rtl:rotate-180"
-                aria-hidden="true"
-              />
-            </Link>
-          </li>
+          <DayRowItem key={row.localDate} row={row} today={today} />
         ))}
-      </ul>
-      {week.historyStart ? (
-        <p className="text-xs text-muted-foreground" data-testid="history-starts">
-          {t('history.startsOn', {
-            date: formatLocalDate(week.historyStart, { month: 'short', day: 'numeric' }),
-          })}
-        </p>
-      ) : null}
+      </Surface>
 
       <HistoryDatePicker today={today} weekStart={profile.weekStart} />
     </div>
+  );
+}
+
+function SummaryLine({
+  icon: Icon,
+  testId,
+  children,
+}: {
+  icon: LucideIcon;
+  testId: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <li className="flex items-center gap-2" data-testid={testId}>
+      <Icon className="size-4 shrink-0" aria-hidden="true" />
+      <span>{children}</span>
+    </li>
+  );
+}
+
+function DayRowItem({ row, today }: { row: DayRow; today: string }) {
+  const date = rowDate(row.localDate, today);
+  const { glyph, text } = rowState(row);
+  const { score } = row.view;
+  const number = score.showNumber && score.dayScore !== null ? score.dayScore : null;
+  return (
+    <li>
+      <Link
+        href={`/history/${row.localDate}`}
+        className="flex min-h-14 items-center gap-3 px-3 py-2 transition-colors hover:bg-tint-1"
+        data-testid="history-row"
+        data-state={row.state}
+        aria-label={t('history.openDay', { date })}
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium">{date}</span>
+          <span
+            className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground"
+            data-testid="history-row-state"
+          >
+            {glyph}
+            <span className="min-w-0 truncate">{text}</span>
+          </span>
+        </span>
+        {number !== null ? (
+          <span
+            className="shrink-0 font-display text-2xl font-bold tabular-nums"
+            data-testid="history-row-score"
+          >
+            {formatNumber(number)}
+          </span>
+        ) : null}
+        <ChevronRight
+          className="size-4 shrink-0 text-muted-foreground rtl:rotate-180"
+          aria-hidden="true"
+        />
+      </Link>
+    </li>
   );
 }
 
@@ -106,39 +158,51 @@ function rowDate(localDate: string, today: string): string {
   return label;
 }
 
-function bandLabel(row: DayRow): string {
-  const { band } = row.view.score;
-  return band === 'CLOSELY'
-    ? t('score.band.closely')
-    : band === 'MOSTLY'
-      ? t('score.band.mostly')
-      : band === 'DIFFERENT'
-        ? t('score.band.different')
-        : t('score.notEnough');
-}
+const BAND_LABEL: Record<BandGlyphName, string> = {
+  CLOSELY: t('score.band.closely'),
+  MOSTLY: t('score.band.mostly'),
+  DIFFERENT: t('score.band.different'),
+  IN_PROGRESS: t('day.state.inProgress'),
+};
 
-/** One line per row (product spec § 10): the state, or the band when a score exists. */
-function rowState(row: DayRow): string {
+// The row states the status in text, so the glyphs are decorative here.
+const status = (name: StatusGlyphName) => (
+  <StatusGlyph status={name} size="sm" describe={false} className="text-muted-foreground" />
+);
+const band = (name: BandGlyphName) => (
+  <BandGlyph band={name} size="sm" describe={false} className="text-muted-foreground" />
+);
+
+/** One line per row (product spec § 10): the state, or the band when a score exists, each with its glyph. */
+function rowState(row: DayRow): { glyph: React.ReactNode; text: string } {
   const { view } = row;
   const { coverage } = view.score;
   switch (row.state) {
     case 'IN_PROGRESS':
-      return t('day.state.inProgress');
+      return { glyph: band('IN_PROGRESS'), text: t('day.state.inProgress') };
     case 'NO_MEALS':
-      return t('day.state.noMeals');
+      return { glyph: status('NOT_RECORDED'), text: t('day.state.noMeals') };
     case 'INCOMPLETE':
-      return t('day.state.incomplete');
+      return { glyph: status('PARTLY'), text: t('day.state.incomplete') };
     case 'COMPLETE_BY_DEFAULT':
-      return t('day.state.completeByDefault', {
-        recorded: coverage.recorded,
-        prescribed: coverage.prescribed,
-      });
-    case 'COMPLETE':
+      return {
+        glyph: status('PARTLY'),
+        text: t('day.state.completeByDefault', {
+          recorded: coverage.recorded,
+          prescribed: coverage.prescribed,
+        }),
+      };
+    case 'COMPLETE': {
       if (view.planStructure === null || view.planStructure === 'TARGETS_ONLY')
-        return tp('history.row.meals', view.mealCount);
-      return view.score.band === 'NOT_ENOUGH'
-        ? t('score.notEnough')
-        : `${bandLabel(row)} · ${tp('score.coverage', coverage.scored, { total: coverage.prescribed })}`;
+        return { glyph: status('RECORDED'), text: tp('history.row.meals', view.mealCount) };
+      const scoreBand = view.score.band;
+      if (scoreBand === 'NOT_ENOUGH')
+        return { glyph: status('RECORDED'), text: t('score.notEnough') };
+      return {
+        glyph: band(scoreBand),
+        text: `${BAND_LABEL[scoreBand]} · ${t('history.row.coverage', { scored: coverage.scored, total: coverage.prescribed })}`,
+      };
+    }
   }
 }
 
@@ -151,11 +215,16 @@ function summarySentence(summary: SevenDaySummary) {
       return t('history.summary.notEnough');
     case 'SLOT_DIFFERENT':
       return fillNames(
-        t('history.summary.slotDifferent', {
-          slot: '{slot}',
-          days: summary.days,
-          complete: summary.completeDays,
-        }),
+        t(
+          summary.reason === 'SKIPPED'
+            ? 'history.summary.slotSkipped'
+            : 'history.summary.slotDifferentFood',
+          {
+            slot: '{slot}',
+            days: summary.days,
+            complete: summary.completeDays,
+          },
+        ),
         n('slot', summary.slot),
       );
     case 'PORTION':

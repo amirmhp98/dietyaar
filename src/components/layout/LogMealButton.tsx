@@ -5,8 +5,9 @@ import { Button } from '@/components/UiComponents';
 import { t } from '@/lib/t';
 
 /**
- * The one persistent primary action (product spec § 4). Fixed above the
- * bottom nav on mobile; the composer itself is mounted by the shell island.
+ * The one persistent primary action (product spec § 4) and the one filled
+ * emerald on the viewport wherever it shows (decision 025): a 56 px pill
+ * above the bottom tabs on phones, bottom-end on wider screens.
  */
 export function LogMealButton({ onClick }: { onClick: () => void }) {
   return (
@@ -15,11 +16,11 @@ export function LogMealButton({ onClick }: { onClick: () => void }) {
         <Button
           type="button"
           size="lg"
-          className="pointer-events-auto h-12 rounded-full px-5 shadow-lg"
+          className="pointer-events-auto h-14 rounded-full ps-5 pe-6 shadow-2 [&_svg]:size-5"
           onClick={onClick}
           data-testid="log-meal"
         >
-          <Plus className="size-5" />
+          <Plus aria-hidden="true" />
           {t('shell.logMeal')}
         </Button>
       </div>

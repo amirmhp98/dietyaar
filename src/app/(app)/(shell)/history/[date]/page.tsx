@@ -1,6 +1,4 @@
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
 import { ReflectionCard } from '@/components/product/ReflectionCard';
 import { requireOnboarded } from '@/lib/auth';
 import { t } from '@/lib/t';
@@ -8,15 +6,16 @@ import { isValidLocalDate, localDateFor } from '@/lib/time/local-date';
 import { APP_TIME_ZONE } from '@/lib/time/zone';
 import { getDayView } from '@/services/day-view.service';
 import { getMessageForDate } from '@/services/reflection.service';
-import { DayBlocks } from '../../today/day-blocks';
-import { DayHeader } from '../../today/day-header';
+import { DayBlocks } from '@/app/(app)/(shell)/today/day-blocks';
+import { HistoryDayHeader } from './history-day-header';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * One past day (design-scope screen 7 "Day"): the reflection that looked
- * back on it (read-only), the same plan / meals / completeness blocks as
- * Today for that date, and "Log meal for this date". Future dates 404.
+ * One past day (design-scope screen 7 "Day"): its own header with the date
+ * and "Log meal for this date", the reflection that looked back on it
+ * (read-only), then the same plan / meals / completeness blocks as Today for
+ * that date. Future dates 404.
  */
 export default async function HistoryDayPage({ params }: { params: Promise<{ date: string }> }) {
   const { date } = await params;
@@ -33,14 +32,7 @@ export default async function HistoryDayPage({ params }: { params: Promise<{ dat
   ]);
   return (
     <div className="space-y-6">
-      <Link
-        href="/history"
-        className="-ms-1 inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ChevronLeft className="size-4 rtl:rotate-180" aria-hidden="true" />
-        {t('history.day.backToHistory')}
-      </Link>
-      <DayHeader localDate={date} zone={day.zone} />
+      <HistoryDayHeader localDate={date} zone={day.zone} />
 
       {message?.paragraph ? (
         <ReflectionCard

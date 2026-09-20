@@ -47,10 +47,12 @@ only.
 
 ## Modules & routes
 
-Navigation (`src/lib/navigation.ts`): bottom tabs **History · Today · My plan**, Today in the middle (`BottomNav`), a
-top bar with the page title and a profile button to Settings (`TopBar`), and a persistent
+Navigation (`src/lib/navigation.ts`): bottom tabs **History · Today · My plan**, Today in the middle (`BottomNav`,
+phones only; the active tab sits on a tinted pill), one top bar that carries the page title as the h1 on phones
+and the same three tabs on wider screens (`TopBar`, no second band), a profile button to Settings, and a persistent
 **Log meal** button on the three tabs that opens the composer sheet (`(app)/(shell)/layout.tsx`);
-Meal details titles the bar "Meal" and hides the button.
+Meal details titles the bar "Meal" and hides the button, as do the plan flows (`/plan/add`, `/plan/review`),
+which carry their own filled primary. Product pages do not repeat the title beneath the bar.
 Onboarding and the plan-import screens render outside the shell. The boilerplate sidebar is gone;
 admin pages use the same shell.
 
@@ -217,7 +219,7 @@ Chosen at planning time (2026-09-17, `docs/implementation-plan.md` § 3) so deve
 blocked; binding until the owner revises them.
 
 - Rubric v1 weights and thresholds and the three-block Today layout exactly as product-spec § 8–9.
-- Visual language: design.md tokens on the local shadcn kit, 44 px touch targets (decision 019); since decision 025 the `design.md` "Product UI" section sets the consumer character — three surfaces (`hero` / `list` / `note`), icon + title section headers, a neutral status glyph set, icon-first actions, Manrope for headings and the score numeral, pills, a `--tint-1/2/3` ladder, top-centre toasts, a 2 px offset focus ring. Today adopted them in D1 (`ScoreCard`, `PlanSlotRow`, `ReflectionCard`, `NutritionDetails` + `MeterBar`, `ImportStatusBanner`, `CompletenessCheckbox`); the remaining screens follow in D2–D3.
+- Visual language: design.md tokens on the local shadcn kit, 44 px touch targets (decision 019); since decision 025 the `design.md` "Product UI" section sets the consumer character — three surfaces (`hero` / `list` / `note`), icon + title section headers, a neutral status glyph set, icon-first actions, Manrope for headings and the score numeral, pills, a `--tint-1/2/3` ladder, top-centre toasts, a 2 px offset focus ring. Today adopted them in D1 (`ScoreCard`, `PlanSlotRow`, `ReflectionCard`, `NutritionDetails` + `MeterBar`, `ImportStatusBanner`, `CompletenessCheckbox`); D3 re-skinned History (one note-surface summary with the pattern sentence in the display face and glyph count lines, day rows with band glyph + word + number, the seven-day sentence split into "different food" and "skipped" variants), My plan (plan header with icon actions, slot cards with clock/flame sublines, options as pills, slots folded after two behind "Show all N meals", targets as a two-column list, notes as a note surface), the plan review screens, Meal details (photo strip first, compact item rows, chips, icon actions), Settings (section headers, no duplicate h1, privacy note behind a disclosure, "Delete account" as a text-destructive ghost), onboarding (28 px display question, note-surface hints, `ready` illustration) and the sign-in / sign-up pages (one value line under the logo). The composer and review follow in D2.
 - Photo logging is built but ships with `PHOTO_LOGGING_ENABLED=false` until the evaluation passes; e2e and local dev run with it on.
 - Supabase region `eu-central-1`; domain `dietyaar.darkube.app`; session lifetime 90 days.
 - No numeric accuracy claim anywhere; nutrition values are labelled "Estimated".

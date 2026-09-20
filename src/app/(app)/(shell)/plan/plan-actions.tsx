@@ -19,9 +19,14 @@ import {
   Input,
   toast,
 } from '@/components/UiComponents';
+import { IconAction } from '@/components/product/IconAction';
 import { t } from '@/lib/t';
 
-/** My plan actions: Edit (→ review flow), Replace (→ Add your plan), Delete (typed confirmation). */
+/**
+ * My plan actions as one row of icon actions (decision 025): Edit (→ review
+ * flow, outline), Replace (→ Add your plan, ghost), Delete (ghost,
+ * destructive, typed confirmation). The labels are the accessible names.
+ */
 export function PlanActions({ planName }: { planName: string | null }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -55,44 +60,44 @@ export function PlanActions({ planName }: { planName: string | null }) {
   }
 
   return (
-    <div className="grid gap-3">
-      <div className="grid grid-cols-2 gap-3">
-        <Button
-          type="button"
-          variant="secondary"
-          className="h-11"
-          loading={pending}
-          onClick={edit}
-          data-testid="plan-edit"
+    <div
+      className="flex shrink-0 items-center gap-1"
+      role="group"
+      aria-label={t('plan.page.actions')}
+    >
+      <IconAction
+        label={t('plan.page.edit')}
+        icon={Pencil}
+        variant="outline"
+        disabled={pending}
+        onClick={edit}
+        data-testid="plan-edit"
+      />
+      <Button asChild variant="ghost" size="icon">
+        <Link
+          href="/plan/add"
+          aria-label={t('plan.page.replace')}
+          title={t('plan.page.replace')}
+          data-testid="plan-replace"
         >
-          <Pencil className="size-4" aria-hidden="true" />
-          {t('plan.page.edit')}
-        </Button>
-        <Button asChild variant="outline" className="h-11">
-          <Link href="/plan/add" data-testid="plan-replace">
-            <RefreshCw className="size-4" aria-hidden="true" />
-            {t('plan.page.replace')}
-          </Link>
-        </Button>
-      </div>
-      <Button
-        type="button"
-        variant="ghost"
-        className="h-11 w-full text-destructive hover:text-destructive"
+          <RefreshCw aria-hidden="true" />
+        </Link>
+      </Button>
+      <IconAction
+        label={t('plan.page.delete')}
+        icon={Trash2}
+        className="text-destructive-ink hover:text-destructive-ink"
         disabled={pending}
         onClick={() => setOpen(true)}
         data-testid="plan-delete"
-      >
-        <Trash2 className="size-4" aria-hidden="true" />
-        {t('plan.page.delete')}
-      </Button>
+      />
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
               {expected
                 ? // FSI…PDI isolate the name so the question mark stays put beside RTL names.
-                  t('plan.page.deleteTitle', { name: `\u2068${expected}\u2069` })
+                  t('plan.page.deleteTitle', { name: `⁨${expected}⁩` })
                 : t('plan.page.deleteTitleUnnamed')}
             </AlertDialogTitle>
             <AlertDialogDescription>

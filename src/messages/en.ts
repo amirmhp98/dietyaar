@@ -8,6 +8,7 @@
  */
 import { ai } from './sections/ai';
 import { day } from './sections/day';
+import { history } from './sections/history';
 import { meal } from './sections/meal';
 import { photo } from './sections/photo';
 import { plan } from './sections/plan';
@@ -25,6 +26,7 @@ export const en = {
   ...plan,
   ...meal,
   ...day,
+  ...history,
   ...reflection,
   ...settings,
   ...ai,
@@ -90,6 +92,7 @@ export const en = {
   'nav.history': 'History',
   'nav.plan': 'My plan',
   'nav.settings': 'Settings',
+  'nav.primary': 'Primary',
 
   // ── Theme toggle ───────────────────────────────────────────
   'theme.switchToLight': 'Switch to light mode',
@@ -111,10 +114,10 @@ export const en = {
   'auth.login.noAccount': 'New here?',
   'auth.login.signupLink': 'Create an account',
   'auth.noRecovery': "A forgotten password can't be recovered in this release.",
+  'auth.tagline': 'See how what you eat compares with the diet you already follow.',
 
   // ── Sign up ────────────────────────────────────────────────
   'signup.title': 'Create your account',
-  'signup.tagline': 'See how what you eat compares with the diet you already follow.',
   'signup.username': 'Username',
   'signup.usernamePlaceholder': 'Letters, digits and underscore',
   'signup.password': 'Password',
@@ -128,6 +131,7 @@ export const en = {
 
   // ── Onboarding ─────────────────────────────────────────────
   'onboarding.progress': 'Step {current} of {total}',
+  'onboarding.progressLabel': 'Onboarding progress',
   'onboarding.back': 'Back',
   'onboarding.continue': 'Continue',
   'onboarding.skip': 'Skip',

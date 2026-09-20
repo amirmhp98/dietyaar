@@ -18,8 +18,15 @@ import {
   Input,
   toast,
 } from '@/components/UiComponents';
+import { Disclosure } from '@/components/product/Disclosure';
+import { Surface } from '@/components/product/Surface';
 import { t } from '@/lib/t';
 
+/**
+ * Privacy & data (design-scope screen 8): the AI-processing note behind a
+ * disclosure, export as an outline action, and "Delete account" as a
+ * text-destructive ghost action with the typed confirmation (decision 025).
+ */
 export function PrivacySection({ username }: { username: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -45,30 +52,33 @@ export function PrivacySection({ username }: { username: string }) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-2 rounded-xl border border-border bg-card p-4 text-sm">
-        <p className="font-medium">{t('settings.privacy.aiIntro')}</p>
-        <ul className="list-disc space-y-1 ps-5 text-muted-foreground">
-          <li>{t('aiNotice.plan')}</li>
-          <li>{t('aiNotice.meal')}</li>
-          <li>{t('settings.privacy.aiReflection')}</li>
-        </ul>
+    <div className="space-y-3">
+      <Disclosure label={t('settings.privacy.aiIntro')} testId="privacy-ai-notice">
+        <Surface variant="note" padding="sm">
+          <ul className="list-disc space-y-1 ps-4 text-sm text-muted-foreground">
+            <li>{t('aiNotice.plan')}</li>
+            <li>{t('aiNotice.meal')}</li>
+            <li>{t('settings.privacy.aiReflection')}</li>
+          </ul>
+        </Surface>
+      </Disclosure>
+      <div className="space-y-1">
+        <Button asChild variant="outline" className="w-full">
+          <a href="/api/export" download>
+            <Download aria-hidden="true" />
+            {t('settings.privacy.export')}
+          </a>
+        </Button>
+        <p className="px-1 text-xs text-muted-foreground">{t('settings.privacy.exportHint')}</p>
       </div>
-      <Button asChild variant="outline" className="h-11 w-full">
-        <a href="/api/export" download>
-          <Download className="size-4" />
-          {t('settings.privacy.export')}
-        </a>
-      </Button>
-      <p className="text-xs text-muted-foreground">{t('settings.privacy.exportHint')}</p>
       <Button
         type="button"
-        variant="destructive"
-        className="h-11 w-full"
+        variant="ghost"
+        className="w-full text-destructive-ink hover:text-destructive-ink"
         onClick={() => setOpen(true)}
         data-testid="delete-account"
       >
-        <Trash2 className="size-4" />
+        <Trash2 aria-hidden="true" />
         {t('settings.privacy.delete')}
       </Button>
       <AlertDialog open={open} onOpenChange={setOpen}>

@@ -1,8 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button, FormField, Input } from '@/components/UiComponents';
+import { IconAction } from '@/components/product/IconAction';
+import { AmountPrefix } from '@/components/product/ItemAmount';
+import { NameLabel } from '@/components/product/NameLabel';
 import { t } from '@/lib/t';
 import type { DraftItem, DraftOption, DraftSlot } from '@/lib/validations/plan';
 import { UnitSelect } from './UnitSelect';
@@ -14,7 +17,9 @@ import { newKey, numberText, parseNumber, renamed, withQuantity } from './helper
  * is also the English label (the AI's label survives only edits to other
  * fields); changing a quantity or a name clears "Assumed" and flags the item
  * for re-estimation on 7b. A quantity typed without a unit is in grams.
- * Typing a time turns an assumed window into a stated one.
+ * Typing a time turns an assumed window into a stated one. With
+ * `compactItems`, a named item is one row (amount · name · pencil) until its
+ * pencil opens the fields (decision 025); items without a name start open.
  */
 
 export function newItem(position: number): DraftItem {
@@ -63,11 +68,13 @@ export function SlotEditor({
   onChange,
   showNames = true,
   showTimes = false,
+  compactItems = false,
 }: {
   slot: DraftSlot;
   onChange: (slot: DraftSlot) => void;
   showNames?: boolean;
   showTimes?: boolean;
+  compactItems?: boolean;
 }) {
   function setOption(index: number, option: DraftOption) {
     const options = slot.options.map((o, i) => (i === index ? option : o));
@@ -136,12 +143,13 @@ export function SlotEditor({
           option={option}
           index={index}
           showHeader={slot.options.length > 1}
+          compactItems={compactItems}
           onChange={(next) => setOption(index, next)}
           onRemove={slot.options.length > 1 ? () => removeOption(index) : undefined}
         />
       ))}
-      <Button type="button" variant="outline" className="h-11 w-full" onClick={addOption}>
-        <Plus className="size-4" aria-hidden="true" />
+      <Button type="button" variant="outline" className="w-full" onClick={addOption}>
+        <Plus aria-hidden="true" />
         {t('plan.review.addOption')}
       </Button>
     </div>
@@ -152,12 +160,14 @@ function OptionEditor({
   option,
   index,
   showHeader,
+  compactItems,
   onChange,
   onRemove,
 }: {
   option: DraftOption;
   index: number;
   showHeader: boolean;
+  compactItems: boolean;
   onChange: (option: DraftOption) => void;
   onRemove?: () => void;
 }) {
@@ -171,21 +181,12 @@ function OptionEditor({
     });
   }
   return (
-    <fieldset className="space-y-4 rounded-xl border border-border bg-card p-4">
+    <fieldset className="space-y-3 rounded-xl border border-border bg-card p-3">
       {showHeader ? (
         <div className="flex items-center justify-between gap-2">
           <legend className="text-sm font-medium">{t('plan.option.n', { n: index + 1 })}</legend>
           {onRemove ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-11 w-11"
-              aria-label={t('plan.review.removeOption')}
-              onClick={onRemove}
-            >
-              <Trash2 className="size-4" aria-hidden="true" />
-            </Button>
+            <IconAction label={t('plan.review.removeOption')} icon={Trash2} onClick={onRemove} />
           ) : null}
         </div>
       ) : null}
@@ -193,6 +194,7 @@ function OptionEditor({
         <ItemEditor
           key={item.key}
           item={item}
+          compact={compactItems}
           onChange={(next) => setItem(i, next)}
           onRemove={option.items.length > 1 ? () => removeItem(i) : undefined}
         />
@@ -200,12 +202,12 @@ function OptionEditor({
       <Button
         type="button"
         variant="ghost"
-        className="h-11 w-full"
+        className="w-full"
         onClick={() =>
           onChange({ ...option, items: [...option.items, newItem(option.items.length)] })
         }
       >
-        <Plus className="size-4" aria-hidden="true" />
+        <Plus aria-hidden="true" />
         {t('plan.review.addItem')}
       </Button>
     </fieldset>
@@ -214,17 +216,37 @@ function OptionEditor({
 
 function ItemEditor({
   item,
+  compact,
   onChange,
   onRemove,
 }: {
   item: DraftItem;
+  /** Start as one row with a pencil; an item without a name always starts open. */
+  compact: boolean;
   onChange: (item: DraftItem) => void;
   onRemove?: () => void;
 }) {
   const [quantityInvalid, setQuantityInvalid] = useState(false);
+  const [open, setOpen] = useState(!compact || item.originalName.trim() === '');
+  if (!open) {
+    return (
+      <div className="flex min-h-11 items-center gap-2 border-t border-border pt-2 first:border-t-0 first:pt-0">
+        <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5 text-sm">
+          <AmountPrefix quantity={item.quantity} unit={item.unit} className="text-sm" />
+          <NameLabel originalName={item.originalName} englishLabel={item.englishLabel} size="sm" />
+        </div>
+        <IconAction
+          label={t('plan.review.editItem', { name: item.originalName })}
+          icon={Pencil}
+          onClick={() => setOpen(true)}
+          data-testid="edit-item"
+        />
+      </div>
+    );
+  }
   return (
     <div className="space-y-3 border-t border-border pt-3 first:border-t-0 first:pt-0">
-      <div className="flex items-start gap-2">
+      <div className="flex items-end gap-2">
         <FormField className="min-w-0 flex-1" label={t('plan.review.itemName')} required>
           <Input
             dir="auto"
@@ -235,16 +257,12 @@ function ItemEditor({
           />
         </FormField>
         {onRemove ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="mt-6 h-11 w-11 shrink-0"
-            aria-label={t('plan.review.removeItem')}
+          <IconAction
+            label={t('plan.review.removeItem')}
+            icon={Trash2}
+            className="shrink-0"
             onClick={onRemove}
-          >
-            <Trash2 className="size-4" aria-hidden="true" />
-          </Button>
+          />
         ) : null}
       </div>
       <div className="grid grid-cols-[1fr_1.4fr] gap-3">

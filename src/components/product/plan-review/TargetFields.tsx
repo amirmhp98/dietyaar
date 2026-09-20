@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/UiComponents';
+import { IconAction } from '@/components/product/IconAction';
 import { t } from '@/lib/t';
 import { TARGET_NUTRIENTS, TARGET_TYPES, type DraftTarget } from '@/lib/validations/plan';
 import { QuantityInput } from './SlotEditor';
@@ -62,7 +63,7 @@ export function TargetFields({
   const needsHigh = target.type === 'RANGE' || target.type === 'MAXIMUM';
   const invalid = !targetComplete(target);
   return (
-    <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+    <div className="space-y-3 rounded-xl border border-border bg-card p-3">
       {lockNutrient ? null : (
         <div className="grid grid-cols-2 gap-3">
           <FormField label={t('plan.target.nutrient')}>
@@ -135,16 +136,12 @@ export function TargetFields({
           </FormField>
         ) : null}
         {onRemove ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-11 w-11 shrink-0"
-            aria-label={t('plan.target.remove')}
+          <IconAction
+            label={t('plan.target.remove')}
+            icon={Trash2}
+            className="shrink-0"
             onClick={onRemove}
-          >
-            <Trash2 className="size-4" aria-hidden="true" />
-          </Button>
+          />
         ) : null}
       </div>
     </div>
@@ -153,8 +150,8 @@ export function TargetFields({
 
 export function AddTargetButton({ onAdd }: { onAdd: () => void }) {
   return (
-    <Button type="button" variant="outline" className="h-11 w-full" onClick={onAdd}>
-      <Plus className="size-4" aria-hidden="true" />
+    <Button type="button" variant="outline" className="w-full" onClick={onAdd}>
+      <Plus aria-hidden="true" />
       {t('plan.target.add')}
     </Button>
   );

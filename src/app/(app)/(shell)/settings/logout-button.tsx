@@ -20,8 +20,8 @@ export function LogoutButton() {
         }
       }}
     >
-      <Button type="submit" variant="outline" className="h-11 w-full" data-testid="logout">
-        <LogOut className="size-4" />
+      <Button type="submit" variant="ghost" className="w-full" data-testid="logout">
+        <LogOut aria-hidden="true" />
         {t('auth.logout')}
       </Button>
     </form>

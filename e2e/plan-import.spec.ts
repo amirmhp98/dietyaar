@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { t } from '../src/lib/t';
+import { t, tp } from '../src/lib/t';
 import { createOnboardedUser } from './helpers/onboard';
 
 /**
@@ -82,6 +82,22 @@ test('J1: paste a Persian plan, review 7a–7c, confirm, ready, today', async ({
   await page.goto('/plan');
   await expect(page.getByText('برنامه غذایی')).toBeVisible();
   await expect(page.getByText(t('plan.page.confirmedOn', { date: '' }).trim())).toBeVisible();
+  // Five slots: two cards show, the rest fold behind "Show all 5 meals" (D3b).
+  const cards = page.getByTestId('plan-slot-card');
+  await expect(cards).toHaveCount(2);
+  const showAll = page.getByTestId('plan-show-all');
+  await expect(showAll).toHaveText(tp('plan.page.showAll', 5));
+  await showAll.click();
+  await expect(cards).toHaveCount(5);
+  // A multi-option slot lists its options as pills that open to their items.
+  const firstOption = page.getByTestId('plan-option-1').first();
+  await expect(firstOption).toContainText(t('plan.option.n', { n: 1 }));
+  await firstOption.click();
+  await expect(cards.first().getByText('تخم‌مرغ')).toBeVisible();
+  // The actions are icon buttons named by their labels; the title is in the top bar only.
+  await expect(page.getByRole('button', { name: t('plan.page.edit') })).toBeVisible();
+  await expect(page.getByRole('link', { name: t('plan.page.replace') })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: t('nav.plan') })).toBeVisible();
 });
 
 test('J12: a failed import keeps the text and offers manual setup', async ({ page }) => {

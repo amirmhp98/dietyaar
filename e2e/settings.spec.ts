@@ -71,6 +71,14 @@ test.describe('settings', () => {
   test('account deletion refuses login afterwards (J14)', async ({ page }) => {
     const username = await createOnboardedUser(page, { skipPlan: true, prefix: 'del' });
     await page.goto('/settings');
+    // One h1 (the top bar's), and "Delete account" is a text-destructive ghost, not a filled red primary (O 2.2-8).
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+    await expect(page.getByTestId('delete-account')).toHaveClass(/text-destructive-ink/);
+    await expect(page.getByTestId('delete-account')).not.toHaveClass(/bg-destructive/);
+    // The AI-processing note sits behind a disclosure (O 2.2-8).
+    await expect(page.getByText(t('aiNotice.plan'))).toBeHidden();
+    await page.getByTestId('privacy-ai-notice').click();
+    await expect(page.getByText(t('aiNotice.plan'))).toBeVisible();
     await page.getByTestId('delete-account').click();
     const dialog = page.getByRole('alertdialog');
     await expect(

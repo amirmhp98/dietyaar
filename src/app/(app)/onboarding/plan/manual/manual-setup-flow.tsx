@@ -154,7 +154,7 @@ export function ManualSetupFlow({
           {PLAN_STRUCTURES.map((option) => (
             <label
               key={option}
-              className="flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 hover:bg-accent has-[[data-state=checked]]:border-primary"
+              className="flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 hover:bg-tint-1 has-[[data-state=checked]]:border-primary/40 has-[[data-state=checked]]:bg-tint-2"
             >
               <RadioGroupItem value={option} />
               <span className="flex flex-col">
@@ -166,7 +166,7 @@ export function ManualSetupFlow({
             </label>
           ))}
         </RadioGroup>
-        <Button type="button" className="h-11 w-full" onClick={() => setScreen({ kind: 'name' })}>
+        <Button type="button" className="w-full" onClick={() => setScreen({ kind: 'name' })}>
           {t('plan.manual.continue')}
         </Button>
       </PlanScreen>
@@ -251,7 +251,7 @@ export function ManualSetupFlow({
         </ul>
         <Button
           type="button"
-          className="h-11 w-full"
+          className="w-full"
           disabled={daysDone.size === 0}
           loading={saving}
           onClick={() => advance(null, null, 'times', { kind: 'times' })}
@@ -461,7 +461,7 @@ function NameScreen({
             onChange={(e) => setName(e.target.value)}
           />
         </FormField>
-        <Button type="submit" className="h-11 w-full" loading={saving}>
+        <Button type="submit" className="w-full" loading={saving}>
           {t('plan.manual.continue')}
         </Button>
       </form>
@@ -539,7 +539,7 @@ function SlotsScreen({
       <Button
         type="button"
         variant="outline"
-        className="h-11 w-full"
+        className="w-full"
         onClick={() => setSlots((list) => [...list, newSlot(weekday, list.length)])}
       >
         <Plus className="size-4" aria-hidden="true" />
@@ -550,7 +550,7 @@ function SlotsScreen({
       ) : null}
       <Button
         type="button"
-        className="h-11 w-full"
+        className="w-full"
         loading={saving}
         disabled={!valid}
         onClick={() =>
@@ -596,7 +596,7 @@ function ItemsScreen({
       ) : null}
       <Button
         type="button"
-        className="h-11 w-full"
+        className="w-full"
         loading={saving}
         disabled={!valid}
         onClick={() => onSave(normalize(edited))}
@@ -884,7 +884,7 @@ function SourceForm({
           onChange={(e) => setNote(e.target.value)}
         />
       </FormField>
-      <Button type="submit" className="h-11 w-full" loading={saving}>
+      <Button type="submit" className="w-full" loading={saving}>
         {t('plan.manual.review')}
       </Button>
     </form>
@@ -908,7 +908,7 @@ function ContinueSkip({
     <div className="grid gap-3">
       <Button
         type="button"
-        className="h-11 w-full"
+        className="w-full"
         loading={saving}
         disabled={disabled}
         onClick={onContinue}
@@ -916,13 +916,7 @@ function ContinueSkip({
         {continueLabel ?? t('plan.manual.continue')}
       </Button>
       {onSkip ? (
-        <Button
-          type="button"
-          variant="ghost"
-          className="h-11 w-full"
-          disabled={saving}
-          onClick={onSkip}
-        >
+        <Button type="button" variant="ghost" className="w-full" disabled={saving} onClick={onSkip}>
           {t('plan.manual.skip')}
         </Button>
       ) : null}

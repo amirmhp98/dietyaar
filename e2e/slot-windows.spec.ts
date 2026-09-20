@@ -84,8 +84,10 @@ test.describe('Slot windows on Today', () => {
       'true',
     );
 
-    // My plan: stated windows plain, assumed ones with "≈".
+    // My plan: stated windows plain, assumed ones with "≈". Five slots fold after the first
+    // two (D3b), so open the rest before looking for lunch and dinner.
     await page.goto('/plan');
+    await page.getByTestId('plan-show-all').click();
     await expect(
       page.getByText(t('plan.time.range', { start: clockPlus(20), end: clockPlus(40) })),
     ).toBeVisible();

@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 
 export type SurfaceVariant = 'hero' | 'list' | 'note';
 
-type SurfaceTag = 'div' | 'section' | 'article' | 'aside' | 'ul' | 'ol';
+type SurfaceTag = 'div' | 'section' | 'article' | 'aside' | 'ul' | 'ol' | 'li';
 
 const VARIANT: Record<SurfaceVariant, string> = {
   // The one elevated surface per screen: tinted emerald, 16 px, level-1 shadow.

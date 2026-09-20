@@ -1,11 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Flame, Loader2, Target } from 'lucide-react';
 import { Button } from '@/components/UiComponents';
 import { NameLabel } from '@/components/product/NameLabel';
+import { SectionHeader } from '@/components/product/SectionHeader';
+import { Surface } from '@/components/product/Surface';
 import { t } from '@/lib/t';
 import type { DraftSlot, DraftTarget, PlanDraft } from '@/lib/validations/plan';
+import { ReviewActions } from './SlotReview';
 import { SourceExcerpt } from './SourceExcerpt';
 import { AddTargetButton, TargetFields, newTarget, targetComplete } from './TargetFields';
 import { nutrientLabel, targetSourceLabel, targetValueText, weekdayName } from './helpers';
@@ -13,9 +16,10 @@ import { nutrientLabel, targetSourceLabel, targetValueText, weekdayName } from '
 export type EstimateState = 'idle' | 'running' | 'failed';
 
 /**
- * Screen 7b: per-meal ranges and daily targets, each labelled with where it
- * comes from (explicit / estimated from the plan / sum of the meal ranges).
- * "Fix" makes the values editable; an edited estimate becomes explicit.
+ * Screen 7b: per-meal ranges and daily targets as two-column list surfaces,
+ * each row labelled with where its figure comes from (explicit / estimated
+ * from the plan / sum of the meal ranges). "Fix" makes the values editable;
+ * an edited estimate becomes explicit.
  */
 export function TargetsReview({
   draft,
@@ -55,17 +59,17 @@ export function TargetsReview({
 
   const status =
     estimate === 'running' ? (
-      <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+      <Surface variant="note" role="status" className="flex items-center gap-2 text-sm">
+        <Loader2 className="size-4 shrink-0 animate-spin" aria-hidden="true" />
         {t('plan.review.estimating')}
-      </p>
+      </Surface>
     ) : estimate === 'failed' ? (
-      <div role="status" className="space-y-2 rounded-xl border border-border bg-card p-4 text-sm">
+      <Surface variant="note" role="status" className="space-y-2 text-sm">
         <p>{estimateError ?? t('plan.review.estimateFailed')}</p>
-        <Button type="button" variant="outline" className="h-11" onClick={onRetryEstimate}>
+        <Button type="button" variant="outline" onClick={onRetryEstimate}>
           {t('plan.review.estimateRetry')}
         </Button>
-      </div>
+      </Surface>
     ) : null;
 
   if (editing) {
@@ -74,9 +78,7 @@ export function TargetsReview({
         {status}
         {perMeal.length > 0 ? (
           <section className="space-y-3">
-            <h2 className="text-sm font-medium text-muted-foreground">
-              {t('plan.target.perMeal')}
-            </h2>
+            <SectionHeader icon={Flame} title={t('plan.target.perMeal')} level={3} />
             {perMeal.map((target) => (
               <div key={target.key} className="space-y-2">
                 <SlotHeading slot={slotsByKey.get(target.slotKey ?? '')} target={target} />
@@ -86,7 +88,7 @@ export function TargetsReview({
           </section>
         ) : null}
         <section className="space-y-3">
-          <h2 className="text-sm font-medium text-muted-foreground">{t('plan.target.daily')}</h2>
+          <SectionHeader icon={Target} title={t('plan.target.daily')} level={3} />
           {dailyGroups.map((group) => (
             <div key={String(group.weekday)} className="space-y-3">
               {group.weekday !== null ? (
@@ -107,7 +109,7 @@ export function TargetsReview({
         <div className="grid gap-3">
           <Button
             type="button"
-            className="h-11 w-full"
+            className="w-full"
             loading={saving}
             disabled={!allComplete}
             onClick={() => onSave(targets)}
@@ -117,7 +119,7 @@ export function TargetsReview({
           <Button
             type="button"
             variant="ghost"
-            className="h-11 w-full"
+            className="w-full"
             disabled={saving}
             onClick={() => {
               setTargets(draft.targets);
@@ -136,13 +138,16 @@ export function TargetsReview({
       <p className="text-sm text-muted-foreground">{t('plan.review.targetsIntro')}</p>
       {status}
       {perMeal.length > 0 ? (
-        <section className="space-y-2">
-          <h2 className="text-sm font-medium text-muted-foreground">{t('plan.target.perMeal')}</h2>
-          <ul className="divide-y divide-border rounded-xl border border-border bg-card">
+        <section className="space-y-3">
+          <SectionHeader icon={Flame} title={t('plan.target.perMeal')} level={3} />
+          <Surface variant="list" as="ul">
             {perMeal.map((target) => {
               const slot = slotsByKey.get(target.slotKey ?? '');
               return (
-                <li key={target.key} className="flex items-center justify-between gap-3 p-3">
+                <li
+                  key={target.key}
+                  className="flex min-h-11 items-center justify-between gap-3 px-3 py-2"
+                >
                   <div className="min-w-0">
                     {slot ? (
                       <NameLabel
@@ -157,17 +162,17 @@ export function TargetsReview({
                       {targetSourceLabel(target.source)}
                     </p>
                   </div>
-                  <span className="shrink-0 text-sm" dir="ltr">
+                  <span className="shrink-0 text-sm font-medium tabular-nums" dir="ltr">
                     {targetValueText(target)}
                   </span>
                 </li>
               );
             })}
-          </ul>
+          </Surface>
         </section>
       ) : null}
-      <section className="space-y-2">
-        <h2 className="text-sm font-medium text-muted-foreground">{t('plan.target.daily')}</h2>
+      <section className="space-y-3">
+        <SectionHeader icon={Target} title={t('plan.target.daily')} level={3} />
         {daily.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('plan.target.none')}</p>
         ) : (
@@ -176,59 +181,37 @@ export function TargetsReview({
               {group.weekday !== null ? (
                 <p className="text-sm font-medium">{weekdayName(group.weekday)}</p>
               ) : null}
-              <ul className="divide-y divide-border rounded-xl border border-border bg-card">
+              <Surface variant="list" as="ul">
                 {group.targets.map((target) => (
-                  <li key={target.key} className="space-y-1 p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-sm font-medium">{nutrientLabel(target.nutrient)}</span>
-                      <span className="shrink-0 text-sm" dir="ltr">
+                  <li key={target.key} className="space-y-2 px-3 py-2">
+                    <div className="flex min-h-7 items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">{nutrientLabel(target.nutrient)}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {targetSourceLabel(target.source)}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-sm font-medium tabular-nums" dir="ltr">
                         {targetValueText(target)}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {targetSourceLabel(target.source)}
-                    </p>
                     {target.sourceExcerpt ? <SourceExcerpt text={target.sourceExcerpt} /> : null}
                   </li>
                 ))}
-              </ul>
+              </Surface>
             </div>
           ))
         )}
       </section>
-      <div className="grid gap-3">
-        <Button
-          type="button"
-          className="h-11 w-full"
-          loading={saving}
-          disabled={estimate === 'running'}
-          onClick={() => onLooksRight(targets)}
-        >
-          {t('plan.review.looksRight')}
-        </Button>
-        <div className={onBack ? 'grid grid-cols-2 gap-3' : 'grid gap-3'}>
-          {onBack ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-11 w-full"
-              disabled={saving}
-              onClick={onBack}
-            >
-              {t('plan.review.back')}
-            </Button>
-          ) : null}
-          <Button
-            type="button"
-            variant="outline"
-            className="h-11 w-full"
-            disabled={saving || estimate === 'running'}
-            onClick={() => setEditing(true)}
-          >
-            {t('plan.review.fix')}
-          </Button>
-        </div>
-      </div>
+      <ReviewActions
+        primary={t('plan.review.looksRight')}
+        saving={saving}
+        disabled={estimate === 'running'}
+        onPrimary={() => onLooksRight(targets)}
+        onBack={onBack}
+        secondary={t('plan.review.fix')}
+        onSecondary={() => setEditing(true)}
+      />
     </div>
   );
 }

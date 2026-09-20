@@ -8,8 +8,14 @@ test.describe('onboarding', () => {
   }) => {
     await signUp(page, uniqueUsername());
 
+    // Step 1: the question is the heading, the progress bar is truthful, nothing before it to go back to.
+    await expect(page.getByRole('heading', { name: t('onboarding.age.title') })).toBeVisible();
+    await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '10');
+    await expect(page.getByRole('button', { name: t('onboarding.back') })).toHaveCount(0);
     await page.getByLabel(t('onboarding.age.label')).fill('۲۹');
     await page.getByRole('button', { name: t('onboarding.continue') }).click();
+    // Back is on every later step (B16).
+    await expect(page.getByRole('button', { name: t('onboarding.back') })).toBeVisible();
     await page.getByRole('radio', { name: t('onboarding.sex.FEMALE') }).click();
     await expect(page.getByRole('heading', { name: t('onboarding.height.title') })).toBeVisible();
 
