@@ -12,6 +12,8 @@ export interface SeededPlan {
   planId: string;
   slots: Array<{
     id: string;
+    /** The name the UI shows (decision 10: English labels are never rendered). */
+    originalName: string;
     englishLabel: string;
     options: Array<{ id: string; label: string | null }>;
   }>;
@@ -268,6 +270,7 @@ export async function seedMenuPlan(username: string): Promise<SeededPlan> {
     planId: plan.id,
     slots: plan.slots.map((s) => ({
       id: s.id,
+      originalName: s.originalName,
       englishLabel: s.englishLabel,
       options: s.options.map((o) => ({ id: o.id, label: o.label })),
     })),

@@ -126,7 +126,7 @@ test.describe('History', () => {
       await completeDayWithDifferentLunch(username, plan, localDateOf(offset));
     }
     await page.reload();
-    await expect(page.getByTestId('history-summary')).toContainText('Lunch');
+    await expect(page.getByTestId('history-summary')).toContainText('ناهار');
     await expect(page.getByTestId('history-summary')).toContainText(/on 3 of \d complete days/);
 
     // A future date is not a page (streamed with loading.tsx, so assert the not-found content).

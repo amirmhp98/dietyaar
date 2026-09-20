@@ -11,7 +11,8 @@ test.afterAll(async () => {
   await disconnectMealsDb();
 });
 
-const SLOT_ORDER = ['Breakfast', 'First snack', 'Lunch', 'Second snack', 'Dinner'];
+// Slot rows show the plan's own names; the English labels are data only (decision 10).
+const SLOT_ORDER = ['صبحانه', 'میان‌وعده اول', 'ناهار', 'میان‌وعده دوم', 'شام'];
 
 test.describe('Today', () => {
   test('no plan → Add your plan; Log meal visible on 390 × 844; then five slot rows, skip, completeness', async ({
@@ -31,17 +32,17 @@ test.describe('Today', () => {
 
     const rows = page.getByTestId('plan-slot-row');
     await expect(rows).toHaveCount(5);
-    for (const [index, label] of SLOT_ORDER.entries()) {
-      await expect(rows.nth(index)).toContainText(label);
+    for (const [index, name] of SLOT_ORDER.entries()) {
+      await expect(rows.nth(index)).toContainText(name);
     }
-    await expect(rows.nth(0)).toContainText('صبحانه');
+    await expect(rows.nth(0)).not.toContainText('Breakfast');
     await expect(page.getByTestId('score-band')).toHaveText(t('score.notEnough'));
     await expect(rows.nth(0).getByTestId('log-this-meal')).toBeVisible();
     await expect(rows.nth(2)).toContainText(t('slot.options', { count: 4 }));
     await expect(rows.nth(2)).toContainText('650–720 kcal');
 
     // Mark the second snack skipped: the row says so; the score is untouched.
-    const secondSnack = rows.filter({ hasText: 'Second snack' });
+    const secondSnack = rows.filter({ hasText: 'میان‌وعده دوم' });
     await secondSnack.getByTestId('mark-skipped').click();
     await expect(secondSnack.getByTestId('slot-status')).toHaveText(t('slot.state.skipped'));
     await expect(page.getByTestId('score-band')).toHaveText(t('score.notEnough'));
@@ -77,12 +78,13 @@ test.describe('Today', () => {
       ],
     });
     await page.reload();
-    const lunchRow = page.getByTestId('plan-slot-row').filter({ hasText: 'Lunch' });
+    const lunchRow = page.getByTestId('plan-slot-row').filter({ hasText: 'ناهار' });
     await expect(lunchRow.getByTestId('slot-status')).toHaveText(t('slot.match.different'));
     await expect(page.getByTestId('score-band')).toHaveText(t('score.band.different'));
     await expect(page.getByTestId('score-number')).toHaveCount(0);
     await expect(page.getByTestId('meal-row')).toHaveCount(1);
-    await expect(page.getByTestId('meal-row').first()).toContainText('sandwich');
+    await expect(page.getByTestId('meal-row').first()).toContainText('ساندویچ');
+    await expect(page.getByTestId('meal-row').first()).not.toContainText('sandwich');
     // One scored meal: "Why this score" appears and names the incomplete log.
     await expect(page.getByTestId('why-this-score')).toBeVisible();
     await page.getByTestId('why-this-score').click();
@@ -114,7 +116,7 @@ test.describe('Today', () => {
       ],
     });
     await page.reload();
-    const breakfastRow = page.getByTestId('plan-slot-row').filter({ hasText: 'Breakfast' });
+    const breakfastRow = page.getByTestId('plan-slot-row').filter({ hasText: 'صبحانه' });
     await expect(breakfastRow.getByTestId('slot-status')).toHaveText(t('slot.match.matched'));
     await expect(page.getByTestId('score-number')).toBeVisible();
     await expect(page.getByTestId('score-coverage')).toContainText(
@@ -125,7 +127,7 @@ test.describe('Today', () => {
     await expect(
       page
         .getByTestId('plan-slot-row')
-        .filter({ hasText: 'First snack' })
+        .filter({ hasText: 'میان‌وعده اول' })
         .getByTestId('log-this-meal'),
     ).toBeVisible();
     await expect(page.getByTestId('completeness')).not.toBeChecked();

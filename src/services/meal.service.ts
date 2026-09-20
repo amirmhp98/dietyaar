@@ -762,7 +762,8 @@ function refineContextFor(state: MealDraftState): MealRefineContext {
 
 /**
  * Merge a REFINE reply onto the reviewed items by position (improvement plan
- * B1). The user's names and preparation always win; a label value they
+ * B1). The user's names and preparation always win; the English label is the
+ * model's (the user never sees or edits it, decision 10); a label value they
  * entered is never replaced; the model's quantity is taken only where the
  * portion was unknown, its nutrition only where none was held or a
  * re-estimate was owed. Items the model drops stay; extra ones are appended.
@@ -774,7 +775,7 @@ export function mergeRefinedItems(
   const merged = current.map((item, index) => {
     const fresh = output.items[index];
     if (!fresh) return item;
-    const next: DraftFoodItem = { ...item };
+    const next: DraftFoodItem = { ...item, englishLabel: fresh.englishLabel };
     if (item.quantityUnknown && !fresh.quantityUnknown && fresh.quantity !== null) {
       next.quantity = fresh.quantity;
       next.unit = fresh.unit ?? item.unit;

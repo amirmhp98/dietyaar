@@ -108,11 +108,7 @@ export function SlotReview({
           <li key={option.key} className="rounded-xl border border-border bg-card p-4">
             {slot.options.length > 1 ? (
               <p className="mb-2 text-xs font-medium text-muted-foreground">
-                {option.label ? (
-                  <bdi>{option.label}</bdi>
-                ) : (
-                  t('plan.option.label', { n: index + 1 })
-                )}
+                {t('plan.option.n', { n: index + 1 })}
               </p>
             ) : null}
             <ul className="space-y-2">

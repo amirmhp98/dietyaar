@@ -636,7 +636,7 @@ describe('analyzeDraft in REFINE mode (B1)', () => {
   });
 
   describe('mergeRefinedItems', () => {
-    it("keeps a renamed item's name and preparation and takes only the nutrition it was owed", () => {
+    it("keeps a renamed item's name and preparation, takes the model's English label and only the nutrition it was owed", () => {
       const current = [
         draftItem({
           key: 'a',
@@ -650,11 +650,13 @@ describe('analyzeDraft in REFINE mode (B1)', () => {
       ];
       const [merged] = mergeRefinedItems(
         current,
-        reply([{ ...aiItem('Egg', 2, 'egg', 210), preparation: 'boiled' }]),
+        reply([
+          { ...aiItem('Egg', 2, 'egg', 210), englishLabel: 'Omelette', preparation: 'boiled' },
+        ]),
       );
       expect(merged).toMatchObject({
         originalName: 'املت',
-        englishLabel: 'omelette',
+        englishLabel: 'Omelette',
         preparation: 'with oil',
         needsReestimate: false,
         scaleFlag: 'SCALED',

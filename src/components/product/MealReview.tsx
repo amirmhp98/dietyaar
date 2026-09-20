@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { CloudOff, Plus } from 'lucide-react';
 import {
   Badge,
@@ -13,19 +13,20 @@ import {
 } from '@/components/UiComponents';
 import { DifferenceChip } from '@/components/product/DifferenceChip';
 import { Disclosure } from '@/components/product/Disclosure';
-import { InlineName, fillNames } from '@/components/product/InlineName';
+import { InlineName, InlineNames, fillNames } from '@/components/product/InlineName';
 import { NameLabel } from '@/components/product/NameLabel';
 import { ItemRow } from '@/components/product/meal/ItemRow';
 import type { StagedPhoto } from '@/components/product/meal/PhotoPicker';
 import { PhotoThumbnails } from '@/components/product/meal/PhotoThumbnails';
 import { QuestionCard } from '@/components/product/meal/QuestionCard';
 import { ResumedBanner } from '@/components/product/meal/ResumedBanner';
-import { OTHER_SLOT, SlotSelect, optionLabel } from '@/components/product/meal/SlotPicker';
+import { OTHER_SLOT, SlotSelect } from '@/components/product/meal/SlotPicker';
 import { newDraftItem, timeMissing } from '@/components/product/meal/composition';
 import { quantityFromChoice } from '@/components/product/meal/questions';
 import { NUTRIENT_UNITS, sumTotals } from '@/components/product/meal/totals';
 import { formatNumber } from '@/lib/format';
 import { optionRequiredFor } from '@/lib/rubric/match-slot';
+import { optionNumber } from '@/lib/rubric/options';
 import type { MatchResult, RubricSlot } from '@/lib/rubric/types';
 import { t } from '@/lib/t';
 import { type DraftFoodItem, type MealDraftState, toRubricItem } from '@/lib/validations/meal';
@@ -75,18 +76,18 @@ export interface MealReviewProps {
   onStartOver?: () => void;
 }
 
-function matchLabel(
-  match: MatchResult,
-  slots: RubricSlot[],
-): { text: string; reason: string | null } {
+function matchLabel(match: MatchResult): { text: string; reason: ReactNode | null } {
   const text = t(`meal.review.match.${match.status}`);
   if (!match.reason) return { text, reason: null };
   if (match.reason === 'CROSS_SLOT') {
-    const slot = match.crossSlot;
-    const name = slot
-      ? (slots.find((s) => s.englishLabel === slot.englishLabel)?.englishLabel ?? slot.englishLabel)
-      : '';
-    return { text, reason: t('meal.review.reason.CROSS_SLOT', { slot: name.toLowerCase() }) };
+    return {
+      text,
+      reason: match.crossSlot
+        ? fillNames(t('meal.review.reason.CROSS_SLOT', { slot: '{slot}' }), {
+            slot: <InlineName name={match.crossSlot} />,
+          })
+        : null,
+    };
   }
   return { text, reason: t(`meal.review.reason.${match.reason}`) };
 }
@@ -131,22 +132,18 @@ export function MealReview(props: MealReviewProps) {
   const totals = useMemo(() => sumTotals(state.items), [state.items]);
   const slot = slots.find((s) => s.id === state.planSlotId) ?? null;
   const option = slot?.options.find((o) => o.id === state.planOptionId) ?? null;
-  const optionIndex = slot
-    ? [...slot.options]
-        .sort((a, b) => a.position - b.position)
-        .findIndex((o) => o.id === option?.id)
-    : -1;
+  const optionN = slot ? optionNumber(slot, option?.id) : null;
   const optionRequired =
     slot !== null &&
     option === null &&
     optionRequiredFor(state.items.map(toRubricItem), slot, state.kind === 'PLANNED');
   const extraSlot = slots.find((s) => s.id === extraBecauseRecordedSlotId) ?? null;
   const hitByKey = new Map(state.restrictionHits.map((h) => [h.itemKey, h.restriction]));
-  const addedNames = match?.added.map((a) => a.englishLabel) ?? [];
+  const added = match?.added ?? [];
   const backdated = state.localDate !== today;
   const timeRequired = timeMissing(state.time, timeUnknown);
   const saveDisabled = saving || optionRequired || conflict || timeRequired;
-  const slotSummary = match ? matchLabel(match, slots) : null;
+  const slotSummary = match ? matchLabel(match) : null;
 
   function updateItem(index: number, next: DraftFoodItem) {
     onChange({ items: state.items.map((it, i) => (i === index ? next : it)) });
@@ -270,10 +267,12 @@ export function MealReview(props: MealReviewProps) {
 
       <QuestionCard questions={state.questions} items={state.items} onAnswer={answer} />
 
-      {addedNames.length > 0 ? (
+      {added.length > 0 ? (
         <div>
           <DifferenceChip kind="ADDED">
-            {t('meal.review.added', { names: addedNames.join(', ') })}
+            {fillNames(t('meal.review.added', { names: '{names}' }), {
+              names: <InlineNames names={added} />,
+            })}
           </DifferenceChip>
         </div>
       ) : null}
@@ -321,12 +320,7 @@ export function MealReview(props: MealReviewProps) {
           <ul className="space-y-1 text-sm">
             {state.items.map((item) => (
               <li key={item.key} className="flex flex-wrap items-baseline gap-x-2">
-                <NameLabel
-                  originalName={item.originalName || t('meal.review.newItem')}
-                  englishLabel={item.englishLabel}
-                  inline
-                  size="sm"
-                />
+                <NameLabel originalName={item.originalName || t('meal.review.newItem')} size="sm" />
                 <span className="text-muted-foreground">
                   {item.nutrition
                     ? `${t(`meal.review.source.${item.nutrition.source}`)}${item.nutrition.sourceRef ? ` · ${item.nutrition.sourceRef}` : ''}`
@@ -388,10 +382,10 @@ export function MealReview(props: MealReviewProps) {
                     ),
                     { slot: <InlineName name={slot} /> },
                   )}
-                  {option && slot.options.length > 1 ? (
+                  {optionN !== null && slot.options.length > 1 ? (
                     <>
                       {' · '}
-                      <bdi>{optionLabel(option, optionIndex)}</bdi>
+                      {t('plan.option.n', { n: optionN })}
                     </>
                   ) : null}
                 </>
@@ -406,7 +400,7 @@ export function MealReview(props: MealReviewProps) {
             {slotSummary ? (
               <p className="text-muted-foreground">
                 {slotSummary.text}
-                {slotSummary.reason ? ` · ${slotSummary.reason}` : ''}
+                {slotSummary.reason ? <> · {slotSummary.reason}</> : null}
               </p>
             ) : null}
           </div>
