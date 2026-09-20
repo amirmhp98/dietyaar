@@ -3,7 +3,7 @@ import { t } from '@/lib/t';
 import { localDateFor } from '@/lib/time/local-date';
 import { getDayView } from '@/services/day-view.service';
 import { greetingNameFor, requireProfile } from '@/services/profile.service';
-import { ReflectionCardIsland } from '../reflection-card';
+import { peekMessage } from '@/services/reflection.service';
 import { DayBlocks } from './day-blocks';
 import { DayHeader } from './day-header';
 import { ImportBanner } from './import-banner';
@@ -21,7 +21,10 @@ export default async function TodayPage() {
   const profile = await requireProfile(user.id);
   const now = new Date();
   const localDate = localDateFor(now, profile.timeZone);
-  const day = await getDayView(user.id, localDate, now);
+  const [day, message] = await Promise.all([
+    getDayView(user.id, localDate, now),
+    peekMessage(user.id, localDate),
+  ]);
   const draft = day.plan?.draft ?? null;
 
   return (
@@ -37,13 +40,13 @@ export default async function TodayPage() {
         dismissed={profile.timeZoneHintDismissedAt !== null}
       />
       {draft ? <ImportBanner state={draft.state} /> : null}
-      <ReflectionCardIsland localDate={localDate} />
       <DayBlocks
         localDate={localDate}
         zone={day.zone}
         view={day.view}
         meals={day.meals}
         draftPending={draft !== null}
+        reflection={{ acknowledged: message?.acknowledged ?? false }}
       />
     </div>
   );

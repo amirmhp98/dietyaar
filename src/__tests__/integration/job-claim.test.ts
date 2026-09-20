@@ -76,7 +76,6 @@ const output: PlanImportOutput = {
     },
   ],
   targets: [],
-  rules: [],
   notes: [],
   uncertainties: [],
 };

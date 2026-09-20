@@ -16,7 +16,7 @@ import {
  * text and passes `chunkWeekday`). The reply is validated with
  * `planImportOutputSchema`.
  */
-export const PLAN_IMPORT_PROMPT_VERSION = 2;
+export const PLAN_IMPORT_PROMPT_VERSION = 3;
 export const PLAN_IMPORT_MAX_TOKENS = 8000;
 
 export const WEEKDAY_NAMES = [
@@ -118,25 +118,14 @@ const EXAMPLE = {
       sourceExcerpt: 'حدود 2200 کالری در روز',
     },
   ],
-  rules: [
-    {
-      kind: 'SERVING_COUNT',
-      period: 'WEEK',
-      definition: {
-        food: { originalName: 'ماهی', englishLabel: 'Fish', synonyms: ['fish'] },
-        count: 2,
-        comparator: 'AT_LEAST',
-      },
-      originalText: 'ماهی دو بار در هفته',
-      sourceExcerpt: 'ماهی دو بار در هفته',
-      isConflicting: false,
-      unsupportedReason: null,
-    },
-  ],
   notes: [
     {
       originalText: 'در روزهای تمرین یک وعده کربوهیدرات اضافه کنید',
       reason: 'TRAINING_CONDITIONAL',
+    },
+    {
+      originalText: 'ماهی دو بار در هفته',
+      reason: 'OTHER',
     },
   ],
   uncertainties: [
@@ -165,14 +154,7 @@ export function planImportSystemPrompt(): string {
     assumedDefaultsSection(),
     categoriesSection(),
     'Targets: per-meal energy figures go in `targets` with the slot\'s index in `slots` (of this reply) and nutrient "ENERGY_KCAL"; daily figures use `slotIndex: null`. `type`: "RANGE" (low and high), "MINIMUM" (low), "MAXIMUM" (high), "DESIRED" (an exact figure, low), "APPROXIMATE" (an "about"/"حدود" figure, low). "About 2,200 kcal" is APPROXIMATE with low 2200. Nutrients: ENERGY_KCAL, PROTEIN_G, CARB_G, FAT_G, FIBER_G, SODIUM_MG. Only targets the plan states; never compute them.',
-    'Rules (`rules`): measurable food or behaviour instructions. `kind` and `definition`:',
-    '- SERVING_COUNT: a food a stated number of times per DAY or WEEK → { "food": { "originalName", "englishLabel", "synonyms": [] }, "count": n, "comparator": "AT_LEAST" | "AT_MOST" | "EXACT" }, `period` "DAY" or "WEEK".',
-    '- DISTINCT_GROUPS: a count of different food groups → { "groups": [...], "minimum": n }.',
-    '- NAMED_WEEKDAY_FOOD: a food on a named weekday → { "weekday": 0-6, "food": {...} }.',
-    '- EXCLUSION: an explicitly excluded food → { "foods": [ {...} ] }.',
-    '- TIMING_WINDOW: an explicit eating window for a slot → { "slotKey": null, "slotId": null, "start": "HH:mm", "end": "HH:mm" | null }.',
-    '- INSTRUCTION: any other explicit meal instruction that can be stated but not counted → {}. Set `unsupportedReason` (English) when a rule is too vague to count (for example "eat a varied diet"). Set `isConflicting: true` when two instructions contradict each other.',
-    'Notes (`notes`): instructions the app cannot track are kept verbatim, never as rules: anything conditioned on training, rest days, exercise, sleep, or fasting (reason TRAINING_CONDITIONAL / EXERCISE / FASTING), a day-type label on a weekday (DAY_TYPE), a rotation or schedule the app cannot represent (UNSUPPORTED_SCHEDULE), or anything else (OTHER).',
+    'Notes (`notes`): every instruction that is not a meal, a quantity, a target or a schedule is a note, kept verbatim and never evaluated. `reason`: TRAINING_CONDITIONAL / EXERCISE / FASTING for anything conditioned on training, rest days, exercise, sleep or fasting; DAY_TYPE for a day-type label on a weekday; UNSUPPORTED_SCHEDULE for a rotation or schedule the app cannot represent; OTHER for everything else, including how often to eat a food ("fish twice a week"), an excluded food ("no sugar") or any other instruction.',
     'Uncertainties (`uncertainties`): one English question per item whose quantity is missing or unusable AND whose category is calorie-significant (OIL, BREAD, RICE, POTATO, NUTS, DAIRY, MEAT). Never ask about raw vegetables, herbs or salads. Indices refer to `slots`, `options` and `items` of this reply.',
     'Provenance: every `sourceExcerpt` is a verbatim, contiguous substring copied from the plan text (at most 2000 characters), never paraphrased. Use "" when there is no clear span.',
     NUTRITION_SHAPE,
@@ -199,7 +181,7 @@ export function planImportUserMessage(input: PlanImportUserInput): string {
     const name = WEEKDAY_NAMES[input.chunkWeekday] ?? String(input.chunkWeekday);
     lines.push(
       `Chunk weekday: ${input.chunkWeekday} (${name})${input.chunkPosition ? `, part ${input.chunkPosition.index + 1} of ${input.chunkPosition.total}` : ''}.`,
-      `This text is the part of a plan that differs by weekday. Set "structure": "BY_WEEKDAY", give every slot "weekday": ${input.chunkWeekday}, and give this day's own targets "weekday": ${input.chunkWeekday}. Targets, rules and notes stated for every day keep "weekday": null.`,
+      `This text is the part of a plan that differs by weekday. Set "structure": "BY_WEEKDAY", give every slot "weekday": ${input.chunkWeekday}, and give this day's own targets "weekday": ${input.chunkWeekday}. Targets and notes stated for every day keep "weekday": null.`,
     );
   }
   const p = input.profile;

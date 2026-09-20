@@ -28,7 +28,6 @@ export function draftItem(overrides: Partial<DraftFoodItem> & { key: string }): 
     needsReestimate: false,
     previousNutrition: null,
     scaleFlag: null,
-    ruleGroups: [],
     ...overrides,
   };
 }

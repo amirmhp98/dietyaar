@@ -122,7 +122,6 @@ export function fi(
     matchedPlanItemId: null,
     isAddedItem: false,
     nutrition: kcal === null ? null : nutrition(kcal),
-    ruleGroups: [],
     ...extra,
   };
 }
@@ -189,7 +188,6 @@ export function dayInput(slots: RubricSlot[], overrides: Partial<DayInput> = {})
     meals: [],
     skippedSlotIds: [],
     targets: [],
-    rules: [],
     ...overrides,
   };
 }

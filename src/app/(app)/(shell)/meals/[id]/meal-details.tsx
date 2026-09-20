@@ -63,7 +63,6 @@ function toDraftItem(item: MealFoodItemView): DraftFoodItem {
     needsReestimate: false,
     previousNutrition: null,
     scaleFlag: null,
-    ruleGroups: item.ruleGroups,
   };
 }
 

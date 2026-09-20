@@ -169,7 +169,7 @@ async function main() {
         continue;
       }
       console.log(
-        `PLAN_IMPORT ${name}: ${imported.data.structure}, ${imported.data.slots.length} slots, ${imported.data.rules.length} rules, ${Math.round(imported.durationMs)} ms`,
+        `PLAN_IMPORT ${name}: ${imported.data.structure}, ${imported.data.slots.length} slots, ${imported.data.notes.length} notes, ${Math.round(imported.durationMs)} ms`,
       );
       const items = imported.data.slots.flatMap((slot, s) =>
         slot.options.flatMap((option, o) =>

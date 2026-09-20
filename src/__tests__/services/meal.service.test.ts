@@ -124,7 +124,6 @@ function plan(slots: RubricSlot[]) {
     createdAt: NOW,
     slots,
     targets: [],
-    rules: [],
     notes: [],
     draft: null,
   };

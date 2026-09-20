@@ -31,7 +31,6 @@ export function newDraftItem(position: number): DraftFoodItem {
     needsReestimate: false,
     previousNutrition: null,
     scaleFlag: null,
-    ruleGroups: [],
   };
 }
 

@@ -8,7 +8,6 @@ export {
   planItemFactory,
   planNoteFactory,
   planOptionFactory,
-  planRuleFactory,
   planSlotFactory,
   planTargetFactory,
 } from './plan.factory';

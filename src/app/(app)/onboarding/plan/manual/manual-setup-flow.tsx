@@ -29,7 +29,6 @@ import {
   Input,
   RadioGroup,
   RadioGroupItem,
-  Textarea,
   toast,
 } from '@/components/UiComponents';
 import { t } from '@/lib/t';
@@ -37,7 +36,6 @@ import { isValidLocalTime } from '@/lib/time';
 import {
   EVERY_DAY,
   PLAN_STRUCTURES,
-  type DraftRule,
   type DraftSection,
   type DraftSlot,
   type DraftTarget,
@@ -57,7 +55,6 @@ type Screen =
   | { kind: 'times' }
   | { kind: 'ranges' }
   | { kind: 'targets' }
-  | { kind: 'rules' }
   | { kind: 'source' };
 
 /** Saturday first (product spec § 6 default week start). */
@@ -365,20 +362,8 @@ export function ManualSetupFlow({
         onSave={(targets) =>
           structure === 'TARGETS_ONLY'
             ? advance('targets', targets, MANUAL_REVIEW_STEP, { kind: 'targets' })
-            : advance('targets', targets, 'rules', { kind: 'rules' })
+            : advance('targets', targets, 'source', { kind: 'source' })
         }
-      />
-    );
-  }
-
-  if (view.kind === 'rules') {
-    return (
-      <RulesScreen
-        step={step}
-        rules={draft.rules}
-        saving={saving}
-        onBack={() => setScreen({ kind: 'targets' })}
-        onSave={(rules) => advance('rules', rules, 'source', { kind: 'source' })}
       />
     );
   }
@@ -387,7 +372,7 @@ export function ManualSetupFlow({
     <PlanScreen
       step={step}
       title={t('plan.manual.sourceTitle')}
-      onBack={() => setScreen({ kind: 'rules' })}
+      onBack={() => setScreen({ kind: 'targets' })}
     >
       <SourceForm
         initial={draft.sourceNote ?? ''}
@@ -414,8 +399,6 @@ function firstScreen(stepName: ManualStep): Screen {
       return { kind: 'ranges' };
     case 'targets':
       return { kind: 'targets' };
-    case 'rules':
-      return { kind: 'rules' };
     case 'source':
       return { kind: 'source' };
     default:
@@ -883,90 +866,6 @@ function TargetsScreen({
       />
     </PlanScreen>
   );
-}
-
-function RulesScreen({
-  step,
-  rules,
-  saving,
-  onBack,
-  onSave,
-}: {
-  step?: number;
-  rules: DraftRule[];
-  saving: boolean;
-  onBack: () => void;
-  onSave: (rules: DraftRule[]) => void;
-}) {
-  const [list, setList] = useState<DraftRule[]>(rules.length > 0 ? rules : [blankRule()]);
-  function apply() {
-    onSave(
-      list
-        .filter((r) => r.originalText.trim() !== '')
-        .map((r) => ({
-          ...r,
-          originalText: r.originalText.trim(),
-          sourceExcerpt: r.originalText.trim(),
-        })),
-    );
-  }
-  return (
-    <PlanScreen step={step} title={t('plan.manual.rulesTitle')} onBack={onBack}>
-      <p className="text-sm text-muted-foreground">{t('plan.manual.rulesHint')}</p>
-      {list.map((rule, index) => (
-        <div key={rule.key} className="flex items-end gap-2">
-          <FormField className="flex-1" label={t('plan.manual.ruleLabel', { n: index + 1 })}>
-            <Textarea
-              dir="auto"
-              rows={2}
-              maxLength={2000}
-              value={rule.originalText}
-              onChange={(e) =>
-                setList((all) =>
-                  all.map((r) => (r.key === rule.key ? { ...r, originalText: e.target.value } : r)),
-                )
-              }
-            />
-          </FormField>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-11 w-11 shrink-0"
-            aria-label={t('plan.manual.removeRule')}
-            disabled={list.length <= 1}
-            onClick={() => setList((all) => all.filter((r) => r.key !== rule.key))}
-          >
-            <Trash2 className="size-4" aria-hidden="true" />
-          </Button>
-        </div>
-      ))}
-      <Button
-        type="button"
-        variant="outline"
-        className="h-11 w-full"
-        onClick={() => setList((all) => [...all, blankRule()])}
-      >
-        <Plus className="size-4" aria-hidden="true" />
-        {t('plan.manual.addRule')}
-      </Button>
-      <ContinueSkip saving={saving} onContinue={apply} onSkip={() => onSave(rules)} />
-    </PlanScreen>
-  );
-}
-
-function blankRule(): DraftRule {
-  return {
-    key: newKey(),
-    kind: 'INSTRUCTION',
-    tracking: 'NOTE',
-    period: null,
-    definition: {},
-    originalText: '',
-    sourceExcerpt: '',
-    isConflicting: false,
-    unsupportedReason: null,
-  };
 }
 
 function SourceForm({

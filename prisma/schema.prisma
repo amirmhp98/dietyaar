@@ -89,26 +89,6 @@ enum TargetSource {
   SUM_OF_MEALS
 }
 
-enum RuleKind {
-  SERVING_COUNT
-  DISTINCT_GROUPS
-  NAMED_WEEKDAY_FOOD
-  EXCLUSION
-  TIMING_WINDOW
-  INSTRUCTION
-}
-
-enum RuleTracking {
-  TRACK
-  NOTE
-  IGNORE
-}
-
-enum RulePeriod {
-  DAY
-  WEEK
-}
-
 enum NoteReason {
   TRAINING_CONDITIONAL
   EXERCISE
@@ -303,7 +283,6 @@ model Plan {
 
   slots   PlanSlot[]
   targets PlanTarget[]
-  rules   PlanRule[]
   notes   PlanNote[]
 
   @@map("plans")
@@ -404,26 +383,6 @@ model PlanTarget {
   @@unique([planId, scopeKey])
   @@index([planSlotId])
   @@map("plan_targets")
-}
-
-model PlanRule {
-  id                String       @id @default(cuid())
-  planId            String
-  kind              RuleKind
-  tracking          RuleTracking @default(NOTE)
-  period            RulePeriod?
-  /// Per-kind shape validated in lib/validations/plan.ts.
-  definition        Json         @default("{}")
-  originalText      String
-  sourceExcerpt     String       @default("")
-  isConflicting     Boolean      @default(false)
-  unsupportedReason String?
-  createdAt         DateTime     @default(now()) @db.Timestamptz(3)
-  updatedAt         DateTime     @updatedAt @db.Timestamptz(3)
-  plan              Plan         @relation(fields: [planId], references: [id], onDelete: Cascade)
-
-  @@index([planId])
-  @@map("plan_rules")
 }
 
 model PlanNote {
@@ -547,8 +506,6 @@ model FoodItem {
   matchedPlanItemId String?
   isAddedItem       Boolean      @default(false)
   restrictionHit    String?
-  /// User-confirmed food-group memberships for DISTINCT_GROUPS rules.
-  ruleGroups        String[]     @default([])
   nutrition         Json?
   createdAt         DateTime     @default(now()) @db.Timestamptz(3)
   updatedAt         DateTime     @updatedAt @db.Timestamptz(3)
@@ -610,24 +567,27 @@ model MealDraft {
 
 // ─── REFLECTION ────────────────────────────────────
 model MorningMessage {
-  id            String         @id @default(cuid())
-  userId        String
-  localDate     String         @db.VarChar(10)
-  status        MessageStatus  @default(GENERATING)
-  paragraph     String?
-  isFallback    Boolean        @default(false)
-  fallbackState FallbackState?
-  factsSnapshot Json           @default("[]")
-  factsHash     String         @default("")
-  usedFactIds   String[]       @default([])
-  generatedAt   DateTime?      @db.Timestamptz(3)
-  claimedAt     DateTime       @default(now()) @db.Timestamptz(3)
-  providerModel String?
-  stale         Boolean        @default(false)
-  collapsed     Boolean        @default(false)
-  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
-  updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String         @id @default(cuid())
+  userId         String
+  localDate      String         @db.VarChar(10)
+  status         MessageStatus  @default(GENERATING)
+  paragraph      String?
+  isFallback     Boolean        @default(false)
+  fallbackState  FallbackState?
+  factsSnapshot  Json           @default("[]")
+  factsHash      String         @default("")
+  usedFactIds    String[]       @default([])
+  generatedAt    DateTime?      @db.Timestamptz(3)
+  claimedAt      DateTime       @default(now()) @db.Timestamptz(3)
+  providerModel  String?
+  stale          Boolean        @default(false)
+  /// A deterministic paragraph for an empty data state (first day, no records yesterday, no plan): no provider call, not a failure.
+  isStatic       Boolean        @default(false)
+  /// "Got it" on Today: from then on the card sits at the bottom of the day, collapsed to its title.
+  acknowledgedAt DateTime?      @db.Timestamptz(3)
+  createdAt      DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime       @updatedAt @db.Timestamptz(3)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, localDate])
   @@map("morning_messages")

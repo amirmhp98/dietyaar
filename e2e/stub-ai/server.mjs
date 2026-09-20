@@ -87,7 +87,7 @@ const range = (slotIndex, low, high, weekday = null) => ({
 
 // ─── Canned plan outputs ────────────────────────────────────────────────────
 
-/** Menu-style Persian plan: five slots, options per slot, ranges, one note, one rule. */
+/** Menu-style Persian plan: five slots, options per slot, ranges, two notes. */
 function menuPlan() {
   const slots = [
     slot('صبحانه', 'Breakfast', [
@@ -179,26 +179,12 @@ function menuPlan() {
       range(3, 100, 150),
       range(4, 400, 500),
     ],
-    rules: [
-      {
-        kind: 'SERVING_COUNT',
-        period: 'WEEK',
-        definition: {
-          food: { originalName: 'ماهی', englishLabel: 'Fish', synonyms: ['fish'] },
-          count: 2,
-          comparator: 'AT_LEAST',
-        },
-        originalText: 'ماهی دو بار در هفته',
-        sourceExcerpt: 'ماهی دو بار در هفته',
-        isConflicting: false,
-        unsupportedReason: null,
-      },
-    ],
     notes: [
       {
         originalText: 'در روزهای تمرین یک وعده کربوهیدرات اضافه کنید',
         reason: 'TRAINING_CONDITIONAL',
       },
+      { originalText: 'ماهی دو بار در هفته', reason: 'OTHER' },
     ],
     uncertainties: [
       {
@@ -286,7 +272,6 @@ function weekdayChunk(weekday) {
         sourceExcerpt: null,
       },
     ],
-    rules: [],
     notes: [
       {
         originalText: `${WEEKDAY_NAMES[weekday]}: روز ${DAY_TYPES[weekday] === 'training' ? 'تمرین' : 'استراحت'}`,

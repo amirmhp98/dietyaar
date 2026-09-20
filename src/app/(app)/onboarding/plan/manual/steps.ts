@@ -9,7 +9,6 @@ export const MANUAL_STEPS = [
   'times',
   'ranges',
   'targets',
-  'rules',
   'source',
   'review',
 ] as const;

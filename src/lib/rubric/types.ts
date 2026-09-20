@@ -73,7 +73,6 @@ export interface RubricFoodItem extends FoodName {
   matchedPlanItemId: string | null;
   isAddedItem: boolean;
   nutrition: Nutrition | null;
-  ruleGroups: string[];
 }
 
 export interface RubricMeal {
@@ -99,23 +98,6 @@ export interface RubricTarget {
   source: TargetSourceKey;
 }
 
-export type RuleKindKey =
-  | 'SERVING_COUNT'
-  | 'DISTINCT_GROUPS'
-  | 'NAMED_WEEKDAY_FOOD'
-  | 'EXCLUSION'
-  | 'TIMING_WINDOW'
-  | 'INSTRUCTION';
-
-export interface RubricRule {
-  id: string;
-  kind: RuleKindKey;
-  tracking: 'TRACK' | 'NOTE' | 'IGNORE';
-  period: 'DAY' | 'WEEK' | null;
-  definition: unknown;
-  originalText: string;
-}
-
 export type DayPhase = 'ONGOING' | 'PAST';
 export type PlanStructureKey = 'SAME_EVERY_DAY' | 'BY_WEEKDAY' | 'TARGETS_ONLY';
 
@@ -134,7 +116,6 @@ export interface DayInput {
   meals: RubricMeal[];
   skippedSlotIds: string[];
   targets: RubricTarget[];
-  rules: RubricRule[];
 }
 
 // ─── Results ──────────────────────────────────────────────────────────────
@@ -296,20 +277,6 @@ export interface TargetComparison {
   difference: number | null;
 }
 
-export type RuleStatus = 'PROGRESS' | 'MET' | 'NOT_MET' | 'INCOMPLETE' | 'FLAGGED' | 'NOTE';
-
-export interface RuleObservation {
-  ruleId: string;
-  kind: RuleKindKey;
-  status: RuleStatus;
-  /** e.g. servings so far / required, groups so far / minimum. */
-  count: number | null;
-  required: number | null;
-  /** Names that satisfied or violated the rule. */
-  hits: FoodName[];
-  periodEnded: boolean;
-}
-
 export interface DayView {
   rubricVersion: string;
   localDate: string;
@@ -326,7 +293,6 @@ export interface DayView {
   score: DayScore;
   nutrition: TargetComparison[];
   dailyEnergy: EnergyResult | null;
-  rules: RuleObservation[];
   /** Complete for trend purposes: past, checked, at least one meal, every slot recorded or skipped. */
   trendEligible: boolean;
   /** Timeline of the day's recorded prescribed slots (for order details). */

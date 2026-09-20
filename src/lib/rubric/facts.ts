@@ -17,7 +17,6 @@ export interface ReflectionFact {
     | 'PORTION'
     | 'TIMING'
     | 'ENERGY'
-    | 'RULE'
     | 'TODAY_PLAN'
     | 'TODAY_NEXT'
     | 'TODAY_RECORDED'
@@ -183,15 +182,6 @@ export function reflectionFacts(
           ? "Yesterday's energy total was within the planned range."
           : `Yesterday's energy total was ${e.status === 'ABOVE' ? 'above' : 'below'} the planned range by ${Math.abs(e.difference)} kcal${e.band === 'NOTICEABLE' ? ' (slightly)' : ''}.`;
       facts.push({ id: 'energy', kind: 'ENERGY', text, signature: `${e.status}:${e.band}` });
-    }
-    for (const r of yesterday.rules) {
-      if (r.status === 'NOTE') continue;
-      facts.push({
-        id: `rule:${r.ruleId}`,
-        kind: 'RULE',
-        text: `Rule progress: ${r.count ?? 0} of ${r.required ?? 0} (${r.status.toLowerCase()}).`,
-        signature: `${r.status}:${r.count}`,
-      });
     }
   } else if (yesterday && yesterday.mealCount === 0) {
     facts.push({

@@ -38,7 +38,6 @@ export const foodItemFactory = Factory.define<FoodItem>(({ sequence }) => ({
   matchedPlanItemId: null,
   isAddedItem: false,
   restrictionHit: null,
-  ruleGroups: [],
   nutrition: eggNutrition,
   createdAt: new Date('2026-09-17T09:00:00Z'),
   updatedAt: new Date('2026-09-17T09:00:00Z'),

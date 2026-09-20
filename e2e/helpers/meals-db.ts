@@ -150,6 +150,18 @@ export async function backdateAccount(username: string, days: number) {
   await prisma.profile.update({ where: { userId: user.id }, data: { createdAt } });
 }
 
+/** Forget the day's reflection so the next visit claims a fresh one for a changed data state. */
+export async function deleteMorningMessages(username: string) {
+  const user = await userByName(username);
+  await prisma.morningMessage.deleteMany({ where: { userId: user.id } });
+}
+
+/** Provider calls admitted for the user (a static reflection admits none). */
+export async function countAiCalls(username: string, kind: 'REFLECTION'): Promise<number> {
+  const user = await userByName(username);
+  return prisma.aiCall.count({ where: { userId: user.id, kind } });
+}
+
 export async function disconnectMealsDb() {
   await prisma.$disconnect();
 }

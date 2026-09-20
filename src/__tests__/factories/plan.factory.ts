@@ -6,7 +6,6 @@ import {
   type PlanItem,
   type PlanNote,
   type PlanOption,
-  type PlanRule,
   type PlanSlot,
   type PlanTarget,
 } from '@prisma/client';
@@ -107,21 +106,6 @@ export const planTargetFactory = Factory.define<PlanTarget>(({ sequence }) => ({
   updatedAt: at,
 }));
 
-export const planRuleFactory = Factory.define<PlanRule>(({ sequence }) => ({
-  id: `rule-${sequence}`,
-  planId: 'plan-1',
-  kind: 'INSTRUCTION',
-  tracking: 'NOTE',
-  period: null,
-  definition: {},
-  originalText: 'روزهای تمرین یک وعده اضافه',
-  sourceExcerpt: '',
-  isConflicting: false,
-  unsupportedReason: null,
-  createdAt: at,
-  updatedAt: at,
-}));
-
 export const planNoteFactory = Factory.define<PlanNote>(({ sequence }) => ({
   id: `note-${sequence}`,
   planId: 'plan-1',
@@ -214,7 +198,6 @@ export function buildPlanWithRows(overrides: Partial<Plan> = {}) {
     ...plan,
     slots: [breakfast, lunch],
     targets: [planTargetFactory.build({ id: 'target-1', planId: plan.id })],
-    rules: [planRuleFactory.build({ id: 'rule-1', planId: plan.id })],
     notes: [planNoteFactory.build({ id: 'note-1', planId: plan.id })],
   };
 }

@@ -40,16 +40,6 @@ export const TARGET_NUTRIENTS = [
 ] as const;
 export const TARGET_TYPES = ['RANGE', 'MINIMUM', 'MAXIMUM', 'DESIRED', 'APPROXIMATE'] as const;
 export const TARGET_SOURCES = ['EXPLICIT', 'ESTIMATED', 'SUM_OF_MEALS'] as const;
-export const RULE_KINDS = [
-  'SERVING_COUNT',
-  'DISTINCT_GROUPS',
-  'NAMED_WEEKDAY_FOOD',
-  'EXCLUSION',
-  'TIMING_WINDOW',
-  'INSTRUCTION',
-] as const;
-export const RULE_TRACKING = ['TRACK', 'NOTE', 'IGNORE'] as const;
-export const RULE_PERIODS = ['DAY', 'WEEK'] as const;
 export const NOTE_REASONS = [
   'TRAINING_CONDITIONAL',
   'EXERCISE',
@@ -169,73 +159,6 @@ export const draftTargetSchema = z
   });
 export type DraftTarget = z.infer<typeof draftTargetSchema>;
 
-// ─── Rule definitions per kind (tech spec § 7.1 / implementation plan 7.1) ──
-
-const ruleFoodSchema = foodNameSchema.extend({
-  synonyms: z.array(z.string().trim().max(100)).max(10).default([]),
-});
-
-export const servingCountDefinitionSchema = z.object({
-  food: ruleFoodSchema,
-  count: z.number().int().positive(),
-  comparator: z.enum(['AT_LEAST', 'AT_MOST', 'EXACT']).default('AT_LEAST'),
-});
-export const distinctGroupsDefinitionSchema = z.object({
-  groups: z.array(z.string().trim().min(1).max(60)).min(1).max(20),
-  minimum: z.number().int().positive(),
-});
-export const namedWeekdayFoodDefinitionSchema = z.object({
-  weekday: z.number().int().min(0).max(6),
-  food: ruleFoodSchema,
-});
-export const exclusionDefinitionSchema = z.object({
-  foods: z.array(ruleFoodSchema).min(1).max(20),
-});
-export const timingWindowDefinitionSchema = z.object({
-  /** The slot's draft key (mapped to the slot id at confirm). */
-  slotKey: key.nullable().default(null),
-  slotId: z.string().nullable().default(null),
-  start: z.string().refine(isValidLocalTime),
-  end: z.string().refine(isValidLocalTime).nullable().default(null),
-});
-export const instructionDefinitionSchema = z.object({}).passthrough();
-
-export const RULE_DEFINITION_SCHEMAS = {
-  SERVING_COUNT: servingCountDefinitionSchema,
-  DISTINCT_GROUPS: distinctGroupsDefinitionSchema,
-  NAMED_WEEKDAY_FOOD: namedWeekdayFoodDefinitionSchema,
-  EXCLUSION: exclusionDefinitionSchema,
-  TIMING_WINDOW: timingWindowDefinitionSchema,
-  INSTRUCTION: instructionDefinitionSchema,
-} as const;
-
-export const draftRuleSchema = z
-  .object({
-    key,
-    id: optionalId,
-    kind: z.enum(RULE_KINDS),
-    tracking: z.enum(RULE_TRACKING).default('NOTE'),
-    period: z.enum(RULE_PERIODS).nullable().default(null),
-    definition: z.unknown().default({}),
-    originalText: z.string().trim().min(1).max(2000),
-    sourceExcerpt: excerpt,
-    isConflicting: z.boolean().default(false),
-    unsupportedReason: z.string().max(300).nullable().default(null),
-  })
-  .superRefine((rule, ctx) => {
-    // A tracked rule must carry a valid definition for its kind; notes and ignored rules may be loose.
-    if (rule.tracking !== 'TRACK') return;
-    const schema = RULE_DEFINITION_SCHEMAS[rule.kind];
-    const parsed = schema.safeParse(rule.definition ?? {});
-    if (!parsed.success)
-      ctx.addIssue({
-        code: 'custom',
-        path: ['definition'],
-        message: t('validation.ruleDefinition'),
-      });
-  });
-export type DraftRule = z.infer<typeof draftRuleSchema>;
-
 export const draftNoteSchema = z.object({
   key,
   originalText: z.string().trim().min(1).max(2000),
@@ -253,6 +176,7 @@ export const draftQuestionSchema = z.object({
 });
 export type DraftQuestion = z.infer<typeof draftQuestionSchema>;
 
+/** Drafts saved before decision 023 may still carry a `rules` array; parsing strips it. */
 export const planDraftSchema = z.object({
   draftRevision: z.number().int().nonnegative().default(0),
   structure: z.enum(PLAN_STRUCTURES),
@@ -261,7 +185,6 @@ export const planDraftSchema = z.object({
   sourceLanguage: z.string().trim().max(20).nullable().default(null),
   slots: z.array(draftSlotSchema).max(60).default([]),
   targets: z.array(draftTargetSchema).max(200).default([]),
-  rules: z.array(draftRuleSchema).max(60).default([]),
   notes: z.array(draftNoteSchema).max(60).default([]),
   questions: z.array(draftQuestionSchema).max(60).default([]),
   /** Review progress (8a → 8b → 8c). */
@@ -269,9 +192,9 @@ export const planDraftSchema = z.object({
     .object({
       meals: z.boolean().default(false),
       targets: z.boolean().default(false),
-      rules: z.boolean().default(false),
+      notes: z.boolean().default(false),
     })
-    .default({ meals: false, targets: false, rules: false }),
+    .default({ meals: false, targets: false, notes: false }),
   /** Manual setup: how far the wizard got, so a refresh resumes there. */
   manualStep: z.string().max(40).nullable().default(null),
 });
@@ -297,7 +220,6 @@ export const DRAFT_SECTIONS = [
   'slots',
   'slot',
   'targets',
-  'rules',
   'notes',
   'questions',
   'reviewed',
@@ -310,8 +232,8 @@ export type DraftSection = (typeof DRAFT_SECTIONS)[number];
  * - meta: { name?, sourceNote?, sourceLanguage?, structure? }
  * - slots: the whole slots array (manual setup, reorder, remove)
  * - slot: one slot by key (8a "Fix"), replacing it
- * - targets / rules / notes / questions: the whole array
- * - reviewed: partial { meals?, targets?, rules? }
+ * - targets / notes / questions: the whole array
+ * - reviewed: partial { meals?, targets?, notes? }
  * - manualStep: string | null
  */
 export const updateDraftSchema = z.object({
@@ -327,13 +249,12 @@ export const DRAFT_SECTION_PAYLOADS = {
   slots: z.array(draftSlotSchema).max(60),
   slot: draftSlotSchema,
   targets: z.array(draftTargetSchema).max(200),
-  rules: z.array(draftRuleSchema).max(60),
   notes: z.array(draftNoteSchema).max(60),
   questions: z.array(draftQuestionSchema).max(60),
   reviewed: z.object({
     meals: z.boolean().optional(),
     targets: z.boolean().optional(),
-    rules: z.boolean().optional(),
+    notes: z.boolean().optional(),
   }),
   manualStep: z.string().max(40).nullable(),
 } as const;

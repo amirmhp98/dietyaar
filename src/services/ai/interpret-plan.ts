@@ -147,14 +147,13 @@ export function sanitizeExcerpts(
       ...target,
       sourceExcerpt: keep(target.sourceExcerpt) ? target.sourceExcerpt : null,
     })),
-    rules: output.rules.map((rule) => ({ ...rule, sourceExcerpt: clean(rule.sourceExcerpt) })),
   };
 }
 
 /**
  * Concatenates weekday chunks: slots get their chunk's weekday and indices are
  * re-based. A range chunk repeats its slots, slot targets and questions for
- * every day of the range; rules, notes and every-day targets appear once.
+ * every day of the range; notes and every-day targets appear once.
  */
 export function mergeChunks(
   chunks: Array<{ weekdays: number[]; output: PlanImportOutput }>,
@@ -165,21 +164,13 @@ export function mergeChunks(
     sourceLanguage: null,
     slots: [],
     targets: [],
-    rules: [],
     notes: [],
     uncertainties: [],
   };
-  const seenRules = new Set<string>();
   const seenNotes = new Set<string>();
   for (const { weekdays, output } of chunks) {
     merged.name ??= output.name;
     merged.sourceLanguage ??= output.sourceLanguage;
-    for (const rule of output.rules) {
-      const key = `${rule.kind}:${rule.originalText}`;
-      if (seenRules.has(key)) continue;
-      seenRules.add(key);
-      merged.rules.push(rule);
-    }
     for (const note of output.notes) {
       if (seenNotes.has(note.originalText)) continue;
       seenNotes.add(note.originalText);

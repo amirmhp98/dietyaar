@@ -94,7 +94,6 @@ export interface MealFoodItemView {
   matchedPlanItemId: string | null;
   isAddedItem: boolean;
   restrictionHit: string | null;
-  ruleGroups: string[];
   nutrition: Nutrition | null;
 }
 
@@ -216,7 +215,6 @@ function rowToDraftItem(row: FoodItem): DraftFoodItem {
     nutrition: parseNutrition(row.nutrition),
     matchedPlanItemId: row.matchedPlanItemId,
     isAddedItem: row.isAddedItem,
-    ruleGroups: row.ruleGroups,
   });
 }
 
@@ -237,7 +235,6 @@ function rowToItemView(row: FoodItem): MealFoodItemView {
     matchedPlanItemId: row.matchedPlanItemId,
     isAddedItem: row.isAddedItem,
     restrictionHit: row.restrictionHit,
-    ruleGroups: row.ruleGroups,
     nutrition: parseNutrition(row.nutrition),
   };
 }
@@ -504,7 +501,6 @@ function toFoodItemRows(
     matchedPlanItemId: item.matchedPlanItemId,
     isAddedItem: item.isAddedItem,
     restrictionHit: hitByKey.get(item.key) ?? null,
-    ruleGroups: item.ruleGroups,
     nutrition: jsonOrNull(normaliseForStorage(item)),
   }));
 }

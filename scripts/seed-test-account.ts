@@ -428,28 +428,19 @@ async function main() {
     ],
   });
 
-  // ─── Rules ────────────────────────────────────────────────────────────
-  const sodaRule = await prisma.planRule.create({
-    data: {
-      planId: plan.id,
-      kind: 'EXCLUSION',
-      tracking: 'TRACK',
-      period: 'DAY',
-      definition: { excludedGroups: ['soda', 'fast_food'] },
-      originalText: 'بدون نوشابه و فست‌فود',
-      sourceExcerpt: 'بدون نوشابه',
-      isConflicting: false,
-    },
-  });
-  await prisma.planNote.create({
-    data: {
-      planId: plan.id,
-      originalText: 'پنجشنبه و جمعه انعطاف بیشتر، اما بدون نوشابه',
-      reason: 'DAY_TYPE',
-    },
+  // ─── Notes (decision 023: instructions are kept verbatim, never evaluated) ──
+  await prisma.planNote.createMany({
+    data: [
+      { planId: plan.id, originalText: 'بدون نوشابه و فست‌فود', reason: 'OTHER' },
+      {
+        planId: plan.id,
+        originalText: 'پنجشنبه و جمعه انعطاف بیشتر، اما بدون نوشابه',
+        reason: 'DAY_TYPE',
+      },
+    ],
   });
 
-  console.log(`Plan: ${plan.id} (BY_WEEKDAY, ${allWeekdays.length} weekdays, rule ${sodaRule.id})`);
+  console.log(`Plan: ${plan.id} (BY_WEEKDAY, ${allWeekdays.length} weekdays, 2 notes)`);
 
   // ─── Day records + meals ────────────────────────────────────────────
   // Helper to create a day, its meals and food items.
@@ -472,7 +463,6 @@ async function main() {
       matchedPlanItemId: string | null;
       isAddedItem: boolean;
       restrictionHit?: string | null;
-      ruleGroups?: string[];
     }>;
   }) {
     const meal = await prisma.meal.create({
@@ -506,7 +496,6 @@ async function main() {
           matchedPlanItemId: it.matchedPlanItemId,
           isAddedItem: it.isAddedItem,
           restrictionHit: it.restrictionHit ?? null,
-          ruleGroups: it.ruleGroups ?? [],
           nutrition: nutrition({
             ENERGY_KCAL: it.item.kcal,
             PROTEIN_G: it.item.protein,
@@ -640,7 +629,7 @@ async function main() {
     console.log(`Day ${iso}: well-filled, close to plan`);
   }
 
-  // Day −2: not followed — breakfast skipped, junk food, over target, rule violation.
+  // Day −2: not followed — breakfast skipped, junk food, over target.
   {
     const iso = isoDaysAgo(2);
     const day = await prisma.dayRecord.create({
@@ -674,7 +663,6 @@ async function main() {
           },
           matchedPlanItemId: null,
           isAddedItem: true,
-          ruleGroups: ['fast_food'],
         },
         {
           item: {
@@ -690,7 +678,6 @@ async function main() {
           },
           matchedPlanItemId: null,
           isAddedItem: true,
-          ruleGroups: ['soda'],
         },
       ],
     });
@@ -716,7 +703,6 @@ async function main() {
           },
           matchedPlanItemId: null,
           isAddedItem: true,
-          ruleGroups: ['fast_food'],
         },
         {
           item: {

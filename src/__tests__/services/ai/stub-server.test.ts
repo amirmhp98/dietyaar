@@ -45,8 +45,7 @@ describe('canned outputs match the schemas', () => {
     expect(menu.slots[0]!.options).toHaveLength(3);
     expect(menu.slots[2]!.options).toHaveLength(4);
     expect(menu.targets.filter((t) => t.slotIndex !== null)).toHaveLength(5);
-    expect(menu.notes[0]!.reason).toBe('TRAINING_CONDITIONAL');
-    expect(menu.rules[0]!.kind).toBe('SERVING_COUNT');
+    expect(menu.notes.map((n) => n.reason)).toEqual(['TRAINING_CONDITIONAL', 'OTHER']);
     const week = planImportOutputSchema.parse(stub.weekdayPlan());
     expect(week.slots).toHaveLength(21);
     expect(week.slots[0]!.weekday).toBe(6);
