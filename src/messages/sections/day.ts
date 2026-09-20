@@ -44,7 +44,7 @@ export const day = {
 
   // ── Your plan today ────────────────────────────────────────
   'day.plan.heading': 'Your plan today',
-  'day.plan.headingPast': 'Your plan for this day',
+  'day.plan.headingPast': 'Your plan · {date}',
   'day.plan.noPlan': 'Add your plan to see how your meals compare.',
   'day.plan.addPlan': 'Add your plan',
   'day.plan.viewPlan': "View today's plan",
@@ -57,7 +57,6 @@ export const day = {
   'day.plan.import.retried': 'Import started again',
 
   // ── Score card ─────────────────────────────────────────────
-  'score.titleDate': 'Your plan · {date}',
   'score.notEnoughHint': 'Your number appears after two planned meals are logged.',
 
   // ── Why this score ─────────────────────────────────────────
@@ -172,6 +171,9 @@ export const day = {
   'meals.timeUnknown': 'Time unknown',
   'meals.other': 'Extra',
   'meals.empty': 'No meals recorded for this day.',
+  'meals.emptyToday': 'Nothing recorded yet. Your first meal goes here.',
+  'meals.photos.one': '{count} photo',
+  'meals.photos.other': '{count} photos',
   'meals.moreItems.one': '+{count} more',
   'meals.moreItems.other': '+{count} more',
   'meals.kcal': '{value} kcal',

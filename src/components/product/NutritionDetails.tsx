@@ -1,16 +1,19 @@
 'use client';
 
 import { Disclosure } from '@/components/product/Disclosure';
+import { MeterBar } from '@/components/product/MeterBar';
 import { formatNumber } from '@/lib/format';
 import type { RubricTarget, TargetComparison } from '@/lib/rubric/types';
 import { t, tp, type MessageKey } from '@/lib/t';
 import { MAIN_NUTRIENTS, type NutrientKey } from '@/lib/validations/nutrition';
 
 /**
- * Nutrition details (product spec § 9 "Today's nutrition details"): recorded
- * totals against the plan's targets with their source labelled, the number of
- * recorded meals, log completeness, the estimates note and missing values.
- * Other nutrients sit in a nested disclosure and only when a target exists.
+ * Nutrition details (product spec § 9 "Today's nutrition details", design.md
+ * "Product UI"): energy first, then one value / target row per nutrient with
+ * a thin neutral bar (recorded against the range; hatched when unknown), the
+ * source and status behind a per-row disclosure; the number of recorded
+ * meals, log completeness and the estimates note around them. Other
+ * nutrients sit in a nested disclosure and only when a target exists.
  */
 export function NutritionDetails({
   nutrition,
@@ -47,18 +50,18 @@ export function NutritionDetails({
         <p className="text-xs text-muted-foreground">
           {tp('nutrition.meals', mealCount)} · {logLabel}
         </p>
-        <dl className="divide-y divide-border">
+        <ul className="divide-y divide-border">
           {main.map((row) => (
             <NutrientRow key={row.nutrient} row={row} />
           ))}
-        </dl>
+        </ul>
         {others.length > 0 ? (
           <Disclosure label={t('nutrition.more')} triggerClassName="font-normal">
-            <dl className="divide-y divide-border">
+            <ul className="divide-y divide-border">
               {others.map((row) => (
                 <NutrientRow key={row.nutrient} row={row} />
               ))}
-            </dl>
+            </ul>
           </Disclosure>
         ) : null}
         <p className="text-xs text-muted-foreground">{t('nutrition.estimates')}</p>
@@ -135,34 +138,80 @@ function statusText(row: TargetComparison, unit: string): string | null {
   }
 }
 
+/**
+ * The bar's scale and the target band on it; no bar without a target. The
+ * scale runs to a quarter past the target's upper bound (or the recorded
+ * value, whichever is larger) so a value beyond the range still shows how
+ * far; a minimum runs its band to the end, a maximum from the start, a single
+ * figure is a narrow band around it.
+ */
+export function nutrientBar(
+  row: TargetComparison,
+): { value: number | null; band: { from: number; to: number } } | null {
+  const recorded = row.subtotal.value;
+  const target = row.target;
+  if (!target) return null;
+  const { type, low, high } = target;
+  const reference = high ?? low;
+  if (reference === null || reference <= 0) return null;
+  const scale = Math.max(reference * 1.25, recorded ?? 0);
+  const band =
+    type === 'RANGE' && low !== null && high !== null
+      ? { from: low / scale, to: high / scale }
+      : type === 'MINIMUM'
+        ? { from: reference / scale, to: 1 }
+        : type === 'MAXIMUM'
+          ? { from: 0, to: reference / scale }
+          : { from: (reference * 0.97) / scale, to: (reference * 1.03) / scale };
+  return { value: recorded === null ? null : recorded / scale, band };
+}
+
 function NutrientRow({ row }: { row: TargetComparison }) {
   const unit = UNITS[row.nutrient];
-  const recorded =
-    row.subtotal.value === null ? t('nutrition.unknown') : `${round(row.subtotal.value)} ${unit}`;
+  const unknown = row.subtotal.value === null;
+  const recorded = unknown ? t('nutrition.unknown') : `${round(row.subtotal.value!)} ${unit}`;
   const target = row.target ? targetText(row.target, unit) : null;
   const status = statusText(row, unit);
+  const bar = nutrientBar(row);
   return (
-    <div className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-0.5 py-2" data-nutrient={row.nutrient}>
-      <dt className="text-sm font-medium">{nutrientName(row.nutrient)}</dt>
-      <dd className="text-end text-sm tabular-nums">
-        <span className="sr-only">{t('nutrition.recorded')} </span>
-        {recorded}
-      </dd>
-      <dd className="col-span-2 text-xs text-muted-foreground">
-        {row.target && target ? (
-          <>
-            {t('nutrition.target')}: {target} · {sourceLabel(row.target)}
-          </>
-        ) : (
-          t('nutrition.noTarget')
-        )}
-      </dd>
-      {status ? <dd className="col-span-2 text-xs">{status}</dd> : null}
-      {row.subtotal.missingItems > 0 ? (
-        <dd className="col-span-2 text-xs text-muted-foreground">
-          {tp('nutrition.missing', row.subtotal.missingItems)}
-        </dd>
-      ) : null}
-    </div>
+    <li data-nutrient={row.nutrient}>
+      <Disclosure
+        triggerClassName="px-1 py-2 font-normal"
+        contentClassName="pb-3 pt-0"
+        label={
+          <span className="block space-y-1.5">
+            <span className="flex items-baseline justify-between gap-3">
+              <span className="text-sm font-medium">{nutrientName(row.nutrient)}</span>
+              <span className="shrink-0 text-end text-sm tabular-nums">
+                <span className="sr-only">{t('nutrition.recorded')} </span>
+                {recorded}
+                {target ? (
+                  <span className="text-muted-foreground">
+                    <span className="sr-only"> {t('nutrition.target')}</span> / {target}
+                  </span>
+                ) : null}
+              </span>
+            </span>
+            {bar ? <MeterBar value={bar.value} band={bar.band} unknown={unknown} /> : null}
+          </span>
+        }
+      >
+        <div className="space-y-0.5 text-xs text-muted-foreground">
+          <p>
+            {row.target && target ? (
+              <>
+                {t('nutrition.target')}: {target} · {sourceLabel(row.target)}
+              </>
+            ) : (
+              t('nutrition.noTarget')
+            )}
+          </p>
+          {status ? <p className="text-foreground">{status}</p> : null}
+          {row.subtotal.missingItems > 0 ? (
+            <p>{tp('nutrition.missing', row.subtotal.missingItems)}</p>
+          ) : null}
+        </div>
+      </Disclosure>
+    </li>
   );
 }

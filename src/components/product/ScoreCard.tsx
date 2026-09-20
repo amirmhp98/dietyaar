@@ -1,34 +1,34 @@
-import { t, tp } from '@/lib/t';
+import { MeterBar } from '@/components/product/MeterBar';
+import { ScoreNumeral } from '@/components/product/ScoreNumeral';
+import { BandGlyph, type BandGlyphName } from '@/components/product/StatusGlyph';
+import { Surface } from '@/components/product/Surface';
 import type { DayScore } from '@/lib/rubric/types';
-import { cn } from '@/lib/utils';
+import { t, tp } from '@/lib/t';
 
 /**
- * Score card (product spec § 8 display): integer + wording band + coverage,
- * "In progress" on today, "Not enough information yet" before any scored meal
- * (with the hint that two planned meals unlock the number). A past day names
- * its date in the eyebrow. The number appears only with two scored meals.
- * Never colour-keyed.
+ * Score card (product spec § 8 display, design.md "Product UI" › hero): the
+ * one elevated, tinted surface on the page. Band glyph + 40 px numeral (or
+ * the band word alone with one scored meal), a thin neutral "N of M
+ * recorded" bar, the coverage line; the "In progress" eyebrow on today (the
+ * section header above names a past day). Before any scored meal: the
+ * hourglass, "Not enough information yet" and the hint that two planned
+ * meals unlock the number. Never colour-keyed; the number appears only with
+ * two scored meals.
  */
 export function ScoreCard({
   score,
   ongoing,
-  dateLabel,
   children,
   className,
 }: {
   score: DayScore;
   ongoing: boolean;
-  /** The formatted day, shown in the eyebrow of a past day; omitted on today. */
-  dateLabel?: string;
   children?: React.ReactNode;
   className?: string;
 }) {
   const { coverage } = score;
-  const eyebrow = ongoing
-    ? t('score.inProgress')
-    : dateLabel
-      ? t('score.titleDate', { date: dateLabel })
-      : t('score.title');
+  const notEnough = score.band === 'NOT_ENOUGH';
+  const band: BandGlyphName = score.band === 'NOT_ENOUGH' ? 'IN_PROGRESS' : score.band;
   const bandLabel =
     score.band === 'CLOSELY'
       ? t('score.band.closely')
@@ -40,39 +40,53 @@ export function ScoreCard({
   const coverageParts = [tp('score.coverage', coverage.scored, { total: coverage.prescribed })];
   if (coverage.skipped > 0) coverageParts.push(tp('score.skipped', coverage.skipped));
   if (score.completeByDefault) coverageParts.push(t('score.completeByDefault'));
+  const showNumber = score.showNumber && score.dayScore !== null;
 
   return (
-    <div
-      className={cn('rounded-xl border border-border bg-card p-4', className)}
-      data-testid="score-card"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {eyebrow}
-          </p>
-          <div className="mt-1 flex items-baseline gap-2">
-            {score.showNumber && score.dayScore !== null ? (
-              <span className="text-3xl font-semibold tabular-nums" data-testid="score-number">
-                {score.dayScore}
-              </span>
-            ) : null}
-            <span className="text-base font-medium" data-testid="score-band">
-              {bandLabel}
-            </span>
-          </div>
-          {score.band !== 'NOT_ENOUGH' ? (
-            <p className="mt-1 text-xs text-muted-foreground" data-testid="score-coverage">
-              {coverageParts.join(' · ')}
-            </p>
-          ) : (
-            <p className="mt-1 text-xs text-muted-foreground" data-testid="score-hint">
-              {t('score.notEnoughHint')}
-            </p>
-          )}
-        </div>
+    <Surface variant="hero" className={className} data-testid="score-card">
+      {ongoing ? (
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {t('score.inProgress')}
+        </p>
+      ) : null}
+      <div className="flex items-center gap-3">
+        {/* The visible band word names the state; the glyph is its shape. */}
+        <BandGlyph band={band} size="lg" describe={false} className="text-muted-foreground" />
+        {showNumber ? (
+          <ScoreNumeral
+            value={score.dayScore!}
+            className="leading-none"
+            data-testid="score-number"
+          />
+        ) : null}
+        <span
+          className={
+            showNumber
+              ? 'font-display text-base font-semibold leading-tight'
+              : 'font-display text-lg font-semibold leading-tight'
+          }
+          data-testid="score-band"
+        >
+          {bandLabel}
+        </span>
       </div>
+      {coverage.prescribed > 0 ? (
+        <MeterBar
+          value={coverage.recorded / coverage.prescribed}
+          label={tp('day.recordedMeals', coverage.recorded, { prescribed: coverage.prescribed })}
+          className="mt-3"
+        />
+      ) : null}
+      {notEnough ? (
+        <p className="mt-2 text-xs text-muted-foreground" data-testid="score-hint">
+          {t('score.notEnoughHint')}
+        </p>
+      ) : (
+        <p className="mt-2 text-xs text-muted-foreground" data-testid="score-coverage">
+          {coverageParts.join(' · ')}
+        </p>
+      )}
       {children}
-    </div>
+    </Surface>
   );
 }
