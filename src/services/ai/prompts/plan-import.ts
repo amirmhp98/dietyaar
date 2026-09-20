@@ -16,7 +16,7 @@ import {
  * text and passes `chunkWeekday`). The reply is validated with
  * `planImportOutputSchema`.
  */
-export const PLAN_IMPORT_PROMPT_VERSION = 2;
+export const PLAN_IMPORT_PROMPT_VERSION = 3;
 export const PLAN_IMPORT_MAX_TOKENS = 8000;
 
 export const WEEKDAY_NAMES = [
@@ -49,7 +49,8 @@ const EXAMPLE = {
               originalName: 'نان سنگک',
               englishLabel: 'Sangak bread',
               quantity: 1,
-              unit: 'slice_sangak',
+              unit: 'slice',
+              unitGrams: 80,
               quantityAssumed: false,
               assumedDefaultKey: null,
               preparationNote: null,
@@ -63,6 +64,7 @@ const EXAMPLE = {
               englishLabel: 'Boiled or oven-baked potato',
               quantity: 100,
               unit: 'g',
+              unitGrams: null,
               quantityAssumed: false,
               assumedDefaultKey: null,
               preparationNote: 'boiled',
@@ -82,6 +84,7 @@ const EXAMPLE = {
               englishLabel: 'Cucumber and tomato',
               quantity: 150,
               unit: 'g',
+              unitGrams: null,
               quantityAssumed: true,
               assumedDefaultKey: 'cucumber_tomato',
               preparationNote: null,
@@ -146,7 +149,7 @@ export function planImportSystemPrompt(): string {
     'Weekdays: 0 = Sunday, 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday, 7 = every day. Persian: شنبه = 6, یکشنبه = 0, دوشنبه = 1, سه‌شنبه = 2, چهارشنبه = 3, پنجشنبه = 4, جمعه = 5.',
     'Slots: every meal the plan names (breakfast, snack, lunch, pre-workout, …) in plan order, with the name exactly as written. Do not invent slots, times or windows the plan does not state; `timeStart`/`timeEnd` are "HH:mm" only when the plan gives clock times.',
     'Options: when a slot lists several numbered or lettered menus to choose from, each one is an option with its own items; `label` is the option heading as written or null. A slot with one menu has exactly one option. Never merge options into one list, never pick one.',
-    'Items: one per food, with the quantity and unit as written. A phrase like "boiled or oven potato" or "kabab tabei or homemade burger" is ONE item whose first choice is the item and whose other choices are `alternatives`. `preparationNote` keeps a cooking hint (boiled, grilled, low-fat, …) in English.',
+    'Items: one per food, with the quantity and unit as written (2 apples: quantity 2, unit "piece", unitGrams from the hints). A phrase like "boiled or oven potato" or "kabab tabei or homemade burger" is ONE item whose first choice is the item and whose other choices are `alternatives`. `preparationNote` keeps a cooking hint (boiled, grilled, low-fat, …) in English.',
     unitsSection(),
     assumedDefaultsSection(),
     categoriesSection(),

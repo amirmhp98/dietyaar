@@ -51,11 +51,13 @@ export async function seedMenuPlan(username: string): Promise<SeededPlan> {
     category: string,
     kcal: number,
     position: number,
+    unitGrams: number | null = null,
   ) => ({
     originalName,
     englishLabel,
     quantity,
     unit,
+    unitGrams,
     category: category as never,
     nutrition: N(kcal),
     position,
@@ -82,7 +84,7 @@ export async function seedMenuPlan(username: string): Promise<SeededPlan> {
                   label: 'گزینه ۱',
                   items: {
                     create: [
-                      item('تخم‌مرغ', 'egg', 2, 'egg', 'MEAT', 150, 0),
+                      item('تخم‌مرغ', 'egg', 2, 'piece', 'MEAT', 150, 0, 50),
                       item('نان سنگک', 'sangak bread', 80, 'g', 'BREAD', 210, 1),
                       item('خیار و گوجه', 'cucumber and tomato', null, null, 'VEGETABLE', 20, 2),
                     ],
@@ -95,7 +97,7 @@ export async function seedMenuPlan(username: string): Promise<SeededPlan> {
                     create: [
                       item('جو دوسر', 'oats', 40, 'g', 'OTHER', 150, 0),
                       item('ماست یونانی', 'Greek yogurt', 150, 'g', 'DAIRY', 130, 1),
-                      item('موز کوچک', 'small banana', 1, 'small_banana', 'FRUIT', 90, 2),
+                      item('موز کوچک', 'small banana', 1, 'piece', 'FRUIT', 90, 2, 100),
                       item('گردو', 'walnuts', 15, 'g', 'NUTS', 100, 3),
                     ],
                   },
@@ -124,7 +126,7 @@ export async function seedMenuPlan(username: string): Promise<SeededPlan> {
                   position: 0,
                   label: null,
                   items: {
-                    create: [item('سیب متوسط', 'medium apple', 1, 'medium_apple', 'FRUIT', 95, 0)],
+                    create: [item('سیب متوسط', 'medium apple', 1, 'piece', 'FRUIT', 95, 0, 180)],
                   },
                 },
               ],
@@ -192,7 +194,7 @@ export async function seedMenuPlan(username: string): Promise<SeededPlan> {
                 {
                   position: 0,
                   label: 'گزینه ۱',
-                  items: { create: [item('پرتقال', 'orange', 1, 'medium_orange', 'FRUIT', 70, 0)] },
+                  items: { create: [item('پرتقال', 'orange', 1, 'piece', 'FRUIT', 70, 0, 150)] },
                 },
                 {
                   position: 1,

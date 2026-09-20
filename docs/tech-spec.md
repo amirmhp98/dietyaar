@@ -208,7 +208,7 @@ One row per user. The active plan is the slot, option, item, target, and note ro
 
 **PlanOption**: `planSlotId`, `position`, `label` nullable. A single-meal slot has exactly one option; the UI hides the concept when the count is 1.
 
-**PlanItem**: `planOptionId`, `position`, `originalName`, `englishLabel`, `quantity` nullable, `unit` nullable (unit-table key), `quantityAssumed` bool, `assumedDefaultKey` nullable, `preparationNote` nullable, `alternatives` JSON `[{originalName, englishLabel, nutrition}]`, `category` enum (`OIL`, `BREAD`, `RICE`, `POTATO`, `NUTS`, `DAIRY`, `MEAT`, `VEGETABLE`, `HERB`, `CONDIMENT`, `FRUIT`, `OTHER`), `nutrition` JSON (section 5.1), `sourceExcerpt`.
+**PlanItem**: `planOptionId`, `position`, `originalName`, `englishLabel`, `quantity` nullable, `unit` nullable (unit-table key: a measure, never a food or a size), `unitGrams` nullable (grams of one unit when `unit` is a count unit; decision 024), `quantityAssumed` bool, `assumedDefaultKey` nullable, `preparationNote` nullable, `alternatives` JSON `[{originalName, englishLabel, nutrition}]`, `category` enum (`OIL`, `BREAD`, `RICE`, `POTATO`, `NUTS`, `DAIRY`, `MEAT`, `VEGETABLE`, `HERB`, `CONDIMENT`, `FRUIT`, `OTHER`), `nutrition` JSON (section 5.1), `sourceExcerpt`.
 
 **PlanTarget**: `planId`, `planSlotId` nullable (null means daily), `weekday` int nullable, `nutrient` enum (`ENERGY_KCAL`, `PROTEIN_G`, `CARB_G`, `FAT_G`, `FIBER_G`, `SODIUM_MG`), `type` (`RANGE`, `MINIMUM`, `MAXIMUM`, `DESIRED`, `APPROXIMATE`), `low` decimal nullable, `high` decimal nullable, `source` (`EXPLICIT`, `ESTIMATED`, `SUM_OF_MEALS`), `sourceExcerpt` nullable. Validation: `RANGE` needs both bounds with `low <= high`; `MINIMUM` needs `low`; `MAXIMUM` needs `high`; `DESIRED` and `APPROXIMATE` need `low` only. Unique `(planId, scopeKey)` where `scopeKey` is the non-null string `weekday:planSlotId-or-day:nutrient` derived by the service (nullable columns never take part in a unique key).
 
@@ -230,7 +230,7 @@ Applying a draft to rows: an edit draft (`startEdit`) carries the existing row i
 
 The meal's date is `DayRecord.localDate`; its zone is `DayRecord.timeZone`. The composer decides the date (default today; "Was this for yesterday?" between 00:00 and 04:00; the chosen date on a History page). A cross-midnight window is not modeled separately: the meal belongs wholly to the date the user chose, for both slot comparison and nutrition. This is a deliberate simplification of product spec section 8 and is listed in section 22.
 
-**FoodItem**: `mealId`, `position`, `originalName`, `englishLabel`, `quantity` nullable, `unit` nullable, `quantityUnknown` bool, `quantityAssumed` bool, `preparation` nullable, `category` enum, `alternatives` JSON, `matchedPlanItemId` nullable, `isAddedItem` bool, `restrictionHit` text nullable, `nutrition` JSON (section 5.1).
+**FoodItem**: `mealId`, `position`, `originalName`, `englishLabel`, `quantity` nullable, `unit` nullable, `unitGrams` nullable (decision 024), `quantityUnknown` bool, `quantityAssumed` bool, `preparation` nullable, `category` enum, `alternatives` JSON, `matchedPlanItemId` nullable, `isAddedItem` bool, `restrictionHit` text nullable, `nutrition` JSON (section 5.1).
 
 **Upload**: `userId`, `mealId` nullable, `position` int nullable, `storageKey`, `bytes`, `width`, `height`, `sha256`, `status` (`STAGED`, `ATTACHED`, `REMOVED`), `expiresAt` (24 h while `STAGED`). One table for staged and attached photos.
 
@@ -268,9 +268,9 @@ Stored on `PlanItem.nutrition`, `FoodItem.nutrition`, and inside `alternatives`:
 
 Scaling rules, implemented in `services/food-data/scale.ts`:
 
-- `PER_100G` values scale linearly to the recorded quantity after unit conversion; conversion is refused when the pair is not in the unit table, and the nutrient shows "Not evaluated".
-- `PER_RECORDED_PORTION` values scale linearly when only `quantity` changes and the source is `AI_ESTIMATE` or `RECIPE`. The result stays `isEstimate: true`.
-- A change of identity, preparation, or unit requires re-estimation; the review shows the previous values struck through until the user confirms.
+- `PER_100G` values scale linearly to the recorded quantity after unit conversion (a count unit converts through the item's `unitGrams`); conversion is refused when the pair has no path, and the nutrient shows "Not evaluated".
+- `PER_RECORDED_PORTION` values scale linearly when only `quantity` changes (2 pieces → 3 pieces) and the source is `AI_ESTIMATE` or `RECIPE`. A change of unit or of the grams per unit scales through grams when both portions weigh something ("2 ×" of 50 g each → 150 g). The result stays `isEstimate: true`.
+- A change of identity or preparation, or a unit change with no conversion path, requires re-estimation; the review shows the previous values struck through until the user confirms. Grams per unit entered where none were known keep the values and show "Check this value".
 - `userOverride: true` values never scale. If the user later changes the quantity, the value is kept and the row shows "Check this value".
 - `null` stays `null`. Subtotals that include a `null` are labeled incomplete.
 

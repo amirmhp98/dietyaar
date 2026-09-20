@@ -6,6 +6,7 @@ import type { RubricPlanItem, RubricSlot, RubricTarget } from '@/lib/rubric/type
 import { t } from '@/lib/t';
 import { localDateFor } from '@/lib/time/local-date';
 import { APP_TIME_ZONE } from '@/lib/time/zone';
+import { resolveUnitGrams } from '@/lib/units';
 import { NUTRIENT_KEYS, type NutrientKey, nutritionSchema } from '@/lib/validations/nutrition';
 import {
   DRAFT_SECTION_PAYLOADS,
@@ -114,6 +115,7 @@ function toRubricItem(row: PlanItem): RubricPlanItem {
     englishLabel: row.englishLabel,
     quantity: row.quantity === null ? null : Number(row.quantity),
     unit: row.unit,
+    unitGrams: row.unitGrams === null ? null : Number(row.unitGrams),
     quantityAssumed: row.quantityAssumed,
     category: row.category,
     alternatives: parseAlternatives(row.alternatives),
@@ -374,6 +376,7 @@ export function draftFromRows(plan: PlanWithRows): PlanDraft {
         englishLabel: item.englishLabel,
         quantity: item.quantity === null ? null : Number(item.quantity),
         unit: item.unit,
+        unitGrams: item.unitGrams === null ? null : Number(item.unitGrams),
         quantityAssumed: item.quantityAssumed,
         assumedDefaultKey: item.assumedDefaultKey,
         preparationNote: item.preparationNote,
@@ -436,7 +439,14 @@ export async function startEdit(ownerId: string, now = new Date()): Promise<Plan
 }
 
 function itemIdentity(item: DraftItem): string {
-  return [item.originalName, item.englishLabel, item.quantity, item.unit, item.preparationNote]
+  return [
+    item.originalName,
+    item.englishLabel,
+    item.quantity,
+    item.unit,
+    item.unitGrams,
+    item.preparationNote,
+  ]
     .map((v) => String(v ?? ''))
     .join(' ');
 }
@@ -662,13 +672,17 @@ export async function estimateDraftBaseline(
             englishLabel: item.englishLabel,
             quantity: item.quantity,
             unit: item.unit,
+            unitGrams: item.unitGrams,
             preparationNote: item.preparationNote,
             category: item.category,
           },
         });
       }
 
-  const estimated = new Map<string, DraftItem['nutrition']>();
+  const estimated = new Map<
+    string,
+    { nutrition: DraftItem['nutrition']; unitGrams: number | null }
+  >();
   if (pending.length > 0) {
     const localDate = localDateFor(now, APP_TIME_ZONE);
     const admission = await admitOperation(ownerId, 'PLAN_BASELINE', localDate);
@@ -693,7 +707,8 @@ export async function estimateDraftBaseline(
     }
     for (const row of result.data.items) {
       const target = pending[row.index];
-      if (target) estimated.set(target.item.key, row.nutrition);
+      if (target)
+        estimated.set(target.item.key, { nutrition: row.nutrition, unitGrams: row.unitGrams });
     }
   }
 
@@ -705,11 +720,16 @@ export async function estimateDraftBaseline(
       ...slot,
       options: slot.options.map((option) => ({
         ...option,
-        items: option.items.map((item) =>
-          estimated.has(item.key)
-            ? { ...item, nutrition: estimated.get(item.key) ?? null, needsEstimate: false }
-            : item,
-        ),
+        items: option.items.map((item) => {
+          const row = estimated.get(item.key);
+          if (!row) return item;
+          return {
+            ...item,
+            nutrition: row.nutrition,
+            unitGrams: resolveUnitGrams(item.unit, item.unitGrams, row.unitGrams),
+            needsEstimate: false,
+          };
+        }),
       })),
     })),
   };
@@ -888,6 +908,7 @@ export async function confirmPlan(
             englishLabel: item.englishLabel,
             quantity: item.quantity,
             unit: item.unit,
+            unitGrams: item.unitGrams,
             quantityAssumed: item.quantityAssumed,
             assumedDefaultKey: item.assumedDefaultKey,
             preparationNote: item.preparationNote,

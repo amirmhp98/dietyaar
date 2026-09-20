@@ -300,6 +300,7 @@ export async function estimatePlanBaseline(
           item.nutrition === null
             ? null
             : { ...item.nutrition, source: 'AI_ESTIMATE' as const, isEstimate: true },
+        unitGrams: item.unitGrams,
       });
     }
   }

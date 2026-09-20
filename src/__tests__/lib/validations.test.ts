@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { t } from '@/lib/t';
 import { loginSchema } from '@/lib/validations/auth';
+import { draftFoodItemSchema } from '@/lib/validations/meal';
+import { draftItemSchema } from '@/lib/validations/plan';
 import { createUserSchema, resetPasswordSchema, updateUserSchema } from '@/lib/validations/user';
 
 describe('loginSchema', () => {
@@ -53,5 +55,35 @@ describe('updateUserSchema / resetPasswordSchema', () => {
   it('resetPasswordSchema enforces the minimum length', () => {
     expect(resetPasswordSchema.safeParse({ password: 'short' }).success).toBe(false);
     expect(resetPasswordSchema.safeParse({ password: 'long enough' }).success).toBe(true);
+  });
+});
+
+describe('item schemas (decision 024)', () => {
+  it('a pending draft written with the old unit keys opens as a measure plus grams per unit', () => {
+    const item = draftItemSchema.parse({
+      key: 'k',
+      originalName: 'سیب',
+      englishLabel: 'apple',
+      quantity: 2,
+      unit: 'medium_apple',
+    });
+    expect(item).toMatchObject({ unit: 'piece', unitGrams: 180 });
+    const food = draftFoodItemSchema.parse({
+      key: 'k',
+      originalName: 'نان سنگک',
+      englishLabel: 'sangak',
+      quantity: 1,
+      unit: 'slice_sangak',
+      unitGrams: 90,
+    });
+    expect(food).toMatchObject({ unit: 'slice', unitGrams: 90 });
+  });
+
+  it('carries unitGrams as a positive number or null', () => {
+    const base = { key: 'k', originalName: 'x', englishLabel: 'x', quantity: 1, unit: 'piece' };
+    expect(draftItemSchema.parse(base).unitGrams).toBeNull();
+    expect(draftItemSchema.parse({ ...base, unitGrams: 50 }).unitGrams).toBe(50);
+    expect(draftItemSchema.safeParse({ ...base, unitGrams: 0 }).success).toBe(false);
+    expect(draftFoodItemSchema.safeParse({ ...base, unitGrams: -1 }).success).toBe(false);
   });
 });

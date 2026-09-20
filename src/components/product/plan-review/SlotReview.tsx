@@ -2,14 +2,13 @@
 
 import { useState } from 'react';
 import { Badge, Button, FormField } from '@/components/UiComponents';
+import { AmountPrefix, GramsEach } from '@/components/product/ItemAmount';
 import { NameLabel } from '@/components/product/NameLabel';
-import { formatNumber } from '@/lib/format';
 import { t } from '@/lib/t';
 import type { DraftItem, DraftQuestion, DraftSlot } from '@/lib/validations/plan';
 import { QuantityInput, SlotEditor } from './SlotEditor';
 import { SourceExcerpt } from './SourceExcerpt';
 import { UnitSelect } from './UnitSelect';
-import { unitLabel } from './helpers';
 
 /**
  * Screen 8a: one slot per screen. Source excerpt, the slot's name, its
@@ -40,9 +39,13 @@ export function SlotReview({
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(slot);
-  const [answer, setAnswer] = useState<{ quantity: number | null; unit: string | null }>(() => {
+  const [answer, setAnswer] = useState<Answer>(() => {
     const item = questionItem(slot, question);
-    return { quantity: item?.quantity ?? null, unit: item?.unit ?? null };
+    return {
+      quantity: item?.quantity ?? null,
+      unit: item?.unit ?? null,
+      unitGrams: item?.unitGrams ?? null,
+    };
   });
 
   const canSave = draft.originalName.trim() !== '' && hasItems(draft);
@@ -137,7 +140,9 @@ export function SlotReview({
               <UnitSelect
                 ariaLabel={t('plan.review.unit')}
                 value={answer.unit}
-                onChange={(unit) => setAnswer((a) => ({ ...a, unit }))}
+                unitGrams={answer.unitGrams}
+                onChange={(unit) => setAnswer((a) => ({ ...a, unit, unitGrams: null }))}
+                onUnitGramsChange={(unitGrams) => setAnswer((a) => ({ ...a, unitGrams }))}
               />
             </FormField>
           </div>
@@ -178,18 +183,16 @@ export function SlotReview({
   );
 }
 
+/** One prescribed item: the amount before the name ("2 × سیب", "150 g · مرغ"), grams each for counts. */
 export function ItemRow({ item }: { item: DraftItem }) {
-  const amount =
-    item.quantity === null
-      ? t('plan.item.noQuantity')
-      : t('plan.item.quantityUnit', {
-          quantity: formatNumber(item.quantity, { maximumFractionDigits: 2 }),
-          unit: unitLabel(item.unit),
-        }).trim();
   return (
     <li className="flex items-start justify-between gap-3 text-sm">
       <div className="min-w-0">
-        <NameLabel originalName={item.originalName} englishLabel={item.englishLabel} size="sm" />
+        <div className="flex flex-wrap items-baseline gap-x-1.5">
+          <AmountPrefix quantity={item.quantity} unit={item.unit} className="text-sm" />
+          <NameLabel originalName={item.originalName} englishLabel={item.englishLabel} size="sm" />
+        </div>
+        <GramsEach unit={item.unit} unitGrams={item.unitGrams} className="block" />
         {item.alternatives.length > 0 ? (
           <p className="text-xs text-muted-foreground">
             {t('plan.item.alternatives', {
@@ -199,7 +202,7 @@ export function ItemRow({ item }: { item: DraftItem }) {
         ) : null}
       </div>
       <div className="flex shrink-0 items-center gap-2 text-end text-muted-foreground">
-        <span dir="ltr">{amount}</span>
+        {item.quantity === null ? <span>{t('plan.item.noQuantity')}</span> : null}
         {item.quantityAssumed ? (
           <Badge variant="outline" title={t('plan.assumedHint')}>
             {t('plan.assumed')}
@@ -217,11 +220,13 @@ function questionItem(slot: DraftSlot, question: DraftQuestion | null): DraftIte
   return null;
 }
 
-function applyAnswer(
-  slot: DraftSlot,
-  question: DraftQuestion,
-  answer: { quantity: number | null; unit: string | null },
-): DraftSlot {
+interface Answer {
+  quantity: number | null;
+  unit: string | null;
+  unitGrams: number | null;
+}
+
+function applyAnswer(slot: DraftSlot, question: DraftQuestion, answer: Answer): DraftSlot {
   return {
     ...slot,
     options: slot.options.map((option) => ({
@@ -232,6 +237,7 @@ function applyAnswer(
               ...item,
               quantity: answer.quantity,
               unit: answer.unit,
+              unitGrams: answer.unitGrams,
               quantityAssumed: false,
               needsEstimate: true,
             }

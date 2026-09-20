@@ -18,7 +18,7 @@ import {
  * § 7). Same output shape as the text prompt; the photos are attached to the
  * user message as inline images. No profile field is ever sent.
  */
-export const MEAL_PHOTO_PROMPT_VERSION = 2;
+export const MEAL_PHOTO_PROMPT_VERSION = 3;
 
 export function mealPhotoSystemPrompt(): string {
   return [

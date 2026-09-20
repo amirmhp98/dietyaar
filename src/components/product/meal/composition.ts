@@ -18,6 +18,7 @@ export function newDraftItem(position: number): DraftFoodItem {
     englishLabel: '',
     quantity: null,
     unit: null,
+    unitGrams: null,
     quantityUnknown: false,
     quantityAssumed: false,
     preparation: null,

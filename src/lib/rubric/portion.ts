@@ -1,8 +1,13 @@
 import { PORTION_NOTICEABLE, PORTION_SMALL } from '@/lib/rubric/constants';
 import { isCounted } from '@/lib/rubric/match-slot';
-import type { MatchResult, PortionResult, RubricFoodItem } from '@/lib/rubric/types';
+import type {
+  MatchResult,
+  PortionResult,
+  RubricFoodItem,
+  RubricPlanItem,
+} from '@/lib/rubric/types';
 import type { Band } from '@/lib/time/bands';
-import { convert } from '@/lib/units';
+import { convert, isCountUnit, round3 } from '@/lib/units';
 
 export function portionBand(ratio: number): Band {
   const abs = Math.abs(ratio);
@@ -13,6 +18,67 @@ export function portionBand(ratio: number): Band {
 
 export function bandValue(band: Band): number {
   return band === 'SMALL' ? 1 : band === 'NOTICEABLE' ? 0.5 : 0;
+}
+
+/** An amount in a common measure: grams (mass, or a count through `unitGrams`) or millilitres. */
+interface Measured {
+  base: 'g' | 'ml';
+  value: number;
+}
+
+function measured(
+  quantity: number,
+  unit: string,
+  unitGrams: number | null,
+  base?: 'g' | 'ml',
+): Measured | null {
+  const bases: Array<'g' | 'ml'> = base ? [base] : ['g', 'ml'];
+  for (const b of bases) {
+    const value = convert(quantity, unit, b, { unitGrams });
+    if (value !== null) return { base: b, value };
+  }
+  return null;
+}
+
+/**
+ * Compare the recorded amounts of one plan item with the prescribed one
+ * (product spec § 8 "Portion of a matched item", decision 024):
+ * 1. in a common measure when every side converts (grams through `unitGrams`
+ *    for count units, so "1 slice" of sangak and "120 g" compare);
+ * 2. otherwise by quantity when every side uses the plan item's own unit
+ *    (2 eggs against 3 eggs, even without a weight; a glass against a glass);
+ * 3. otherwise not evaluated.
+ * The result is presented in the plan item's unit when the sides share it
+ * and the same grams per unit, otherwise in the measure they were compared in.
+ */
+function comparePortion(
+  planItem: RubricPlanItem & { quantity: number; unit: string },
+  recorded: RubricFoodItem[],
+): { actual: number; planned: number; unit: string } | null {
+  const sameUnit = recorded.every((r) => r.unit === planItem.unit);
+  const sameGrams = recorded.every((r) => r.unitGrams === planItem.unitGrams);
+  const quantities = recorded.reduce((sum, r) => sum + (r.quantity ?? 0), 0);
+
+  const plannedMeasure = measured(planItem.quantity, planItem.unit, planItem.unitGrams);
+  if (plannedMeasure) {
+    let actual = 0;
+    let convertible = true;
+    for (const r of recorded) {
+      const m = measured(r.quantity ?? 0, r.unit ?? '', r.unitGrams, plannedMeasure.base);
+      if (!m) {
+        convertible = false;
+        break;
+      }
+      actual += m.value;
+    }
+    if (convertible) {
+      return sameUnit && (!isCountUnit(planItem.unit) || sameGrams)
+        ? { actual: quantities, planned: planItem.quantity, unit: planItem.unit }
+        : { actual, planned: plannedMeasure.value, unit: plannedMeasure.base };
+    }
+  }
+  if (sameUnit) return { actual: quantities, planned: planItem.quantity, unit: planItem.unit };
+  return null;
 }
 
 /**
@@ -36,35 +102,26 @@ export function portionResult(match: MatchResult): PortionResult {
   const items: PortionResult['items'] = [];
   const notEvaluated: RubricFoodItem[] = [];
   for (const { planItem, items: recorded } of byPlanItem.values()) {
-    if (planItem.quantity === null || planItem.unit === null || planItem.quantity <= 0) {
+    const { quantity, unit } = planItem;
+    if (quantity === null || unit === null || quantity <= 0) {
       notEvaluated.push(...recorded);
       continue;
     }
-    let actual = 0;
-    let evaluable = true;
-    for (const r of recorded) {
-      if (r.quantity === null || r.quantityUnknown || r.unit === null) {
-        evaluable = false;
-        break;
-      }
-      const converted = convert(r.quantity, r.unit, planItem.unit);
-      if (converted === null) {
-        evaluable = false;
-        break;
-      }
-      actual += converted;
-    }
-    if (!evaluable) {
+    const known = recorded.every(
+      (r) => r.quantity !== null && !r.quantityUnknown && r.unit !== null,
+    );
+    const compared = known ? comparePortion({ ...planItem, quantity, unit }, recorded) : null;
+    if (!compared) {
       notEvaluated.push(...recorded);
       continue;
     }
-    const ratio = (actual - planItem.quantity) / planItem.quantity;
+    const ratio = (compared.actual - compared.planned) / compared.planned;
     items.push({
       item: recorded[0],
       planItem,
-      actual: Math.round(actual * 1000) / 1000,
-      planned: planItem.quantity,
-      unit: planItem.unit,
+      actual: round3(compared.actual),
+      planned: round3(compared.planned),
+      unit: compared.unit,
       ratio: Math.round(ratio * 10000) / 10000,
       band: portionBand(ratio),
     });

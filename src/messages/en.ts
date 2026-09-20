@@ -13,6 +13,7 @@ import { photo } from './sections/photo';
 import { plan } from './sections/plan';
 import { reflection } from './sections/reflection';
 import { settings } from './sections/settings';
+import { units } from './sections/units';
 
 /**
  * Core strings live here; each product module owns one file under
@@ -28,6 +29,7 @@ export const en = {
   ...settings,
   ...ai,
   ...photo,
+  ...units,
 
   // ── App shell ──────────────────────────────────────────────
   'shell.skipToContent': 'Skip to main content',

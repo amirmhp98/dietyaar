@@ -26,7 +26,7 @@ export function buildWeekdayPlan() {
     slot(
       'میان‌وعده قبل تمرین',
       'Pre-workout snack',
-      [option([pi('موز', 'banana', 1, 'small_banana', 'FRUIT', 90)])],
+      [option([pi('موز', 'banana', 1, 'piece', 'FRUIT', 90, { unitGrams: 100 })])],
       1,
       { weekday: 6 },
     ),
@@ -50,7 +50,7 @@ export function buildWeekdayPlan() {
     slot(
       'میان‌وعده عصر',
       'Afternoon snack',
-      [option([pi('سیب', 'apple', 1, 'medium_apple', 'FRUIT', 95)])],
+      [option([pi('سیب', 'apple', 1, 'piece', 'FRUIT', 95, { unitGrams: 180 })])],
       3,
       { weekday: 6 },
     ),

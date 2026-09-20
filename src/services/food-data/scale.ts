@@ -21,8 +21,11 @@ export interface ScaleInput {
   nutrition: Nutrition | null;
   fromQuantity: number | null;
   fromUnit: string | null;
+  /** Grams of one unit on each side, for count units (decision 024). */
+  fromUnitGrams?: number | null;
   toQuantity: number | null;
   toUnit: string | null;
+  toUnitGrams?: number | null;
   /** True when the user changed the food identity or preparation. */
   identityChanged?: boolean;
   density?: number;
@@ -42,18 +45,39 @@ function scaleValues(values: NutritionValues, factor: number): NutritionValues {
   return out;
 }
 
+function gramsOf(
+  quantity: number | null,
+  unit: string | null,
+  unitGrams: number | null | undefined,
+  density: number | undefined,
+): number | null {
+  if (quantity === null || unit === null) return null;
+  return toGrams(quantity, unit, { unitGrams, density });
+}
+
 export function scaleNutrition(input: ScaleInput): ScaleResult {
-  const { nutrition, fromQuantity, fromUnit, toQuantity, toUnit, identityChanged, density } = input;
+  const {
+    nutrition,
+    fromQuantity,
+    fromUnit,
+    fromUnitGrams = null,
+    toQuantity,
+    toUnit,
+    toUnitGrams = null,
+    identityChanged,
+    density,
+  } = input;
   if (!nutrition)
     return { nutrition: null, flag: identityChanged ? 'NEEDS_REESTIMATE' : 'UNCHANGED' };
 
   const quantityChanged = fromQuantity !== toQuantity;
   const unitChanged = fromUnit !== toUnit;
+  const unitGramsChanged = (fromUnitGrams ?? null) !== (toUnitGrams ?? null);
 
   // Rule 4: user overrides never scale.
   if (nutrition.userOverride) {
     if (identityChanged || unitChanged) return { nutrition, flag: 'NEEDS_REESTIMATE' };
-    return { nutrition, flag: quantityChanged ? 'CHECK_VALUE' : 'UNCHANGED' };
+    return { nutrition, flag: quantityChanged || unitGramsChanged ? 'CHECK_VALUE' : 'UNCHANGED' };
   }
 
   // Rule 3: identity or preparation change requires a fresh estimate.
@@ -62,7 +86,7 @@ export function scaleNutrition(input: ScaleInput): ScaleResult {
   if (nutrition.basis === 'PER_100G') {
     // Rule 1: linear after conversion to grams; refuse unknown pairs.
     if (toQuantity === null || toUnit === null) return { nutrition, flag: 'NOT_EVALUATED' };
-    const grams = toGrams(toQuantity, toUnit, density);
+    const grams = gramsOf(toQuantity, toUnit, toUnitGrams, density);
     if (grams === null) return { nutrition, flag: 'NOT_EVALUATED' };
     const values = scaleValues(nutrition.values, grams / 100);
     // The result describes the recorded portion, so the basis changes with it.
@@ -79,8 +103,8 @@ export function scaleNutrition(input: ScaleInput): ScaleResult {
   }
 
   // PER_RECORDED_PORTION
-  if (!quantityChanged && !unitChanged) return { nutrition, flag: 'UNCHANGED' };
-  if (unitChanged) return { nutrition, flag: 'NEEDS_REESTIMATE' };
+  if (!quantityChanged && !unitChanged && !unitGramsChanged)
+    return { nutrition, flag: 'UNCHANGED' };
   // Rule 2: linear only for AI_ESTIMATE / RECIPE; label and USDA values are tied to their portion.
   if (nutrition.source !== 'AI_ESTIMATE' && nutrition.source !== 'RECIPE') {
     return { nutrition, flag: 'NEEDS_REESTIMATE' };
@@ -88,9 +112,33 @@ export function scaleNutrition(input: ScaleInput): ScaleResult {
   if (fromQuantity === null || toQuantity === null || fromQuantity <= 0) {
     return { nutrition, flag: 'NEEDS_REESTIMATE' };
   }
-  const values = scaleValues(nutrition.values, toQuantity / fromQuantity);
+  // Grams per unit entered where none were known: the recorded portion the
+  // model estimated is unchanged, so the values stay and the row asks for a check.
+  if (!unitChanged && !quantityChanged && unitGramsChanged && fromUnitGrams === null) {
+    return { nutrition, flag: 'CHECK_VALUE' };
+  }
+  // A unit change, or a change of the grams per unit, scales through grams when
+  // both portions weigh something ("2 ×" of 50 g each → 150 g); otherwise the
+  // pair has no conversion path and the item needs a new estimate.
+  let factor: number;
+  if (unitChanged || unitGramsChanged) {
+    const fromGrams = gramsOf(fromQuantity, fromUnit, fromUnitGrams, density);
+    const toGramsValue = gramsOf(toQuantity, toUnit, toUnitGrams, density);
+    if (fromGrams === null || toGramsValue === null || fromGrams <= 0)
+      return { nutrition, flag: 'NEEDS_REESTIMATE' };
+    factor = toGramsValue / fromGrams;
+  } else {
+    factor = toQuantity / fromQuantity;
+  }
+  const values = scaleValues(nutrition.values, factor);
   return {
-    nutrition: { ...nutrition, values, basisQuantity: toQuantity, isEstimate: true },
+    nutrition: {
+      ...nutrition,
+      values,
+      basisQuantity: toQuantity,
+      basisUnit: toUnit,
+      isEstimate: true,
+    },
     flag: 'SCALED',
   };
 }

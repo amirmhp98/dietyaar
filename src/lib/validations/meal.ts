@@ -2,11 +2,13 @@ import { z } from 'zod';
 import type { RubricFoodItem } from '@/lib/rubric/types';
 import { t } from '@/lib/t';
 import { isValidLocalDate, isValidLocalTime } from '@/lib/time/local-date';
+import { withLegacyUnit } from '@/lib/units';
 import {
   FOOD_CATEGORIES,
   alternativeSchema,
   foodNameSchema,
   quantitySchema,
+  unitGramsSchema,
   unitSchema,
 } from '@/lib/validations/plan';
 import { nutritionSchema } from '@/lib/validations/nutrition';
@@ -30,30 +32,34 @@ export const clientRequestIdSchema = z.string().uuid(t('validation.invalid'));
 export const localDateSchema = z.string().refine(isValidLocalDate, t('validation.dateInvalid'));
 export const localTimeSchema = z.string().refine(isValidLocalTime, t('validation.timeInvalid'));
 
-export const draftFoodItemSchema = foodNameSchema.extend({
-  key,
-  position: z.number().int().nonnegative().default(0),
-  quantity: quantitySchema,
-  unit: unitSchema,
-  quantityUnknown: z.boolean().default(false),
-  quantityAssumed: z.boolean().default(false),
-  preparation: z.string().trim().max(200).nullable().default(null),
-  category: z.enum(FOOD_CATEGORIES).default('OTHER'),
-  alternatives: z.array(alternativeSchema).max(6).default([]),
-  /** The chosen in-item alternative, by index into `alternatives`, or null for the item itself. */
-  chosenAlternative: z.number().int().nonnegative().nullable().default(null),
-  nutrition: nutritionSchema.nullable().default(null),
-  matchedPlanItemId: z.string().nullable().default(null),
-  isAddedItem: z.boolean().default(false),
-  /** Identity or preparation changed since the last estimate (tech spec § 5.1). */
-  needsReestimate: z.boolean().default(false),
-  /** Previous values shown struck through until re-estimated. */
-  previousNutrition: nutritionSchema.nullable().default(null),
-  scaleFlag: z
-    .enum(['SCALED', 'UNCHANGED', 'CHECK_VALUE', 'NEEDS_REESTIMATE', 'NOT_EVALUATED'])
-    .nullable()
-    .default(null),
-});
+export const draftFoodItemSchema = z.preprocess(
+  withLegacyUnit,
+  foodNameSchema.extend({
+    key,
+    position: z.number().int().nonnegative().default(0),
+    quantity: quantitySchema,
+    unit: unitSchema,
+    unitGrams: unitGramsSchema,
+    quantityUnknown: z.boolean().default(false),
+    quantityAssumed: z.boolean().default(false),
+    preparation: z.string().trim().max(200).nullable().default(null),
+    category: z.enum(FOOD_CATEGORIES).default('OTHER'),
+    alternatives: z.array(alternativeSchema).max(6).default([]),
+    /** The chosen in-item alternative, by index into `alternatives`, or null for the item itself. */
+    chosenAlternative: z.number().int().nonnegative().nullable().default(null),
+    nutrition: nutritionSchema.nullable().default(null),
+    matchedPlanItemId: z.string().nullable().default(null),
+    isAddedItem: z.boolean().default(false),
+    /** Identity or preparation changed since the last estimate (tech spec § 5.1). */
+    needsReestimate: z.boolean().default(false),
+    /** Previous values shown struck through until re-estimated. */
+    previousNutrition: nutritionSchema.nullable().default(null),
+    scaleFlag: z
+      .enum(['SCALED', 'UNCHANGED', 'CHECK_VALUE', 'NEEDS_REESTIMATE', 'NOT_EVALUATED'])
+      .nullable()
+      .default(null),
+  }),
+);
 export type DraftFoodItem = z.infer<typeof draftFoodItemSchema>;
 
 /** A draft item in the rubric's shape, so the review and the service apply the same rules to it. */
@@ -64,6 +70,7 @@ export function toRubricItem(item: DraftFoodItem): RubricFoodItem {
     englishLabel: item.englishLabel,
     quantity: item.quantity,
     unit: item.unit,
+    unitGrams: item.unitGrams,
     quantityUnknown: item.quantityUnknown,
     category: item.category,
     alternatives: item.alternatives,

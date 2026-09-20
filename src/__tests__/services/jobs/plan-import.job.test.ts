@@ -67,7 +67,8 @@ const output: PlanImportOutput = {
               originalName: 'تخم‌مرغ',
               englishLabel: 'egg',
               quantity: 2,
-              unit: 'egg',
+              unit: 'piece',
+              unitGrams: 50,
               quantityAssumed: false,
               assumedDefaultKey: null,
               preparationNote: null,
@@ -81,6 +82,7 @@ const output: PlanImportOutput = {
               englishLabel: 'sangak bread',
               quantity: null,
               unit: null,
+              unitGrams: null,
               quantityAssumed: false,
               assumedDefaultKey: null,
               preparationNote: null,
@@ -238,7 +240,7 @@ describe('runPlanImportJobs', () => {
     });
     vi.mocked(estimatePlanBaseline).mockResolvedValue({
       ok: true,
-      data: { items: [{ index: 0, nutrition: nutrition(210) }] },
+      data: { items: [{ index: 0, nutrition: nutrition(210), unitGrams: null }] },
       attempts: [{ model: 'm', durationMs: 3, outcome: 'OK' }],
       usage: { promptTokens: 1, completionTokens: 2 },
       model: 'm',

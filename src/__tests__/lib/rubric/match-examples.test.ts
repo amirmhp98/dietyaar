@@ -46,7 +46,7 @@ describe('menu plan matching', () => {
     expect(withBurger.reason).toBe('ADDED');
     expect(withBurger.added.map((a) => a.englishLabel)).toEqual(['homemade burger']);
     const withCucumber = matchSlot(
-      [...base, fi('خیار', 'cucumber', 1, 'medium_cucumber', 'VEGETABLE', 15)],
+      [...base, fi('خیار', 'cucumber', 1, 'piece', 'VEGETABLE', 15, { unitGrams: 100 })],
       opt1,
       p.breakfast,
       p.slots,

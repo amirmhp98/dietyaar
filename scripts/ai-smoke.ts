@@ -98,6 +98,7 @@ async function main() {
           englishLabel: item.englishLabel,
           quantity: item.quantity,
           unit: item.unit,
+          unitGrams: item.unitGrams,
           preparationNote: item.preparationNote,
           category: item.category,
         })),

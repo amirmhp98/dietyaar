@@ -178,6 +178,7 @@ export function MealReview(props: MealReviewProps) {
               ...it,
               quantity: parsed.quantity,
               unit: parsed.unit,
+              unitGrams: parsed.unitGrams,
               quantityUnknown: false,
               quantityAssumed: false,
             }

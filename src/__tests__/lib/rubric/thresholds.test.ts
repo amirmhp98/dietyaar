@@ -169,6 +169,64 @@ describe('thresholds table (inclusive boundaries)', () => {
     );
   });
 
+  it('portion (decision 024): count units compare through the grams of one, or by count when both sides share the unit', () => {
+    const p = buildMenuPlan();
+    const opt1 = p.breakfast.options[0];
+    const eggs = opt1.items[0]; // 2 × egg, 50 g each
+    const sangak = opt1.items[1]; // 80 g
+    // 3 eggs of the same weight: presented in the plan's unit, ratio by count.
+    const three = portionResult(matchSlot([eaten(eggs, 3)], opt1, p.breakfast, p.slots)).items[0];
+    expect(three).toMatchObject({ actual: 3, planned: 2, unit: 'piece', band: 'LARGE' });
+    // 3 eggs without any grams: still compared by count.
+    const noGrams = eaten(eggs, 3);
+    noGrams.unitGrams = null;
+    const planNoGrams = { ...eggs, unitGrams: null };
+    const optNoGrams = { ...opt1, items: [planNoGrams, ...opt1.items.slice(1)] };
+    expect(
+      portionResult(matchSlot([noGrams], optNoGrams, p.breakfast, p.slots)).items[0],
+    ).toMatchObject({ actual: 3, planned: 2, unit: 'piece', ratio: 0.5 });
+    // 2 small eggs (40 g each) against 2 × 50 g: compared and presented in grams.
+    const small = eaten(eggs, 2);
+    small.unitGrams = 40;
+    expect(portionResult(matchSlot([small], opt1, p.breakfast, p.slots)).items[0]).toMatchObject({
+      actual: 80,
+      planned: 100,
+      unit: 'g',
+      band: 'NOTICEABLE',
+    });
+    // 120 g of egg against 2 × 50 g: grams.
+    const grams = fi('تخم‌مرغ', 'egg', 120, 'g', 'MEAT', 180, { matchedPlanItemId: eggs.id });
+    expect(portionResult(matchSlot([grams], opt1, p.breakfast, p.slots)).items[0]).toMatchObject({
+      actual: 120,
+      planned: 100,
+      unit: 'g',
+      band: 'NOTICEABLE',
+    });
+    // 1 slice of 80 g against a plan of 80 g: grams through unitGrams.
+    const slice = fi('نان سنگک', 'sangak bread', 1, 'slice', 'BREAD', 210, {
+      matchedPlanItemId: sangak.id,
+      unitGrams: 80,
+    });
+    expect(portionResult(matchSlot([slice], opt1, p.breakfast, p.slots)).items[0]).toMatchObject({
+      actual: 80,
+      planned: 80,
+      unit: 'g',
+      band: 'SMALL',
+    });
+    // A count without grams against a plan in grams has no path: not evaluated.
+    const sliceNoGrams = { ...slice, unitGrams: null };
+    expect(
+      portionResult(matchSlot([sliceNoGrams], opt1, p.breakfast, p.slots)).notEvaluated,
+    ).toHaveLength(1);
+    // Two count units that differ (slice vs piece) with no grams: not evaluated.
+    const pieces = eaten(eggs, 2);
+    pieces.unit = 'slice';
+    pieces.unitGrams = null;
+    expect(
+      portionResult(matchSlot([pieces], optNoGrams, p.breakfast, p.slots)).notEvaluated,
+    ).toHaveLength(1);
+  });
+
   it('per-meal range: 690 kcal within, 790 slightly above (details only, not in the score)', () => {
     const p = buildMenuPlan();
     const opt = p.lunch.options[3];

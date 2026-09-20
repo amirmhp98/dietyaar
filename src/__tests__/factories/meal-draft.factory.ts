@@ -15,6 +15,7 @@ export function draftItem(overrides: Partial<DraftFoodItem> & { key: string }): 
     englishLabel: 'egg',
     quantity: 2,
     unit: 'piece',
+    unitGrams: 50,
     quantityUnknown: false,
     quantityAssumed: false,
     preparation: null,

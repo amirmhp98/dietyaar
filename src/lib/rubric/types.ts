@@ -34,6 +34,8 @@ export interface RubricPlanItem extends FoodName {
   id: string;
   quantity: number | null;
   unit: string | null;
+  /** Grams of one unit when `unit` is a count unit (decision 024). */
+  unitGrams: number | null;
   quantityAssumed: boolean;
   category: FoodCategoryKey;
   alternatives: RubricAlternative[];
@@ -62,6 +64,8 @@ export interface RubricFoodItem extends FoodName {
   id: string;
   quantity: number | null;
   unit: string | null;
+  /** Grams of one unit when `unit` is a count unit (decision 024). */
+  unitGrams: number | null;
   quantityUnknown: boolean;
   category: FoodCategoryKey;
   alternatives: RubricAlternative[];
@@ -140,7 +144,11 @@ export interface MatchResult {
 export interface PortionItemResult {
   item: RubricFoodItem;
   planItem: RubricPlanItem;
-  /** Actual and planned amounts in the plan item's unit. */
+  /**
+   * Actual and planned amounts in `unit`: the plan item's unit when both sides
+   * share it (3 instead of 2 pieces), otherwise the common measure they were
+   * compared in ("g" or "ml").
+   */
   actual: number;
   planned: number;
   unit: string;

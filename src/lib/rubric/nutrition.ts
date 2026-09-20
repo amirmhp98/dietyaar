@@ -15,7 +15,7 @@ export function portionValues(item: RubricFoodItem): NutritionValues | null {
   if (!n) return null;
   if (n.basis === 'PER_RECORDED_PORTION') return n.values;
   if (item.quantity === null || item.unit === null || item.quantityUnknown) return null;
-  const grams = toGrams(item.quantity, item.unit);
+  const grams = toGrams(item.quantity, item.unit, { unitGrams: item.unitGrams });
   if (grams === null) return null;
   const out: NutritionValues = { ...n.values };
   for (const key of NUTRIENT_KEYS) {

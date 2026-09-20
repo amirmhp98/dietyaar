@@ -52,6 +52,7 @@ const planItem = (originalName, englishLabel, quantity, unit, category, extra = 
   englishLabel,
   quantity,
   unit,
+  unitGrams: null,
   quantityAssumed: false,
   assumedDefaultKey: null,
   preparationNote: null,
@@ -91,8 +92,8 @@ function menuPlan() {
   const slots = [
     slot('صبحانه', 'Breakfast', [
       option('گزینه 1', [
-        planItem('تخم‌مرغ', 'Egg', 2, 'egg', 'MEAT'),
-        planItem('نان سنگک', 'Sangak bread', 1, 'slice_sangak', 'BREAD'),
+        planItem('تخم‌مرغ', 'Egg', 2, 'piece', 'MEAT', { unitGrams: 50 }),
+        planItem('نان سنگک', 'Sangak bread', 1, 'slice', 'BREAD', { unitGrams: 80 }),
         planItem('خیار و گوجه', 'Cucumber and tomato', 150, 'g', 'VEGETABLE', {
           quantityAssumed: true,
           assumedDefaultKey: 'cucumber_tomato',
@@ -101,16 +102,16 @@ function menuPlan() {
       option('گزینه 2', [
         planItem('شیر کم‌چرب', 'Low-fat milk', 1, 'glass', 'DAIRY'),
         planItem('جو دوسر', 'Oats', 40, 'g', 'OTHER'),
-        planItem('گردو', 'Walnuts', 3, 'walnut', 'NUTS'),
+        planItem('گردو', 'Walnuts', 3, 'piece', 'NUTS', { unitGrams: 4 }),
       ]),
       option('گزینه 3', [
         planItem('پنیر', 'Cheese', 30, 'g', 'DAIRY'),
-        planItem('نان سنگک', 'Sangak bread', 1, 'slice_sangak', 'BREAD'),
+        planItem('نان سنگک', 'Sangak bread', 1, 'slice', 'BREAD', { unitGrams: 80 }),
         planItem('چای', 'Tea', 1, 'glass', 'OTHER'),
       ]),
     ]),
     slot('میان‌وعده اول', 'First snack', [
-      option(null, [planItem('سیب', 'Apple', 1, 'medium_apple', 'FRUIT')]),
+      option(null, [planItem('سیب', 'Apple', 1, 'piece', 'FRUIT', { unitGrams: 180 })]),
     ]),
     slot('ناهار', 'Lunch', [
       option('گزینه 1', [
@@ -122,12 +123,12 @@ function menuPlan() {
         }),
       ]),
       option('گزینه 2', [
-        planItem('جوجه کباب', 'Joojeh kabab', 1, 'skewer_kabab', 'MEAT'),
-        planItem('نان سنگک', 'Sangak bread', 1, 'slice_sangak', 'BREAD'),
+        planItem('جوجه کباب', 'Joojeh kabab', 1, 'skewer', 'MEAT', { unitGrams: 120 }),
+        planItem('نان سنگک', 'Sangak bread', 1, 'slice', 'BREAD', { unitGrams: 80 }),
       ]),
       option('گزینه 3', [
         planItem('عدسی', 'Adasi (lentil stew)', 1, 'bowl', 'OTHER'),
-        planItem('نان سنگک', 'Sangak bread', 1, 'slice_sangak', 'BREAD'),
+        planItem('نان سنگک', 'Sangak bread', 1, 'slice', 'BREAD', { unitGrams: 80 }),
       ]),
       option('گزینه 4', [
         planItem('ماهی', 'Fish', 150, 'g', 'MEAT'),
@@ -143,8 +144,8 @@ function menuPlan() {
     ]),
     slot('شام', 'Dinner', [
       option('گزینه 1', [
-        planItem('املت', 'Omelette', 2, 'egg', 'MEAT'),
-        planItem('نان سنگک', 'Sangak bread', 1, 'slice_sangak', 'BREAD'),
+        planItem('املت', 'Omelette', 2, 'piece', 'MEAT', { unitGrams: 50 }),
+        planItem('نان سنگک', 'Sangak bread', 1, 'slice', 'BREAD', { unitGrams: 80 }),
       ]),
       option('گزینه 2', [
         planItem(
@@ -208,8 +209,8 @@ function weekdaySlots(weekday) {
       'Breakfast',
       [
         option(null, [
-          planItem('تخم‌مرغ', 'Egg', 2, 'egg', 'MEAT'),
-          planItem('نان سنگک', 'Sangak bread', 1, 'slice_sangak', 'BREAD'),
+          planItem('تخم‌مرغ', 'Egg', 2, 'piece', 'MEAT', { unitGrams: 50 }),
+          planItem('نان سنگک', 'Sangak bread', 1, 'slice', 'BREAD', { unitGrams: 80 }),
         ]),
       ],
       weekday,
@@ -217,7 +218,7 @@ function weekdaySlots(weekday) {
     slot(
       preWorkout ? 'قبل تمرین' : 'میان‌وعده عصر',
       preWorkout ? 'Pre-workout' : 'Afternoon snack',
-      [option(null, [planItem('موز', 'Banana', 1, 'small_banana', 'FRUIT')])],
+      [option(null, [planItem('موز', 'Banana', 1, 'piece', 'FRUIT', { unitGrams: 100 })])],
       weekday,
     ),
     slot(
@@ -312,11 +313,16 @@ function baseline(userText) {
         item.quantity === null || item.quantity === undefined
           ? null
           : nutrition(120 + (i % 5) * 40, 6, 12, 4, item.quantity, item.unit ?? null),
+      // Decision 024: a counted item gets the grams of one (kept when the input has it).
+      unitGrams: COUNT_UNITS.has(item.unit) ? (item.unitGrams ?? 50) : null,
     })),
   };
 }
 
 // ─── Meal analysis ──────────────────────────────────────────────────────────
+
+/** The unit table's count units (src/lib/units.ts): a weight per one lives on the item. */
+const COUNT_UNITS = new Set(['piece', 'slice', 'sheet', 'skewer', 'handful', 'serving']);
 
 const FOODS = [
   {
@@ -324,7 +330,8 @@ const FOODS = [
     originalName: 'تخم‌مرغ',
     englishLabel: 'Egg',
     quantity: 2,
-    unit: 'egg',
+    unit: 'piece',
+    unitGrams: 50,
     category: 'MEAT',
     kcal: 155,
     p: 12.6,
@@ -336,7 +343,8 @@ const FOODS = [
     originalName: 'نان سنگک',
     englishLabel: 'Sangak bread',
     quantity: 1,
-    unit: 'slice_sangak',
+    unit: 'slice',
+    unitGrams: 80,
     category: 'BREAD',
     kcal: 210,
     p: 7,
@@ -349,6 +357,7 @@ const FOODS = [
     englishLabel: 'Yogurt',
     quantity: 150,
     unit: 'g',
+    unitGrams: null,
     category: 'DAIRY',
     kcal: 95,
     p: 5,
@@ -361,6 +370,7 @@ const FOODS = [
     englishLabel: 'Rice',
     quantity: 150,
     unit: 'g',
+    unitGrams: null,
     category: 'RICE',
     kcal: 195,
     p: 4,
@@ -373,6 +383,7 @@ const FOODS = [
     englishLabel: 'Chicken',
     quantity: 150,
     unit: 'g',
+    unitGrams: null,
     category: 'MEAT',
     kcal: 240,
     p: 40,
@@ -384,7 +395,8 @@ const FOODS = [
     originalName: 'گردو',
     englishLabel: 'Walnuts',
     quantity: 3,
-    unit: 'walnut',
+    unit: 'piece',
+    unitGrams: 4,
     category: 'NUTS',
     kcal: 78,
     p: 1.8,
@@ -397,6 +409,7 @@ const FOODS = [
     englishLabel: 'Burger',
     quantity: 1,
     unit: 'piece',
+    unitGrams: 250,
     category: 'MEAT',
     kcal: 450,
     p: 25,
@@ -409,6 +422,7 @@ const FOODS = [
     englishLabel: 'Sandwich',
     quantity: 1,
     unit: 'piece',
+    unitGrams: 200,
     category: 'BREAD',
     kcal: 380,
     p: 18,
@@ -480,19 +494,24 @@ function refineAnalysis(userText) {
   const items = (Array.isArray(current) ? current : []).map((item) => {
     let quantity = typeof item.quantity === 'number' ? item.quantity : null;
     let unit = item.unit ?? null;
+    let unitGrams = typeof item.unitGrams === 'number' ? item.unitGrams : null;
     let quantityUnknown = Boolean(item.quantityUnknown) || quantity === null;
     if (item.quantityUnknown && item.answer !== null && item.answer !== undefined) {
       const leading = /\d+(?:\.\d+)?/.exec(String(item.answer));
       quantity = leading ? Number(leading[0]) : 1;
       unit = 'serving';
+      unitGrams = 100;
       quantityUnknown = false;
       changes.push(`Filled the portion of ${item.englishLabel}`);
+    } else if (COUNT_UNITS.has(unit) && unitGrams === null && quantity !== null) {
+      unitGrams = 50;
     }
     return {
       originalName: String(item.originalName ?? ''),
       englishLabel: String(item.englishLabel ?? ''),
       quantity,
       unit,
+      unitGrams,
       quantityUnknown,
       quantityAssumed: false,
       preparation: item.preparation ?? null,
@@ -526,6 +545,7 @@ function mealAnalysis(userText) {
       englishLabel: food.englishLabel,
       quantity,
       unit: food.unit,
+      unitGrams: food.unitGrams,
       quantityUnknown: false,
       quantityAssumed: !hit,
       preparation: null,
@@ -548,6 +568,7 @@ function mealAnalysis(userText) {
       englishLabel: 'Unidentified dish',
       quantity: null,
       unit: null,
+      unitGrams: null,
       quantityUnknown: true,
       quantityAssumed: false,
       preparation: null,
@@ -566,6 +587,7 @@ function mealAnalysis(userText) {
     Object.assign(items[0], {
       quantity: null,
       unit: null,
+      unitGrams: null,
       quantityUnknown: true,
       quantityAssumed: false,
       nutrition: null,

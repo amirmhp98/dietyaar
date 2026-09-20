@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useState } from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Minus, Pencil, Plus, Trash2 } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -14,11 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/UiComponents';
+import { AmountPrefix } from '@/components/product/ItemAmount';
 import { NameLabel } from '@/components/product/NameLabel';
 import { formatNumber } from '@/lib/format';
 import { t } from '@/lib/t';
 import { normalizeDigits } from '@/lib/text/normalize';
-import { UNITS, unitByKey } from '@/lib/units';
+import { UNITS, isCountUnit, unitByKey, unitLabel } from '@/lib/units';
 import type { DraftFoodItem } from '@/lib/validations/meal';
 import { MAIN_NUTRIENTS, type Nutrition, type NutritionValues } from '@/lib/validations/nutrition';
 import { cn } from '@/lib/utils';
@@ -26,12 +27,20 @@ import { LabelValuesPopover } from './LabelValuesPopover';
 import { NUTRIENT_UNITS, portionValues } from './totals';
 
 const NO_UNIT = '__none';
+/** The stepper of a counted item moves by one and never below half a piece. */
+const COUNT_STEP = 1;
+const COUNT_MIN = 0.5;
 
 function parseQuantity(raw: string): number | null {
   const text = normalizeDigits(raw).trim().replace(',', '.');
   if (text === '') return null;
   const n = Number(text);
   return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+function parseGrams(raw: string): number | null {
+  const n = parseQuantity(raw);
+  return n !== null && n > 0 ? n : null;
 }
 
 /** "210 kcal · P 8 g · C 30 g · F 5 g" for one item, or null when nothing is known. */
@@ -82,15 +91,40 @@ export function ItemRow({
       setQuantityText(item.quantity === null ? '' : String(item.quantity));
     }
   }
+  const [gramsText, setGramsText] = useState(item.unitGrams === null ? '' : String(item.unitGrams));
+  const [syncedGrams, setSyncedGrams] = useState(item.unitGrams);
+  if (syncedGrams !== item.unitGrams) {
+    setSyncedGrams(item.unitGrams);
+    if (parseGrams(gramsText) !== item.unitGrams) {
+      setGramsText(item.unitGrams === null ? '' : String(item.unitGrams));
+    }
+  }
   const values = portionValues(item);
   const previous = item.needsReestimate ? valuesLine(item.previousNutrition?.values ?? null) : null;
   const unitKnown = item.unit === null || unitByKey(item.unit) !== undefined;
+  const counted = isCountUnit(item.unit);
   const isLabel = item.nutrition?.source === 'USER_LABEL';
   const isEstimate = !!item.nutrition && item.nutrition.isEstimate && !isLabel;
   const displayName = item.originalName.trim() || t('meal.review.newItem');
 
   function patch(partial: Partial<DraftFoodItem>) {
     onChange({ ...item, ...partial });
+  }
+
+  function setQuantity(quantity: number | null) {
+    patch({ quantity, quantityAssumed: false });
+  }
+
+  /** −/+ on a counted item: whole steps, never below half a piece. */
+  function step(direction: -1 | 1) {
+    const next = Math.max(COUNT_MIN, (item.quantity ?? 0) + direction * COUNT_STEP);
+    setQuantityText(String(next));
+    setQuantity(next);
+  }
+
+  /** A change of measure drops the grams per unit; the next estimate fills them for a count. */
+  function setUnit(unit: string | null) {
+    patch({ unit, unitGrams: isCountUnit(unit) && unit === item.unit ? item.unitGrams : null });
   }
 
   function chooseAlternative(index: number) {
@@ -129,7 +163,14 @@ export function ItemRow({
     >
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <NameLabel originalName={displayName} />
+          <div className="flex flex-wrap items-baseline gap-x-1.5">
+            <AmountPrefix
+              quantity={item.quantityUnknown ? null : item.quantity}
+              unit={item.unit}
+              className="text-base"
+            />
+            <NameLabel originalName={displayName} />
+          </div>
           {item.preparation ? (
             <p className="text-xs text-muted-foreground">
               <bdi>{item.preparation}</bdi>
@@ -168,33 +209,72 @@ export function ItemRow({
         </Button>
       </div>
 
-      <div className="mt-2 flex items-end gap-2">
-        <div className="w-20 space-y-1">
+      <div className="mt-2 flex flex-wrap items-end gap-2">
+        <div className={cn('space-y-1', counted ? 'shrink-0' : 'w-20')}>
           <Label htmlFor={`${id}-qty`} className="text-xs">
             {t('meal.review.quantity')}
           </Label>
-          <Input
-            id={`${id}-qty`}
-            inputMode="decimal"
-            dir="ltr"
-            className="h-11"
-            value={quantityText}
-            disabled={item.quantityUnknown}
-            data-testid="item-quantity"
-            onChange={(event) => {
-              setQuantityText(event.target.value);
-              const quantity = parseQuantity(event.target.value);
-              patch({ quantity, quantityAssumed: false });
-            }}
-          />
+          {counted ? (
+            <div className="flex items-center gap-1" data-testid="item-stepper">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="size-11 shrink-0"
+                aria-label={t('unit.quantity.decrease')}
+                disabled={item.quantityUnknown || (item.quantity ?? 0) <= COUNT_MIN}
+                onClick={() => step(-1)}
+              >
+                <Minus className="size-4" aria-hidden="true" />
+              </Button>
+              <Input
+                id={`${id}-qty`}
+                inputMode="decimal"
+                dir="ltr"
+                className="h-11 w-14 text-center"
+                value={quantityText}
+                disabled={item.quantityUnknown}
+                data-testid="item-quantity"
+                onChange={(event) => {
+                  setQuantityText(event.target.value);
+                  setQuantity(parseQuantity(event.target.value));
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="size-11 shrink-0"
+                aria-label={t('unit.quantity.increase')}
+                disabled={item.quantityUnknown}
+                onClick={() => step(1)}
+              >
+                <Plus className="size-4" aria-hidden="true" />
+              </Button>
+            </div>
+          ) : (
+            <Input
+              id={`${id}-qty`}
+              inputMode="decimal"
+              dir="ltr"
+              className="h-11"
+              value={quantityText}
+              disabled={item.quantityUnknown}
+              data-testid="item-quantity"
+              onChange={(event) => {
+                setQuantityText(event.target.value);
+                setQuantity(parseQuantity(event.target.value));
+              }}
+            />
+          )}
         </div>
-        <div className="min-w-0 flex-1 space-y-1">
+        <div className="min-w-24 flex-1 space-y-1">
           <Label htmlFor={`${id}-unit`} className="text-xs">
             {t('meal.review.unit')}
           </Label>
           <Select
             value={item.unit ?? NO_UNIT}
-            onValueChange={(value) => patch({ unit: value === NO_UNIT ? null : value })}
+            onValueChange={(value) => setUnit(value === NO_UNIT ? null : value)}
           >
             <SelectTrigger id={`${id}-unit`} className="h-11" data-testid="item-unit">
               <SelectValue />
@@ -208,7 +288,7 @@ export function ItemRow({
               ) : null}
               {UNITS.map((unit) => (
                 <SelectItem key={unit.key} value={unit.key}>
-                  {unit.label}
+                  {unitLabel(unit.key)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -222,6 +302,29 @@ export function ItemRow({
           {t('meal.review.quantityUnknown')}
         </label>
       </div>
+      {counted && !item.quantityUnknown ? (
+        <div className="mt-2 flex items-center gap-2 text-sm" data-testid="item-grams-each">
+          <span aria-hidden="true">≈</span>
+          <Input
+            id={`${id}-each`}
+            inputMode="decimal"
+            dir="ltr"
+            className="h-9 w-20"
+            aria-label={t('unit.gramsEach.label')}
+            value={gramsText}
+            onChange={(event) => {
+              setGramsText(event.target.value);
+              patch({ unitGrams: parseGrams(event.target.value) });
+            }}
+          />
+          <Label
+            htmlFor={`${id}-each`}
+            className="shrink-0 whitespace-nowrap text-xs text-muted-foreground"
+          >
+            {t('unit.gramsEach.suffix')}
+          </Label>
+        </div>
+      ) : null}
 
       <div className="mt-2 space-y-1 text-sm">
         {previous ? (

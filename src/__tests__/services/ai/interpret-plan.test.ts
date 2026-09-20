@@ -163,6 +163,7 @@ describe('sanitizeExcerpts', () => {
                     englishLabel: 'Chicken',
                     quantity: 150,
                     unit: 'g',
+                    unitGrams: null,
                     quantityAssumed: false,
                     assumedDefaultKey: null,
                     preparationNote: null,
@@ -354,7 +355,7 @@ describe('interpretPlan', () => {
     expect(completeMock).toHaveBeenCalledTimes(1);
     const call = completeMock.mock.calls[0]![0];
     expect(call.kind).toBe('PLAN_IMPORT');
-    expect(call.system.startsWith('# dietyaar:PLAN_IMPORT v2')).toBe(true);
+    expect(call.system.startsWith('# dietyaar:PLAN_IMPORT v3')).toBe(true);
     // The parsing copy is sent: Persian digits normalised.
     expect(call.user).toContain('صبحانه: 2 تخم‌مرغ');
     expect(call.user).not.toContain('۲');
@@ -474,7 +475,8 @@ describe('estimatePlanBaseline', () => {
           originalName: 'تخم‌مرغ',
           englishLabel: 'Egg',
           quantity: 2,
-          unit: 'egg',
+          unit: 'piece',
+          unitGrams: 50,
           preparationNote: null,
           category: 'MEAT',
         },

@@ -42,8 +42,9 @@ describe('portionValues and subtotals', () => {
       portionValues(fi('برنج', 'rice', 150, 'g', 'RICE', null, { nutrition: per100 }))?.ENERGY_KCAL,
     ).toBe(300);
     expect(
-      portionValues(fi('برنج', 'rice', 2, 'slice_sangak', 'RICE', null, { nutrition: per100 }))
-        ?.PROTEIN_G,
+      portionValues(
+        fi('برنج', 'rice', 2, 'slice', 'RICE', null, { nutrition: per100, unitGrams: 80 }),
+      )?.PROTEIN_G,
     ).toBe(16);
     expect(
       portionValues(fi('شیر', 'milk', 1, 'glass', 'DAIRY', null, { nutrition: per100 })),

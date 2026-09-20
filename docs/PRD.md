@@ -72,8 +72,8 @@ admin pages use the same shell.
 Module inventory (tech spec § 4): `account`, `profile`, `plan`, `meal`, `day` / `day-view`,
 `reflection`, `export`, `upload`, `ai` (`services/ai/*`: DeepSeek adapter, interpret-plan,
 analyze-meal, generate-reflection, prompts, usage caps), `jobs` (scheduler under a `JobLock`
-lease: plan import, hourly cleanup, purge, prune, backup), `food-data` (unit table, scaling, USDA
-lookup behind `USDA_LOOKUP_ENABLED`), `storage/s3`, plus the boilerplate `user` module. Pure logic
+lease: plan import, hourly cleanup, purge, prune, backup), `food-data` (unit table of measures plus the food-weight hints, scaling through `unitGrams`,
+USDA lookup behind `USDA_LOOKUP_ENABLED`), `storage/s3`, plus the boilerplate `user` module. Pure logic
 lives in `lib/rubric` (matching, portions, timing, score, nutrition, facts, seven-day) and
 `lib/time` (zone-aware local dates).
 
@@ -108,6 +108,13 @@ lives in `lib/rubric` (matching, portions, timing, score, nutrition, facts, seve
   "What changed". Renames, label values and edited quantities always survive; an edited name
   marks the item for a new estimate. Choice answers that name a unit ("2 slices") set the
   quantity immediately.
+- Units are measures (decision 024): `g, kg, ml, l, glass, cup, tsp, tbsp, bowl` and the count
+  units `piece, slice, sheet, skewer, handful, serving`. A counted item reads "2 × سیب" or
+  "1 slice · نان سنگک" (plurals via `tp()`), the size stays in the name, and the grams of one
+  unit live on the item (`unitGrams`, "≈ 180 g each"), estimated by the AI from a hint table
+  or its own knowledge and editable on review (a −/+ stepper and a "grams each" field for
+  counts). Portions compare through grams when both sides convert, by count when they share
+  the unit, otherwise "Not evaluated".
 - The composer has a Back arrow from the review to the compose step (no re-analysis when the
   input is unchanged) and a Start over action that discards the server draft and its staged
   photos; a resumed draft says "Continuing where you left off". Unticking "I don't remember
@@ -152,9 +159,9 @@ lives in `lib/rubric` (matching, portions, timing, score, nutrition, facts, seve
 - `User` — `username`, `usernameLower` (`citext`, unique), `passwordHash`, optional `fullName`, `role`, `isActive`, `lastLoginAt`, `onboardingStep`, `deletionRequestedAt`, `deletionScheduledFor`
 - `Session` — `tokenHash` (SHA-256 of the cookie token, unique), `expiresAt`, cascades on user delete
 - `Profile` — one per user: age, sex, height, weight, unit system, week start, appearance, display name, goal, restrictions, AI-notice timestamps
-- `Plan`, `PlanSlot`, `PlanOption`, `PlanItem`, `PlanTarget`, `PlanNote`, `PlanImportJob` — the one plan and its pending draft (`draftJson`, `draftRevision`)
+- `Plan`, `PlanSlot`, `PlanOption`, `PlanItem` (`unit` a measure, `unitGrams` for counts), `PlanTarget`, `PlanNote`, `PlanImportJob` — the one plan and its pending draft (`draftJson`, `draftRevision`)
 - `DayRecord`, `DaySkippedSlot` — a calendar day in the app zone (decision 022), created lazily on the first meal, skip or completeness change
-- `Meal`, `FoodItem`, `Upload`, `MealDraft` — confirmed meals (revisioned, `clientRequestId`), their items and photos, and server-held drafts
+- `Meal`, `FoodItem` (`unit`, `unitGrams` as on `PlanItem`), `Upload`, `MealDraft` — confirmed meals (revisioned, `clientRequestId`), their items and photos, and server-held drafts
 - `MorningMessage` — one reflection per user per day, overwritten in place, with the facts hash and claimed fact ids
 - `AiCall`, `AnalyticsEvent`, `FoodDataCache`, `JobLock` — operational, pruned on a schedule
 

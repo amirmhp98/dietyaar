@@ -7,8 +7,10 @@ import {
   alternativeSchema,
   foodNameSchema,
   quantitySchema,
+  unitGramsSchema,
 } from '@/lib/validations/plan';
 import { nutritionSchema } from '@/lib/validations/nutrition';
+import { withLegacyUnit } from '@/lib/units';
 
 /**
  * Zod schemas for every AI output (tech spec § 10.2). The adapter validates
@@ -20,18 +22,25 @@ import { nutritionSchema } from '@/lib/validations/nutrition';
 
 const excerpt = z.string().max(2000).default('');
 
-export const aiItemSchema = foodNameSchema.extend({
-  quantity: quantitySchema,
-  /** A unit-table key, or a free-text unit the model could not resolve. */
-  unit: z.string().trim().max(40).nullable().default(null),
-  quantityAssumed: z.boolean().default(false),
-  assumedDefaultKey: z.string().max(60).nullable().default(null),
-  preparationNote: z.string().trim().max(200).nullable().default(null),
-  alternatives: z.array(alternativeSchema).max(6).default([]),
-  category: z.enum(FOOD_CATEGORIES).default('OTHER'),
-  nutrition: nutritionSchema.nullable().default(null),
-  sourceExcerpt: excerpt,
-});
+/** A unit-table key, or a free-text unit the model could not resolve. */
+const aiUnit = z.string().trim().max(40).nullable().default(null);
+
+export const aiItemSchema = z.preprocess(
+  withLegacyUnit,
+  foodNameSchema.extend({
+    quantity: quantitySchema,
+    unit: aiUnit,
+    /** Grams of one unit for a count unit (decision 024); null for measures. */
+    unitGrams: unitGramsSchema,
+    quantityAssumed: z.boolean().default(false),
+    assumedDefaultKey: z.string().max(60).nullable().default(null),
+    preparationNote: z.string().trim().max(200).nullable().default(null),
+    alternatives: z.array(alternativeSchema).max(6).default([]),
+    category: z.enum(FOOD_CATEGORIES).default('OTHER'),
+    nutrition: nutritionSchema.nullable().default(null),
+    sourceExcerpt: excerpt,
+  }),
+);
 
 export const aiOptionSchema = z.object({
   label: z.string().trim().max(200).nullable().default(null),
@@ -90,26 +99,34 @@ export const planImportOutputSchema = z.object({
 });
 export type PlanImportOutput = z.infer<typeof planImportOutputSchema>;
 
-/** Baseline estimation: nutrition per requested item, by index. */
+/** Baseline estimation: nutrition per requested item, by index, plus the grams of one unit for counted items. */
 export const planBaselineOutputSchema = z.object({
   items: z
     .array(
-      z.object({ index: z.number().int().nonnegative(), nutrition: nutritionSchema.nullable() }),
+      z.object({
+        index: z.number().int().nonnegative(),
+        nutrition: nutritionSchema.nullable(),
+        unitGrams: unitGramsSchema,
+      }),
     )
     .max(200),
 });
 export type PlanBaselineOutput = z.infer<typeof planBaselineOutputSchema>;
 
-export const aiMealItemSchema = foodNameSchema.extend({
-  quantity: quantitySchema,
-  unit: z.string().trim().max(40).nullable().default(null),
-  quantityUnknown: z.boolean().default(false),
-  quantityAssumed: z.boolean().default(false),
-  preparation: z.string().trim().max(200).nullable().default(null),
-  category: z.enum(FOOD_CATEGORIES).default('OTHER'),
-  alternatives: z.array(alternativeSchema).max(6).default([]),
-  nutrition: nutritionSchema.nullable().default(null),
-});
+export const aiMealItemSchema = z.preprocess(
+  withLegacyUnit,
+  foodNameSchema.extend({
+    quantity: quantitySchema,
+    unit: aiUnit,
+    unitGrams: unitGramsSchema,
+    quantityUnknown: z.boolean().default(false),
+    quantityAssumed: z.boolean().default(false),
+    preparation: z.string().trim().max(200).nullable().default(null),
+    category: z.enum(FOOD_CATEGORIES).default('OTHER'),
+    alternatives: z.array(alternativeSchema).max(6).default([]),
+    nutrition: nutritionSchema.nullable().default(null),
+  }),
+);
 
 export const aiMealQuestionSchema = z.object({
   /** Index into `items`, or null for the whole meal. */
