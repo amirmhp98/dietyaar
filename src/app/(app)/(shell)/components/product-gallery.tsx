@@ -21,18 +21,24 @@ export function ProductGallery() {
     >
       <h2 className="text-lg font-semibold">Product components</h2>
       <div className="flex flex-wrap gap-6">
-        <NameLabel originalName="نان سنگک" englishLabel="sangak bread" />
-        <NameLabel originalName="جوجه کباب" englishLabel="joojeh kabab" inline />
-        <NameLabel originalName="Oats" englishLabel="oats" />
-        <NameLabel originalName="ناهار" englishLabel="Lunch" size="lg" />
+        <NameLabel originalName="نان سنگک" />
+        <NameLabel originalName="جوجه کباب" size="sm" />
+        <NameLabel originalName="Oats" />
+        <NameLabel originalName="ناهار" size="lg" />
       </div>
       <div className="flex flex-wrap gap-2">
         <DifferenceChip kind="PORTION_MORE">
           More than planned (120 g instead of 80 g)
         </DifferenceChip>
-        <DifferenceChip kind="ORDER">Eaten before ناهار (Lunch)</DifferenceChip>
-        <DifferenceChip kind="ADDED">Added: همبرگر (burger)</DifferenceChip>
-        <DifferenceChip kind="CROSS_SLOT">This is a lunch option</DifferenceChip>
+        <DifferenceChip kind="ORDER">
+          Eaten before <bdi>ناهار</bdi>
+        </DifferenceChip>
+        <DifferenceChip kind="ADDED">
+          Added: <bdi>همبرگر</bdi>
+        </DifferenceChip>
+        <DifferenceChip kind="CROSS_SLOT">
+          This is a <bdi>ناهار</bdi> option
+        </DifferenceChip>
       </div>
       <ScoreCard
         ongoing

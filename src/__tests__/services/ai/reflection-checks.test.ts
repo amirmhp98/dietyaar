@@ -182,7 +182,10 @@ describe('generateReflection', () => {
 describe('prompts', () => {
   it('carry the stub marker, the word json and exactly one example', () => {
     const prompt = reflectionSystemPrompt();
-    expect(prompt.startsWith('# dietyaar:REFLECTION v1')).toBe(true);
+    expect(prompt.startsWith('# dietyaar:REFLECTION v2')).toBe(true);
+    // Names are quoted as written; the prompt no longer asks for a translated label.
+    expect(prompt).toContain('no translation and no English label');
+    expect(prompt).not.toContain('(lunch)');
     expect(prompt.toLowerCase()).toContain('json');
     expect(prompt.match(/Example of the exact json shape/g)).toHaveLength(1);
   });

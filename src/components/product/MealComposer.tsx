@@ -10,7 +10,7 @@ import {
   Textarea,
 } from '@/components/UiComponents';
 import { Disclosure } from '@/components/product/Disclosure';
-import { NameLabel } from '@/components/product/NameLabel';
+import { InlineNames } from '@/components/product/InlineName';
 import { PhotoPicker, type StagedPhoto } from '@/components/product/meal/PhotoPicker';
 import { ResumedBanner } from '@/components/product/meal/ResumedBanner';
 import { OTHER_SLOT, PlannedSlotsRow, SlotSelect } from '@/components/product/meal/SlotPicker';
@@ -77,13 +77,6 @@ export interface MealComposerProps {
   onManual: () => void;
   onRetry: () => void;
   busy: boolean;
-}
-
-function recentLabel(meal: ComposerRecentMeal): string {
-  return meal.items
-    .slice(0, 3)
-    .map((i) => i.englishLabel)
-    .join(', ');
 }
 
 /**
@@ -244,14 +237,9 @@ export function MealComposer(props: MealComposerProps) {
                 data-testid="recent-meal"
                 className="flex min-h-11 max-w-64 shrink-0 flex-col items-start rounded-xl border border-border bg-card px-3 py-2 text-start hover:bg-accent"
               >
-                {meal.items[0] ? (
-                  <NameLabel
-                    originalName={meal.items[0].originalName}
-                    englishLabel={recentLabel(meal)}
-                    size="sm"
-                    className="max-w-full items-start"
-                  />
-                ) : null}
+                <span className="max-w-full text-sm font-medium">
+                  <InlineNames names={meal.items.slice(0, 3)} />
+                </span>
                 {meal.energyKcal !== null ? (
                   <span className="text-xs text-muted-foreground" dir="ltr">
                     {formatNumber(meal.energyKcal)} {t('meal.nutrient.unit.kcal')}

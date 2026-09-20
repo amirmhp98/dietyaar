@@ -53,7 +53,7 @@ export const plan = {
   'plan.structure.TARGETS_ONLY.hint': 'Daily numbers only, no meals. Nutrition comparison only.',
   'plan.assumed': 'Assumed',
   'plan.assumedHint': 'No amount was written, so a usual portion is assumed. You can change it.',
-  'plan.option.label': 'Option {n}',
+  'plan.option.n': 'Option {n}',
   'plan.option.count.one': '{count} option',
   'plan.option.count.other': '{count} options',
   'plan.item.quantityUnit': '{quantity} {unit}',

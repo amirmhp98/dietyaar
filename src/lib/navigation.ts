@@ -5,8 +5,8 @@ import type { AuthUser } from '@/types/auth';
 
 /**
  * Single source of truth for the product navigation (product spec § 4):
- * three primary tabs, a settings entry behind the profile button, and the
- * admin tools reachable from Settings › Tools.
+ * three primary tabs with Today in the middle (decision 9), a settings entry
+ * behind the profile button, and the admin tools reachable from Settings › Tools.
  */
 export type NavItem = {
   label: string;
@@ -16,8 +16,8 @@ export type NavItem = {
 };
 
 export const PRIMARY_TABS: NavItem[] = [
-  { label: t('nav.today'), href: '/today', icon: Sun },
   { label: t('nav.history'), href: '/history', icon: CalendarDays },
+  { label: t('nav.today'), href: '/today', icon: Sun },
   { label: t('nav.plan'), href: '/plan', icon: ClipboardList },
 ];
 

@@ -37,11 +37,14 @@ One locale profile (`src/lib/locale.ts`): English, LTR, Gregorian, Latin numeral
 The profile's time zone is never read for product logic: every user has a `Profile.timeZone` and
 every stored day carries the zone it was recorded in (tech spec § 9, decision 009). Plan and meal
 text is accepted in any language and stored verbatim; a normalised parsing copy is produced by
-`lib/text/normalize.ts`.
+`lib/text/normalize.ts`. Food and slot names are shown as the user wrote them (`NameLabel`,
+`InlineName`); the English label the AI produces stays in the data for matching, restrictions and
+prompts and is never rendered. Plan options are shown as "Option 1 / Option 2 …" from their position
+in the slot; the pasted heading (`PlanOption.label`) is provenance only.
 
 ## Modules & routes
 
-Navigation (`src/lib/navigation.ts`): bottom tabs **Today · History · My plan** (`BottomNav`), a
+Navigation (`src/lib/navigation.ts`): bottom tabs **History · Today · My plan**, Today in the middle (`BottomNav`), a
 top bar with the page title and a profile button to Settings (`TopBar`), and a persistent
 **Log meal** button on the three tabs that opens the composer sheet (`(app)/(shell)/layout.tsx`);
 Meal details titles the bar "Meal" and hides the button.

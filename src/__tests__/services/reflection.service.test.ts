@@ -318,7 +318,7 @@ describe('getOrCreateMessage — static states (no AI call)', () => {
       'Good morning, Sara. ' +
         t('reflection.fallback.firstDay.welcome') +
         ' ' +
-        t('reflection.fallback.firstDay.startsWith', { slot: 'صبحانه (Breakfast)' }) +
+        t('reflection.fallback.firstDay.startsWith', { slot: 'صبحانه' }) +
         ' ' +
         t('reflection.fallback.firstDay.tomorrow') +
         ' ' +
@@ -340,7 +340,7 @@ describe('getOrCreateMessage — static states (no AI call)', () => {
       'Good morning, Sara. ' +
         t('reflection.fallback.noRecords.intro') +
         ' ' +
-        t('reflection.fallback.noRecords.startsWith', { slot: 'صبحانه (Breakfast)' }) +
+        t('reflection.fallback.noRecords.startsWith', { slot: 'صبحانه' }) +
         ' ' +
         t('reflection.fallback.noRecords.history') +
         ' ' +
@@ -762,8 +762,8 @@ describe('fallbacks', () => {
     const f = facts(yesterdayView());
     const out = fallbackParagraph('COMPLETE', f, ctx);
     check(out.paragraph);
-    expect(out.paragraph).toContain('ناهار (Lunch) matched the plan.');
-    expect(out.paragraph).toContain("Today's plan starts with صبحانه (Breakfast).");
+    expect(out.paragraph).toContain('ناهار matched the plan.');
+    expect(out.paragraph).toContain("Today's plan starts with صبحانه.");
     expect(out.usedFactIds).toEqual(
       expect.arrayContaining(['coverage', `slot:${plan.lunch.id}`, 'today:next']),
     );
@@ -782,7 +782,7 @@ describe('fallbacks', () => {
     const out = fallbackParagraph('NO_RECORDS', facts(empty), ctx);
     expect(out.paragraph).toBe(
       'Good morning, Sara. Yesterday went by without any meals logged — that happens, and nothing is lost. ' +
-        'Today is a fresh page: your plan starts with صبحانه (Breakfast), and logging it takes a few taps. ' +
+        'Today is a fresh page: your plan starts with صبحانه, and logging it takes a few taps. ' +
         "If you'd like to fill in yesterday, History is always open. One meal at a time is plenty.",
     );
     expect(out.paragraph).not.toMatch(BANNED);
@@ -804,7 +804,7 @@ describe('fallbacks', () => {
       }),
     );
     expect(fallbackParagraph('NO_RECORDS', facts(empty, later), afternoon).paragraph).toContain(
-      'Today is a fresh page: the next meal in your plan is میان‌وعده اول (First snack), and logging it takes a few taps.',
+      'Today is a fresh page: the next meal in your plan is میان‌وعده اول, and logging it takes a few taps.',
     );
 
     const targetsOnly = reflectionFacts(empty, [], todayView(), context);
@@ -819,7 +819,7 @@ describe('fallbacks', () => {
     const out = fallbackParagraph('FIRST_DAY', facts(null, todayView(), { isFirstDay: true }), ctx);
     expect(out.paragraph).toBe(
       "Good morning, Sara. Welcome — there's nothing to look back on yet, and today is day one. " +
-        'Your plan starts with صبحانه (Breakfast); when you eat it, log it and adjust the portions to what you actually had. ' +
+        'Your plan starts with صبحانه; when you eat it, log it and adjust the portions to what you actually had. ' +
         'From tomorrow on, this card will tell you how the day before went. One meal at a time is plenty.',
     );
     expect(out.paragraph).not.toMatch(BANNED);
@@ -879,7 +879,7 @@ describe('fallbacks', () => {
       greetingName: 'Sara',
       timeOfDay: 'AFTERNOON',
     });
-    expect(out.paragraph).toContain('The next meal in your plan is میان‌وعده اول (First snack).');
+    expect(out.paragraph).toContain('The next meal in your plan is میان‌وعده اول.');
     expect(out.paragraph).not.toContain('starts with');
   });
 });

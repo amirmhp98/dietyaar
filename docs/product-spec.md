@@ -50,7 +50,7 @@ This document describes the proposed first release, including behavior, user exp
 | Nutrition estimates                    | Labeled AI estimates using a maintained regional household-unit table; USDA is a secondary lookup for packaged and generic items only; a curated regional food table is a later accuracy investment                                                                                                                                                   | Product default (v1.4)                                                  |
 | Meal photos                            | In scope but not a launch blocker; built behind a server-side flag so V1 can ship with text, manual, recent, and planned-meal logging if photo quality is unproven                                                                                                                                                                                    | Product default (v1.4); flag mechanism v1.6                             |
 | Loggable entries                       | Anything with calories, including sweetened tea and coffee with milk; plain water is not logged; supplements are out of scope                                                                                                                                                                                                                         | Product default (v1.4)                                                  |
-| Language display                       | Food and meal names appear as the user wrote them with an English label beneath; right-to-left text renders inside the left-to-right layout; all system copy and the daily paragraph are English                                                                                                                                                      | Owner confirmed (English UX); display detail Product default (v1.4)     |
+| Language display                       | Food and meal names appear as the user wrote them; the English label the AI produces is kept for matching, not shown; right-to-left text renders inside the left-to-right layout; all system copy and the daily paragraph are English                                                                                                                 | Owner confirmed (English UX); display detail Product default (v1.4)     |
 | Calendar and week                      | Gregorian dates; the week starts on the first weekday the plan lists, otherwise Saturday, editable in Settings; fasting periods are out of scope                                                                                                                                                                                                      | Owner confirmed (Gregorian); rest Product default (v1.4)                |
 | Authentication                         | Username and password only; no recovery email, no password reset, no OTP, email code, or social sign-in. A forgotten password cannot be recovered in this release, and sign-up and Settings say so in one line                                                                                                                                        | Owner confirmed (v1.7)                                                  |
 | First-release business model           | No payment or subscription flow                                                                                                                                                                                                                                                                                                                       | Proposed scope                                                          |
@@ -98,7 +98,7 @@ Weight can be updated in the profile, with a measurement date. A weight-loss for
 
 ## 4. Navigation and screen structure
 
-Use three primary destinations: **Today**, **History**, and **My plan**. A profile button opens account and preferences. **Log meal** remains easy to reach from all three destinations, using the same label and interaction pattern.
+Use three primary destinations: **History**, **Today**, and **My plan**, with Today in the middle. A profile button opens account and preferences. **Log meal** remains easy to reach from all three destinations, using the same label and interaction pattern.
 
 On mobile, use a compact bottom navigation and a thumb-accessible logging action. On larger screens, preserve the same information hierarchy rather than filling available space with additional reports.
 
@@ -167,8 +167,8 @@ Neither plan gives clock times. Most plans for this audience will not.
 
 - Name, source (AI tool, nutrition specialist, doctor, or other, as a free-text note), and source language.
 - Daily schedule or repeating seven-day schedule. Weekday order follows the plan as written; the first listed weekday sets the week start, otherwise Saturday. Optional meal times/windows.
-- Meal slots named as the plan names them, with an English label alongside, in plan order. Slot names are not a fixed list; “pre-workout” and “afternoon snack” are both valid slot names.
-- Planned meals with prescribed foods, quantities, units, and preparation notes. Each food keeps its original name and an English label.
+- Meal slots named as the plan names them, in plan order, with an English label kept for matching, not shown. Slot names are not a fixed list; “pre-workout” and “afternoon snack” are both valid slot names.
+- Planned meals with prescribed foods, quantities, units, and preparation notes. Each food keeps its original name and an English label kept for matching, not shown. Options are shown as numbered Option 1, Option 2 in plan order; the heading the plan used for an option is kept only as its source excerpt.
 - **Meal options.** A slot may list several options. Every listed option is a prescribed food for that slot; the user is not asked to pick one at import. Options are shown as a compact list under the slot, and the user picks which option they ate at logging time.
 - **In-item alternatives.** An item such as “boiled or oven potato” or “kabab tabei or homemade burger” stores both alternatives; either is on plan. The chosen alternative only changes the nutrition estimate.
 - Per-meal energy ranges or figures, when the plan gives them, and explicit daily nutritional targets: energy in kcal; protein, carbohydrate, fat, and optional fiber in grams; optional sodium in mg. When the plan gives per-meal ranges but no daily figure, the daily range is the sum of the meal ranges and is labeled “Sum of your meal ranges”.
@@ -228,7 +228,7 @@ Support:
 - Planned meal: “I ate this.” When the slot has several options, the user picks the option first, then confirms what was actually eaten. The last-used option for that slot is marked “Last time” as a suggestion, but nothing is preselected; the review cannot be saved until an option is chosen. The prescribed portions prefill the review.
 - Manual entry: food name and portion, with optional known nutrition values.
 
-What counts as an entry: anything with calories, including sweetened tea, coffee with milk, juice, and dates eaten alone. Plain water is not logged and has no widget. Supplements are out of scope. Food names are stored as the user wrote them; the review shows the original name with an English label beneath, and right-to-left text renders correctly inside the English layout.
+What counts as an entry: anything with calories, including sweetened tea, coffee with milk, juice, and dates eaten alone. Plain water is not logged and has no widget. Supplements are out of scope. Food names are stored as the user wrote them; the review shows the original name only (the English label stays in the data for matching), and right-to-left text renders correctly inside the English layout.
 
 Meal-photo input accepts one to three JPEG, PNG, WebP, or HEIC images per meal, with a proposed 10 MB limit per image. Convert HEIC to a provider-supported image format, validate real file contents, strip unnecessary metadata, and provide preview/remove controls. Multiple photos show the same meal from different angles unless the user explicitly identifies additional food; never automatically count each photo as another serving. These application limits are separate from provider limits. Photo logging is in scope but is not a launch blocker: if the photo model fails the section 13 evaluation, V1 ships with the photo action hidden and the other five paths intact, and the photo action is added when the evaluation passes.
 
@@ -523,7 +523,7 @@ Produce one English paragraph of approximately 60–90 words for each local date
 
 Choose the focus from reliable, relevant facts: first a noticeable or large prescribed-food or portion difference, then an order/timing difference, then a nutritional comparison, unless the confirmed plan explicitly sets another priority. If records are incomplete, acknowledge that before any comparison. Mention at most one improvement focus. When the available facts support it, acknowledge one specific thing that matched the plan. Do not hide a food/timing mismatch behind a positive calorie total.
 
-The paragraph is always English. Food and slot names may be quoted as the user wrote them, followed by the English label, for example “your ناهار (lunch)”. For a slot with options, refer to the slot and, if useful, the number of options; never tell the user which option to choose. Never mention training, rest days, exercise, or fasting, even when the plan text does.
+The paragraph is always English. Food and slot names are quoted exactly as the user wrote them, in their language, with no translation or English label, for example “your ناهار”. For a slot with options, refer to the slot and, if useful, the number of options; never tell the user which option to choose. Never mention training, rest days, exercise, or fasting, even when the plan text does.
 
 Inputs: yesterday's confirmed records, the completeness setting (checked is always an assumption, never a confirmation), deterministic comparison facts including the rubric result, material estimate gaps, the plan as it is now, today's schedule with slot order, the display name or username, and recent messages to reduce repetition. The required age, sex, height, and current-weight profile may be supplied as personalization context for tone only. Do not infer health conditions or change the prescribed diet from it; account identifiers and irrelevant profile history are excluded.
 
@@ -622,7 +622,7 @@ Supportive, calm, kind, and professional. Speak directly to the user in plain En
 
 Use sentence case, explicit field labels, specific button verbs, and consistent food/portion/unit terminology. Do not use placeholder text as the only label. Do not expose model names, JSON, tokens, or internal job states in ordinary product screens.
 
-All system copy is English. User-written food, meal, and plan text is shown as written, with the English label the AI produced beneath or beside it, and is never machine-translated in place. Right-to-left runs use proper bidirectional isolation so Persian and Arabic names render correctly next to English labels and numbers. Numbers in system copy use Western digits; user text keeps its digits.
+All system copy is English. User-written food, meal, and plan text is shown as written and is never machine-translated in place; the English label the AI produces is kept for matching and prompts, not shown. Right-to-left runs use proper bidirectional isolation so Persian and Arabic names render correctly next to English copy and numbers. Numbers in system copy use Western digits; user text keeps its digits.
 
 ### Progressive disclosure and components
 
@@ -758,7 +758,7 @@ Use content-free analytics events such as `plan_confirmed`, `meal_save_succeeded
 - [ ] A planned meal with options cannot be saved without a chosen option, and the last-used option is only marked as a suggestion.
 - [ ] The AI-processing notice appears once before each first request kind (plan, meal text, meal photo), each with a manual alternative.
 - [ ] Today shows the import-pending, import-ready, import-failed, and time-zone-changed states as specified, and a restriction reminder appears in meal review when an item matches.
-- [ ] Persian and Arabic input renders correctly beside English labels across plan, review, Today, History, and the morning paragraph.
+- [ ] Persian and Arabic input renders correctly inside English copy across plan, review, Today, History, and the morning paragraph.
 - [ ] Today stays focused, with a persistent logging action and optional detail disclosure.
 - [ ] History explains incomplete-day denominators and plan changes.
 - [ ] Morning messages pass complete/partial/empty/first-day/no-plan tests and contain only supported facts.

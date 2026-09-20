@@ -40,7 +40,6 @@ export function QuestionCard({
                 <NameLabel
                   originalName={item.originalName}
                   englishLabel={item.englishLabel}
-                  inline
                   size="sm"
                 />
               ) : null}

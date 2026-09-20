@@ -149,7 +149,6 @@ export function TargetsReview({
                         originalName={slot.originalName}
                         englishLabel={slot.englishLabel}
                         size="sm"
-                        inline
                       />
                     ) : (
                       <span className="text-sm">{nutrientLabel(target.nutrient)}</span>
@@ -238,12 +237,7 @@ function SlotHeading({ slot, target }: { slot: DraftSlot | undefined; target: Dr
   return (
     <div className="flex items-center justify-between gap-3">
       {slot ? (
-        <NameLabel
-          originalName={slot.originalName}
-          englishLabel={slot.englishLabel}
-          size="sm"
-          inline
-        />
+        <NameLabel originalName={slot.originalName} englishLabel={slot.englishLabel} size="sm" />
       ) : (
         <span className="text-sm">{nutrientLabel(target.nutrient)}</span>
       )}

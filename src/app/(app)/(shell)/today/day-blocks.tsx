@@ -1,11 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { Fragment, useOptimistic, useState, useTransition } from 'react';
+import { useOptimistic, useState, useTransition } from 'react';
 import { markSlotSkippedAction, setDayCompletenessAction } from '@/actions/day.actions';
 import { Button, toast } from '@/components/UiComponents';
 import { CompletenessCheckbox } from '@/components/product/CompletenessCheckbox';
-import { NameLabel } from '@/components/product/NameLabel';
+import { InlineName, InlineNames } from '@/components/product/InlineName';
 import { NutritionDetails } from '@/components/product/NutritionDetails';
 import { PlanSlotRow } from '@/components/product/PlanSlotRow';
 import { ScoreCard } from '@/components/product/ScoreCard';
@@ -263,33 +263,15 @@ function MealRow({
         </span>
         <span className="min-w-0 flex-1 space-y-0.5">
           <span className="block text-sm">
-            {meal.itemNames.map((name, index) => (
-              <Fragment key={`${name.originalName}-${index}`}>
-                {index > 0 ? ', ' : null}
-                <NameLabel
-                  originalName={name.originalName}
-                  englishLabel={name.englishLabel}
-                  inline
-                  size="sm"
-                />
-              </Fragment>
-            ))}
+            <span className="font-medium">
+              <InlineNames names={meal.itemNames} />
+            </span>
             {more > 0 ? (
               <span className="text-xs text-muted-foreground"> {tp('meals.moreItems', more)}</span>
             ) : null}
           </span>
           <span className="block text-xs text-muted-foreground">
-            {meal.slot ? (
-              <NameLabel
-                originalName={meal.slot.originalName}
-                englishLabel={meal.slot.englishLabel}
-                inline
-                size="sm"
-                className="font-normal"
-              />
-            ) : (
-              t('meals.other')
-            )}
+            {meal.slot ? <InlineName name={meal.slot} /> : t('meals.other')}
           </span>
         </span>
         {meal.energyKcal !== null ? (
