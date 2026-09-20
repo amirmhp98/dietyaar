@@ -1,4 +1,4 @@
-import { ASSUMED_DEFAULTS, unitTableText } from '@/lib/units';
+import { ASSUMED_DEFAULTS, foodWeightHintsText, unitTableText } from '@/lib/units';
 import { FOOD_CATEGORIES } from '@/lib/validations/plan';
 import type { AiKind } from '@/services/ai/types';
 
@@ -21,8 +21,12 @@ export const LANGUAGE_RULES = [
 
 export function unitsSection(): string {
   return [
-    'Units: resolve every quantity to one of these unit keys (the text after the colon is the regional default used by the app). Use the key exactly as written (for example "glass", "tbsp", "slice_sangak"). Grams are "g", millilitres "ml". If the input uses a household unit that is not in the table, put the unit text verbatim in `unit` and never invent a weight for it.',
+    'Units: `unit` is a measure, never a food or a size. Resolve every quantity to one of these unit keys, used exactly as written (for example "g", "glass", "tbsp", "piece", "slice"):',
     unitTableText(),
+    'A count unit means so many of the item itself: "2 apples" is quantity 2, unit "piece"; "a slice of sangak" is 1 "slice"; lavash and taftoon come in sheets ("sheet"); kabab in skewers ("skewer"); nuts in handfuls ("handful"); a portion of a dish with no better measure is a "serving". The size stays in the name as written ("سیب کوچک", "small apple"), never in the unit.',
+    '`unitGrams`: for a count unit, the grams of ONE unit of this item as eaten (edible part, as prepared). Use the hint table when it lists the food, your best estimate otherwise; assume a medium size when none is stated. It is null for mass and volume units, and never null for a count unit with a known quantity.',
+    `Food weight hints (grams per one): ${foodWeightHintsText()}.`,
+    'If the input uses a household unit that is not in the table, put the unit text verbatim in `unit`, leave `unitGrams` null and never invent a weight for it.',
   ].join('\n');
 }
 

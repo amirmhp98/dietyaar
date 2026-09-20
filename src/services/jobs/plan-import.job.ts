@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
 import { localDateFor } from '@/lib/time/local-date';
+import { resolveUnitGrams } from '@/lib/units';
 import {
   draftRuleSchema,
   planDraftSchema,
@@ -137,6 +138,7 @@ export function draftFromImport(output: PlanImportOutput): PlanDraft {
         englishLabel: item.englishLabel,
         quantity: item.quantity,
         unit: item.unit,
+        unitGrams: item.unitGrams,
         quantityAssumed: item.quantityAssumed,
         assumedDefaultKey: item.assumedDefaultKey,
         preparationNote: item.preparationNote,
@@ -254,6 +256,7 @@ async function fillBaseline(
           englishLabel: item.englishLabel,
           quantity: item.quantity,
           unit: item.unit,
+          unitGrams: item.unitGrams,
           preparationNote: item.preparationNote,
           category: item.category,
         });
@@ -262,12 +265,14 @@ async function fillBaseline(
   if (pending.length === 0 || Date.now() >= deadlineAt) return null;
   const result = await estimatePlanBaseline({ items: pending, deadlineAt, userTag });
   if (!result.ok) return result;
-  const byKey = new Map(result.data.items.map((row) => [keys[row.index], row.nutrition]));
+  const byKey = new Map(result.data.items.map((row) => [keys[row.index], row]));
   for (const slot of draft.slots)
     for (const option of slot.options)
       for (const item of option.items) {
-        const nutrition = byKey.get(item.key);
-        if (nutrition) item.nutrition = nutrition;
+        const row = byKey.get(item.key);
+        if (!row) continue;
+        if (row.nutrition) item.nutrition = row.nutrition;
+        item.unitGrams = resolveUnitGrams(item.unit, item.unitGrams, row.unitGrams);
       }
   draft.targets = recomputeDerivedTargets(draft);
   return result;

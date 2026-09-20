@@ -61,6 +61,7 @@ export function pi(
     englishLabel,
     quantity,
     unit,
+    unitGrams: null,
     quantityAssumed: false,
     category,
     alternatives: [],
@@ -114,6 +115,7 @@ export function fi(
     englishLabel,
     quantity,
     unit,
+    unitGrams: null,
     quantityUnknown: quantity === null,
     category,
     alternatives: [],
@@ -141,6 +143,7 @@ export function eaten(
     value,
     {
       matchedPlanItemId: planItem.id,
+      unitGrams: planItem.unitGrams,
       quantityUnknown: false,
     },
   );

@@ -19,7 +19,7 @@
 import { pathToFileURL } from 'node:url';
 import { EVAL_MEALS, type EvalMealSource } from '../src/__tests__/fixtures/ai-eval/meals';
 import { MENU_PLAN_TEXT, WEEKDAY_PLAN_TEXT } from '../src/__tests__/fixtures/ai-eval/plans';
-import { unitByKey } from '../src/lib/units';
+import { isCountUnit, unitByKey } from '../src/lib/units';
 
 try {
   process.loadEnvFile('.env');
@@ -179,6 +179,7 @@ async function main() {
             englishLabel: item.englishLabel,
             quantity: item.quantity,
             unit: item.unit,
+            unitGrams: item.unitGrams,
             preparationNote: item.preparationNote,
             category: item.category,
           })),
@@ -240,15 +241,18 @@ async function main() {
     bySource[meal.source].recalled += recalled;
     bySource[meal.source].meals += 1;
     // Unit resolution counts items that carry a quantity; a free-text unit the
-    // model could not map to the unit table counts as unresolved.
+    // model could not map to the unit table counts as unresolved, and so does a
+    // count unit without the grams of one (decision 024).
     const quantified = analysed.data.items.filter((i) => i.quantity !== null);
     itemsTotal += quantified.length;
-    itemsWithUnit += quantified.filter((i) => unitByKey(i.unit) !== undefined).length;
+    itemsWithUnit += quantified.filter(
+      (i) => unitByKey(i.unit) !== undefined && (!isCountUnit(i.unit) || i.unitGrams !== null),
+    ).length;
     console.log(
       `MEAL ${recalled}/${meal.expectedItems.length} ${String(Math.round(analysed.durationMs)).padStart(6)} ms  ${meal.label ? `[${meal.source} ${meal.label}] ` : ''}${meal.text}` +
         (missing.length ? `  (missing: ${missing.join(', ')})` : '') +
         (merged.length ? `  (merged: ${merged.join(', ')})` : '') +
-        `\n      ${analysed.data.items.map((i) => `${i.englishLabel} ${i.quantity ?? '?'} ${i.unit ?? '—'}${i.unit && !unitByKey(i.unit) ? '(!)' : ''}`).join('; ')}`,
+        `\n      ${analysed.data.items.map((i) => `${i.englishLabel} ${i.quantity ?? '?'} ${i.unit ?? '—'}${i.unitGrams !== null ? ` (${i.unitGrams} g each)` : ''}${i.unit && !unitByKey(i.unit) ? '(!)' : ''}`).join('; ')}`,
     );
   }
 

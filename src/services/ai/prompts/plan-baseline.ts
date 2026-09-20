@@ -13,7 +13,7 @@ import {
  * rules"): nutrition per item index, from the prescribed food and portion
  * only. Reply validated with `planBaselineOutputSchema`.
  */
-export const PLAN_BASELINE_PROMPT_VERSION = 1;
+export const PLAN_BASELINE_PROMPT_VERSION = 2;
 export const PLAN_BASELINE_MAX_TOKENS = 6000;
 
 const EXAMPLE = {
@@ -23,7 +23,7 @@ const EXAMPLE = {
       nutrition: {
         basis: 'PER_RECORDED_PORTION',
         basisQuantity: 2,
-        basisUnit: 'egg',
+        basisUnit: 'piece',
         values: {
           ENERGY_KCAL: 155,
           PROTEIN_G: 12.6,
@@ -37,8 +37,9 @@ const EXAMPLE = {
         isEstimate: true,
         userOverride: false,
       },
+      unitGrams: 50,
     },
-    { index: 1, nutrition: null },
+    { index: 1, nutrition: null, unitGrams: null },
   ],
 };
 
@@ -50,7 +51,7 @@ export function planBaselineSystemPrompt(): string {
     LANGUAGE_RULES,
     unitsSection(),
     NUTRITION_SHAPE,
-    'Return one entry per input item, keyed by its `index`. For an item whose quantity is null or whose unit cannot be resolved to a weight or volume, return `nutrition: null` rather than guessing a portion. Prefer typical values for the regional dish as commonly prepared (Iranian and Middle Eastern foods included).',
+    'Return one entry per input item, keyed by its `index`. For an item whose quantity is null or whose unit cannot be resolved to a weight or volume, return `nutrition: null` rather than guessing a portion. `unitGrams`: for an item with a count unit, the grams of one unit as described above (keep the input value when it has one); null for other units. Prefer typical values for the regional dish as commonly prepared (Iranian and Middle Eastern foods included).',
     '',
     'Example of the exact json shape to return (values are illustrative):',
     JSON.stringify(EXAMPLE, null, 1),

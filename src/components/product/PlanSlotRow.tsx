@@ -10,7 +10,7 @@ import { NameLabel } from '@/components/product/NameLabel';
 import { formatNumber } from '@/lib/format';
 import type { EnergyResult, RubricTarget, SlotView } from '@/lib/rubric/types';
 import { t } from '@/lib/t';
-import { unitByKey } from '@/lib/units';
+import { portionAmount } from '@/lib/units';
 import { cn } from '@/lib/utils';
 
 /**
@@ -226,8 +226,9 @@ function reasonText(slot: SlotView): ReactNode {
 
 // ─── Expanded details ──────────────────────────────────────────────────────
 
+/** "120 g", "3 slices"; a piece count is a bare number since the item's name leads the chip. */
 function amount(value: number, unit: string): string {
-  return `${formatNumber(value)} ${unitByKey(unit)?.label ?? unit}`;
+  return portionAmount(value, unit);
 }
 
 function SlotDetails({ slot }: { slot: SlotView }) {

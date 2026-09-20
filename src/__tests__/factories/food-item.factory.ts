@@ -29,6 +29,7 @@ export const foodItemFactory = Factory.define<FoodItem>(({ sequence }) => ({
   englishLabel: 'egg',
   quantity: new Prisma.Decimal(2),
   unit: 'piece',
+  unitGrams: new Prisma.Decimal(50),
   quantityUnknown: false,
   quantityAssumed: false,
   preparation: null,

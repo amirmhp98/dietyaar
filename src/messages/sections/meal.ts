@@ -197,11 +197,8 @@ export const meal = {
   'meal.details.photoRemoved': 'Photo removed',
   'meal.details.reuse': 'Reuse as new meal',
   'meal.details.backToToday': 'Back to Today',
-  'meal.details.diff.portionMore':
-    '{item}: {actual} of {planned} {unit} planned, more than planned',
-  'meal.details.diff.portionLess':
-    '{item}: {actual} of {planned} {unit} planned, less than planned',
-  'meal.details.diff.portionSmall': '{item}: {actual} of {planned} {unit} planned',
+  'meal.details.diff.portionMore': '{item}: more than planned ({actual} instead of {planned})',
+  'meal.details.diff.portionLess': '{item}: less than planned ({actual} instead of {planned})',
   'meal.details.diff.timeEarly': '{minutes} min before the planned window',
   'meal.details.diff.timeLate': '{minutes} min after the planned window',
   'meal.details.diff.order': 'Eaten {direction} {slot}',

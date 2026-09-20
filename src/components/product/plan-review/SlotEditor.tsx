@@ -22,6 +22,7 @@ export function newItem(position: number): DraftItem {
     englishLabel: '',
     quantity: null,
     unit: null,
+    unitGrams: null,
     quantityAssumed: false,
     assumedDefaultKey: null,
     preparationNote: null,
@@ -278,9 +279,17 @@ function ItemEditor({
           <UnitSelect
             ariaLabel={t('plan.review.unit')}
             value={item.unit}
+            unitGrams={item.unitGrams}
             onChange={(unit) =>
-              onChange({ ...item, unit, quantityAssumed: false, needsEstimate: true })
+              onChange({
+                ...item,
+                unit,
+                unitGrams: null,
+                quantityAssumed: false,
+                needsEstimate: true,
+              })
             }
+            onUnitGramsChange={(unitGrams) => onChange({ ...item, unitGrams, needsEstimate: true })}
           />
         </FormField>
       </div>

@@ -155,6 +155,7 @@ export function toRubricFoodItem(row: FoodItem): RubricFoodItem {
     englishLabel: row.englishLabel,
     quantity: toNumber(row.quantity),
     unit: row.unit,
+    unitGrams: toNumber(row.unitGrams),
     quantityUnknown: row.quantityUnknown,
     category: row.category as FoodCategoryKey,
     alternatives: parseAlternatives(row.alternatives),

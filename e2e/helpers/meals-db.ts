@@ -16,6 +16,8 @@ export interface SeedItem {
   englishLabel: string;
   quantity?: number | null;
   unit?: string | null;
+  /** Grams of one unit for a count unit (decision 024). */
+  unitGrams?: number | null;
   category?: string;
   kcal?: number | null;
 }
@@ -98,6 +100,7 @@ export async function insertMeal(
           englishLabel: item.englishLabel,
           quantity: item.quantity ?? null,
           unit: item.unit ?? null,
+          unitGrams: item.unitGrams ?? null,
           quantityUnknown: item.quantity === null,
           category: (item.category ?? 'OTHER') as never,
           nutrition: nutrition(item.kcal ?? 100) ?? undefined,

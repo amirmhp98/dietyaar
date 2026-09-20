@@ -1,7 +1,6 @@
 import { formatDate, formatNumber } from '@/lib/format';
 import { t } from '@/lib/t';
 import { normalizeDigits } from '@/lib/text/normalize';
-import { unitByKey } from '@/lib/units';
 import type { NutrientKey } from '@/lib/validations/nutrition';
 import type { DraftSlot, DraftTarget, PlanDraft } from '@/lib/validations/plan';
 import { EVERY_DAY } from '@/lib/validations/plan';
@@ -20,12 +19,6 @@ export function nutrientUnit(nutrient: NutrientKey): string {
   if (nutrient === 'ENERGY_KCAL') return t('plan.unit.kcal');
   if (nutrient === 'SODIUM_MG') return t('plan.unit.mg');
   return t('plan.unit.g');
-}
-
-/** Unit-table keys become their label; free-text units are shown as written. */
-export function unitLabel(unit: string | null): string {
-  if (!unit) return '';
-  return unitByKey(unit)?.label ?? unit;
 }
 
 /** 2024-01-07 is a Sunday; weekday 0–6 = Sunday–Saturday, 7 = every day. */

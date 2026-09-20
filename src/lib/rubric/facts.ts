@@ -1,4 +1,5 @@
 import type { DayView, FoodName, RubricSlot, SlotView } from '@/lib/rubric/types';
+import { portionAmount } from '@/lib/units';
 
 /**
  * The structured facts the reflection prompt receives (product spec § 11).
@@ -97,7 +98,7 @@ function slotFacts(view: SlotView): ReflectionFact[] {
         facts.push({
           id: `portion:${view.slot.id}:${p.planItem.id}`,
           kind: 'PORTION',
-          text: `${quoted(p.planItem)} in ${name} was ${p.band === 'LARGE' ? 'notably ' : 'a bit '}${dir} than planned (${p.actual} ${p.unit} instead of ${p.planned} ${p.unit}).`,
+          text: `${quoted(p.planItem)} in ${name} was ${p.band === 'LARGE' ? 'notably ' : 'a bit '}${dir} than planned (${portionAmount(p.actual, p.unit)} instead of ${portionAmount(p.planned, p.unit)}).`,
           signature: `${p.band}:${dir}`,
         });
       }

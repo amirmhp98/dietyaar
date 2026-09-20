@@ -102,6 +102,8 @@ async function main() {
     englishLabel: string;
     quantity: number;
     unit: string;
+    /** Grams of one unit for a count unit (decision 024). */
+    unitGrams?: number;
     category: FoodCategory;
     kcal: number;
     protein: number;
@@ -125,7 +127,8 @@ async function main() {
           originalName: 'تخم‌مرغ',
           englishLabel: 'egg',
           quantity: 2,
-          unit: 'egg',
+          unit: 'piece',
+          unitGrams: 50,
           category: 'OTHER',
           kcal: 140,
           protein: 12,
@@ -136,7 +139,8 @@ async function main() {
           originalName: 'نان سنگک',
           englishLabel: 'sangak bread',
           quantity: 1,
-          unit: 'slice_sangak',
+          unit: 'slice',
+          unitGrams: 80,
           category: 'BREAD',
           kcal: 210,
           protein: 7,
@@ -236,7 +240,8 @@ async function main() {
           originalName: 'موز',
           englishLabel: 'banana',
           quantity: 1,
-          unit: 'medium_banana',
+          unit: 'piece',
+          unitGrams: 120,
           category: 'FRUIT',
           kcal: 105,
           protein: 1.3,
@@ -273,7 +278,8 @@ async function main() {
           originalName: 'سیب',
           englishLabel: 'apple',
           quantity: 1,
-          unit: 'medium_apple',
+          unit: 'piece',
+          unitGrams: 180,
           category: 'FRUIT',
           kcal: 95,
           protein: 0.5,
@@ -284,7 +290,8 @@ async function main() {
           originalName: 'گردو',
           englishLabel: 'walnuts',
           quantity: 5,
-          unit: 'walnut',
+          unit: 'piece',
+          unitGrams: 4,
           category: 'NUTS',
           kcal: 130,
           protein: 3,
@@ -373,6 +380,7 @@ async function main() {
             englishLabel: item.englishLabel,
             quantity: new Prisma.Decimal(item.quantity),
             unit: item.unit,
+            unitGrams: item.unitGrams === undefined ? null : new Prisma.Decimal(item.unitGrams),
             quantityAssumed: false,
             category: item.category,
             nutrition: nutrition({
@@ -491,6 +499,7 @@ async function main() {
           englishLabel: it.item.englishLabel,
           quantity: new Prisma.Decimal(it.item.quantity),
           unit: it.item.unit,
+          unitGrams: it.item.unitGrams === undefined ? null : new Prisma.Decimal(it.item.unitGrams),
           quantityUnknown: false,
           quantityAssumed: false,
           category: it.item.category,
@@ -602,7 +611,8 @@ async function main() {
             originalName: 'خرما',
             englishLabel: 'dates',
             quantity: 4,
-            unit: 'date',
+            unit: 'piece',
+            unitGrams: 8,
             category: 'FRUIT',
             kcal: 32,
             protein: 0.2,

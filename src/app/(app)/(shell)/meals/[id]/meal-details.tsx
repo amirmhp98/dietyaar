@@ -27,6 +27,7 @@ import {
 import { DifferenceChip, type DifferenceKind } from '@/components/product/DifferenceChip';
 import { Disclosure } from '@/components/product/Disclosure';
 import { MealReview } from '@/components/product/MealReview';
+import { AmountPrefix, GramsEach } from '@/components/product/ItemAmount';
 import { NameLabel } from '@/components/product/NameLabel';
 import { useComposerOpener } from '@/components/product/composer-bus';
 import { valuesLine } from '@/components/product/meal/ItemRow';
@@ -36,6 +37,7 @@ import { formatDate, formatNumber, formatTime } from '@/lib/format';
 import type { RubricSlot, SlotView } from '@/lib/rubric/types';
 import { t } from '@/lib/t';
 import { instantFor } from '@/lib/time';
+import { portionAmount } from '@/lib/units';
 import type { DraftFoodItem, MealDraftState } from '@/lib/validations/meal';
 import { MAIN_NUTRIENTS, NUTRIENT_KEYS } from '@/lib/validations/nutrition';
 import type { MealFoodItemView, MealView } from '@/services/meal.service';
@@ -48,6 +50,7 @@ function toDraftItem(item: MealFoodItemView): DraftFoodItem {
     englishLabel: item.englishLabel,
     quantity: item.quantity,
     unit: item.unit,
+    unitGrams: item.unitGrams,
     quantityUnknown: item.quantityUnknown,
     quantityAssumed: item.quantityAssumed,
     preparation: item.preparation,
@@ -126,9 +129,8 @@ function differences(slotView: SlotView | null): Array<{ kind: DifferenceKind; t
     if (p.band === 'SMALL') continue;
     const params = {
       item: p.item.englishLabel,
-      actual: formatNumber(p.actual, { maximumFractionDigits: 1 }),
-      planned: formatNumber(p.planned, { maximumFractionDigits: 1 }),
-      unit: p.unit,
+      actual: portionAmount(p.actual, p.unit),
+      planned: portionAmount(p.planned, p.unit),
     };
     out.push(
       p.ratio > 0
@@ -470,16 +472,24 @@ export function MealDetails({
           {meal.items.map((item) => (
             <li key={item.id} className="space-y-1 p-3">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <NameLabel
-                  originalName={item.originalName}
-                  englishLabel={item.englishLabel}
-                  className="items-start"
-                />
-                <span className="text-sm tabular-nums" dir="ltr">
-                  {item.quantityUnknown || item.quantity === null
-                    ? t('meal.details.quantityUnknown')
-                    : `${formatNumber(item.quantity, { maximumFractionDigits: 1 })} ${item.unit ?? ''}`}
-                </span>
+                <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
+                  <AmountPrefix
+                    quantity={item.quantityUnknown ? null : item.quantity}
+                    unit={item.unit}
+                  />
+                  <NameLabel
+                    originalName={item.originalName}
+                    englishLabel={item.englishLabel}
+                    className="items-start"
+                  />
+                </div>
+                {item.quantityUnknown || item.quantity === null ? (
+                  <span className="text-sm text-muted-foreground">
+                    {t('meal.details.quantityUnknown')}
+                  </span>
+                ) : (
+                  <GramsEach unit={item.unit} unitGrams={item.unitGrams} />
+                )}
               </div>
               {item.preparation ? (
                 <p className="text-xs text-muted-foreground">

@@ -63,6 +63,7 @@ export const planItemFactory = Factory.define<PlanItem>(({ sequence }) => ({
   englishLabel: 'rice',
   quantity: new Prisma.Decimal(150),
   unit: 'g',
+  unitGrams: null,
   quantityAssumed: false,
   assumedDefaultKey: null,
   preparationNote: null,

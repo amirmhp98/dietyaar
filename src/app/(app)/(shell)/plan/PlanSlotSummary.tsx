@@ -1,7 +1,7 @@
 import { Badge } from '@/components/UiComponents';
+import { AmountPrefix, GramsEach } from '@/components/product/ItemAmount';
 import { NameLabel } from '@/components/product/NameLabel';
 import { formatNumber } from '@/lib/format';
-import { unitLabel } from '@/components/product/plan-review/helpers';
 import type { RubricPlanItem, RubricSlot, RubricTarget } from '@/lib/rubric/types';
 import { t, tp } from '@/lib/t';
 
@@ -66,18 +66,16 @@ export function PlanSlotSummary({ slot, range }: { slot: RubricSlot; range: Rubr
   );
 }
 
+/** One prescribed item: the amount before the name ("2 × سیب", "150 g · مرغ"), grams each for counts. */
 function ItemLine({ item }: { item: RubricPlanItem }) {
-  const amount =
-    item.quantity === null
-      ? t('plan.item.noQuantity')
-      : t('plan.item.quantityUnit', {
-          quantity: formatNumber(item.quantity, { maximumFractionDigits: 2 }),
-          unit: unitLabel(item.unit),
-        }).trim();
   return (
     <li className="flex items-start justify-between gap-3 text-sm">
       <div className="min-w-0">
-        <NameLabel originalName={item.originalName} englishLabel={item.englishLabel} size="sm" />
+        <div className="flex flex-wrap items-baseline gap-x-1.5">
+          <AmountPrefix quantity={item.quantity} unit={item.unit} className="text-sm" />
+          <NameLabel originalName={item.originalName} englishLabel={item.englishLabel} size="sm" />
+        </div>
+        <GramsEach unit={item.unit} unitGrams={item.unitGrams} className="block" />
         {item.alternatives.length > 0 ? (
           <p className="text-xs text-muted-foreground">
             {t('plan.item.alternatives', {
@@ -87,7 +85,7 @@ function ItemLine({ item }: { item: RubricPlanItem }) {
         ) : null}
       </div>
       <div className="flex shrink-0 items-center gap-2 text-muted-foreground">
-        <span dir="ltr">{amount}</span>
+        {item.quantity === null ? <span>{t('plan.item.noQuantity')}</span> : null}
         {item.quantityAssumed ? <Badge variant="outline">{t('plan.assumed')}</Badge> : null}
       </div>
     </li>

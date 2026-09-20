@@ -13,14 +13,14 @@ export function buildMenuPlan() {
     'Breakfast',
     [
       option([
-        pi('تخم‌مرغ', 'egg', 2, 'egg', 'MEAT', 150),
+        pi('تخم‌مرغ', 'egg', 2, 'piece', 'MEAT', 150, { unitGrams: 50 }),
         pi('نان سنگک', 'sangak bread', 80, 'g', 'BREAD', 210),
         pi('خیار و گوجه', 'cucumber and tomato', null, null, 'VEGETABLE'),
       ]),
       option([
         pi('جو دوسر', 'oats', 40, 'g', 'OTHER', 150),
         pi('ماست یونانی', 'Greek yogurt', 150, 'g', 'DAIRY', 130),
-        pi('موز کوچک', 'small banana', 1, 'small_banana', 'FRUIT', 90),
+        pi('موز کوچک', 'small banana', 1, 'piece', 'FRUIT', 90, { unitGrams: 100 }),
         pi('گردو', 'walnuts', 15, 'g', 'NUTS', 100),
       ]),
       option([
@@ -36,7 +36,7 @@ export function buildMenuPlan() {
     'میان‌وعده اول',
     'First snack',
     [
-      option([pi('سیب متوسط', 'medium apple', 1, 'medium_apple', 'FRUIT', 95)]),
+      option([pi('سیب متوسط', 'medium apple', 1, 'piece', 'FRUIT', 95, { unitGrams: 180 })]),
       option([
         pi('خرما', 'dates', 3, 'date', 'FRUIT', 70),
         pi('بادام', 'almonds', 10, 'almond', 'NUTS', 70),
@@ -77,7 +77,7 @@ export function buildMenuPlan() {
     'میان‌وعده دوم',
     'Second snack',
     [
-      option([pi('پرتقال', 'orange', 1, 'medium_orange', 'FRUIT', 70)]),
+      option([pi('پرتقال', 'orange', 1, 'piece', 'FRUIT', 70, { unitGrams: 150 })]),
       option([pi('شیر کم‌چرب', 'low-fat milk', 1, 'glass', 'DAIRY', 100)]),
     ],
     3,

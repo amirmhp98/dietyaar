@@ -263,6 +263,7 @@ describe('recomputeDerivedTargets', () => {
           englishLabel: 'x',
           quantity: null,
           unit: null,
+          unitGrams: null,
           quantityAssumed: false,
           assumedDefaultKey: null,
           preparationNote: null,
@@ -503,8 +504,8 @@ describe('estimateDraftBaseline', () => {
       ok: true,
       data: {
         items: [
-          { index: 0, nutrition: nutrition(160) },
-          { index: 1, nutrition: nutrition(220) },
+          { index: 0, nutrition: nutrition(160), unitGrams: null },
+          { index: 1, nutrition: nutrition(220), unitGrams: null },
         ],
       },
       attempts: [],
@@ -549,7 +550,7 @@ describe('estimateDraftBaseline', () => {
     arrange(draft);
     vi.mocked(estimatePlanBaseline).mockResolvedValue({
       ok: true,
-      data: { items: [{ index: 0, nutrition: nutrition(160) }] },
+      data: { items: [{ index: 0, nutrition: nutrition(160), unitGrams: null }] },
       attempts: [],
       usage: { promptTokens: 1, completionTokens: 1 },
       model: 'm',

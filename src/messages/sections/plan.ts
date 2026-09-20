@@ -57,7 +57,6 @@ export const plan = {
   'plan.option.label': 'Option {n}',
   'plan.option.count.one': '{count} option',
   'plan.option.count.other': '{count} options',
-  'plan.item.quantityUnit': '{quantity} {unit}',
   'plan.item.noQuantity': 'No amount',
   'plan.item.alternatives': 'or {names}',
   'plan.time.range': '{start}–{end}',

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { t } from '@/lib/t';
 import { isValidLocalTime } from '@/lib/time/local-date';
-import { UNIT_KEYS } from '@/lib/units';
+import { UNIT_KEYS, withLegacyUnit } from '@/lib/units';
 import { nutritionSchema } from '@/lib/validations/nutrition';
 
 /**
@@ -73,6 +73,12 @@ const localTime = z
   .default(null);
 /** Unit-table keys, or a free-text unit the user typed (kept, but not convertible). */
 export const unitSchema = z.string().trim().max(40).nullable().default(null);
+/**
+ * Grams of one unit when `unit` is a count unit (decision 024). The AI fills
+ * it for every counted item it quantifies; the user can edit it. Null for
+ * mass and volume units, and for a count the model could not weigh.
+ */
+export const unitGramsSchema = z.number().finite().positive().max(100_000).nullable().default(null);
 export const quantitySchema = z
   .number()
   .finite()
@@ -90,22 +96,27 @@ export const alternativeSchema = foodNameSchema.extend({
   nutrition: nutritionSchema.nullable().default(null),
 });
 
-export const draftItemSchema = foodNameSchema.extend({
-  key,
-  id: optionalId,
-  position: z.number().int().nonnegative().default(0),
-  quantity: quantitySchema,
-  unit: unitSchema,
-  quantityAssumed: z.boolean().default(false),
-  assumedDefaultKey: z.string().max(60).nullable().default(null),
-  preparationNote: shortText.nullable().default(null),
-  alternatives: z.array(alternativeSchema).max(6).default([]),
-  category: z.enum(FOOD_CATEGORIES).default('OTHER'),
-  nutrition: nutritionSchema.nullable().default(null),
-  sourceExcerpt: excerpt,
-  /** Set when identity/quantity changed after the last estimate; 8b re-estimates these. */
-  needsEstimate: z.boolean().default(false),
-});
+/** A draft written before decision 024 may name an old unit key; it is mapped on read. */
+export const draftItemSchema = z.preprocess(
+  withLegacyUnit,
+  foodNameSchema.extend({
+    key,
+    id: optionalId,
+    position: z.number().int().nonnegative().default(0),
+    quantity: quantitySchema,
+    unit: unitSchema,
+    unitGrams: unitGramsSchema,
+    quantityAssumed: z.boolean().default(false),
+    assumedDefaultKey: z.string().max(60).nullable().default(null),
+    preparationNote: shortText.nullable().default(null),
+    alternatives: z.array(alternativeSchema).max(6).default([]),
+    category: z.enum(FOOD_CATEGORIES).default('OTHER'),
+    nutrition: nutritionSchema.nullable().default(null),
+    sourceExcerpt: excerpt,
+    /** Set when identity/quantity changed after the last estimate; 8b re-estimates these. */
+    needsEstimate: z.boolean().default(false),
+  }),
+);
 export type DraftItem = z.infer<typeof draftItemSchema>;
 
 export const draftOptionSchema = z.object({

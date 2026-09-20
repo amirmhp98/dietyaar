@@ -63,6 +63,8 @@ export interface BaselineItemInput {
   englishLabel: string;
   quantity: number | null;
   unit: string | null;
+  /** Grams of one unit for a count unit, when the import already set it; the model fills a null. */
+  unitGrams: number | null;
   preparationNote: string | null;
   category: string;
 }
@@ -91,6 +93,7 @@ export interface MealRefineItem {
   englishLabel: string;
   quantity: number | null;
   unit: string | null;
+  unitGrams: number | null;
   quantityUnknown: boolean;
   preparation: string | null;
   category: string;

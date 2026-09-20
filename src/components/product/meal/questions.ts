@@ -1,5 +1,5 @@
 import { normalizeDigits } from '@/lib/text/normalize';
-import { UNITS, unitByKey } from '@/lib/units';
+import { UNITS, isCountUnit, unitByKey, unitLabel } from '@/lib/units';
 import type { DraftFoodItem } from '@/lib/validations/meal';
 
 /**
@@ -52,28 +52,34 @@ function singularForms(word: string): string[] {
   return forms;
 }
 
-/** A unit-table key for a phrase such as "bowls", "slice of sangak" or "tbsp", or null. */
-function unitKeyFor(phrase: string, item: DraftFoodItem): string | null {
+/**
+ * A unit-table key for a phrase such as "bowls", "slices", "slice of sangak"
+ * or "tbsp", or null. A measure followed by "of <food>" is the measure: the
+ * food stays in the name (decision 024).
+ */
+function unitKeyFor(phrase: string): string | null {
   const words = phrase.split(' ');
   const head = words[0] ?? '';
-  const candidates = [phrase, ...singularForms(head).map((h) => [h, ...words.slice(1)].join(' '))];
+  const candidates = [phrase, ...singularForms(head)];
   for (const candidate of candidates) {
     const alias = ALIASES[candidate];
     if (alias && unitByKey(alias)) return alias;
-    const unit = UNITS.find((u) => u.key === candidate || u.label.toLowerCase() === candidate);
+    const unit = UNITS.find(
+      (u) => u.key === candidate || unitLabel(u.key).toLowerCase() === candidate,
+    );
     if (unit) return unit.key;
-  }
-  // "slices" alone means the item's own slice unit; without one the bread is unknown.
-  if (singularForms(head).includes('slice') && words.length === 1) {
-    return item.unit?.startsWith('slice_') ? item.unit : null;
   }
   return null;
 }
 
+/**
+ * The quantity a picked choice stands for. A count unit keeps the item's
+ * grams per unit when the unit is unchanged; otherwise the refine fills it.
+ */
 export function quantityFromChoice(
   choice: string,
   item: DraftFoodItem,
-): { quantity: number; unit: string } | null {
+): { quantity: number; unit: string; unitGrams: number | null } | null {
   const text = normalizeDigits(choice)
     .toLowerCase()
     .replace(/[,،]/g, '.')
@@ -89,6 +95,8 @@ export function quantityFromChoice(
   if (quantity === undefined || !Number.isFinite(quantity) || quantity <= 0) return null;
   const words = rest.split(' ').filter((w) => !SIZE_WORDS.includes(w));
   if (words.length === 0) return null;
-  const unit = unitKeyFor(words.join(' '), item);
-  return unit ? { quantity, unit } : null;
+  const unit = unitKeyFor(words.join(' '));
+  if (!unit) return null;
+  const unitGrams = isCountUnit(unit) && unit === item.unit ? item.unitGrams : null;
+  return { quantity, unit, unitGrams };
 }

@@ -1,0 +1,61 @@
+/**
+ * Units (decision 024): one label per unit key for the selects, and one
+ * plural pair per key for the amount that precedes an item's name
+ * ("150 g · مرغ", "2 × سیب", "2 slices · نان سنگک"). `{amount}` is the
+ * formatted quantity; the pair is chosen by the quantity through `tp()`.
+ */
+export const units = {
+  'unit.label.g': 'g',
+  'unit.label.kg': 'kg',
+  'unit.label.ml': 'ml',
+  'unit.label.l': 'l',
+  'unit.label.glass': 'glass',
+  'unit.label.cup': 'cup',
+  'unit.label.tsp': 'teaspoon',
+  'unit.label.tbsp': 'tablespoon',
+  'unit.label.bowl': 'bowl',
+  'unit.label.piece': 'piece',
+  'unit.label.slice': 'slice',
+  'unit.label.sheet': 'sheet',
+  'unit.label.skewer': 'skewer',
+  'unit.label.handful': 'handful',
+  'unit.label.serving': 'serving',
+
+  'unit.g.one': '{amount} g',
+  'unit.g.other': '{amount} g',
+  'unit.kg.one': '{amount} kg',
+  'unit.kg.other': '{amount} kg',
+  'unit.ml.one': '{amount} ml',
+  'unit.ml.other': '{amount} ml',
+  'unit.l.one': '{amount} l',
+  'unit.l.other': '{amount} l',
+  'unit.glass.one': '{amount} glass',
+  'unit.glass.other': '{amount} glasses',
+  'unit.cup.one': '{amount} cup',
+  'unit.cup.other': '{amount} cups',
+  'unit.tsp.one': '{amount} tsp',
+  'unit.tsp.other': '{amount} tsp',
+  'unit.tbsp.one': '{amount} tbsp',
+  'unit.tbsp.other': '{amount} tbsp',
+  'unit.bowl.one': '{amount} bowl',
+  'unit.bowl.other': '{amount} bowls',
+  'unit.piece.one': '{amount} ×',
+  'unit.piece.other': '{amount} ×',
+  'unit.slice.one': '{amount} slice',
+  'unit.slice.other': '{amount} slices',
+  'unit.sheet.one': '{amount} sheet',
+  'unit.sheet.other': '{amount} sheets',
+  'unit.skewer.one': '{amount} skewer',
+  'unit.skewer.other': '{amount} skewers',
+  'unit.handful.one': '{amount} handful',
+  'unit.handful.other': '{amount} handfuls',
+  'unit.serving.one': '{amount} serving',
+  'unit.serving.other': '{amount} servings',
+
+  /** Item details for a count unit: the grams of one. */
+  'unit.gramsEach': '≈ {grams} g each',
+  'unit.gramsEach.label': 'Grams each',
+  'unit.gramsEach.suffix': 'g each',
+  'unit.quantity.decrease': 'Fewer',
+  'unit.quantity.increase': 'More',
+} as const;

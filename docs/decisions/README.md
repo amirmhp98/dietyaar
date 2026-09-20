@@ -26,4 +26,5 @@ them. 001–007 come from the boilerplate; 008 onwards are Dietyaar's (see `tech
 | [019](019-design-tokens-from-design-md.md)        | Visual language: design.md tokens on the local shadcn kit         |
 | [020](020-relation-joins-for-read-models.md)      | Nested reads use Prisma `relationJoins` (one statement per tree)  |
 | [021](021-vercel-staging-cron-route.md)           | Vercel is a staging target; a platform cron drives the jobs       |
+| [024](024-count-units.md)                         | Units are measures; grams per unit is an item attribute           |
 | [026](026-self-hosted-vps-stack.md)               | Self-hosted VPS: app, Postgres and MinIO on one box               |

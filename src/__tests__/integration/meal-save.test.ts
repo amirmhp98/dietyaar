@@ -259,6 +259,7 @@ describe('analyzeDraft (tech spec § 21.8)', () => {
             englishLabel: 'egg',
             quantity: 1,
             unit: 'piece',
+            unitGrams: null,
             quantityUnknown: false,
             quantityAssumed: false,
             preparation: null,

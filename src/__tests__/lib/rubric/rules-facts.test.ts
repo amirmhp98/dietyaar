@@ -93,8 +93,8 @@ describe('ruleObservation', () => {
       definition: { groups: ['FRUIT', 'DAIRY', 'NUTS'], minimum: 2 },
       originalText: '',
     };
-    const apple = fi('سیب', 'apple', 1, 'medium_apple', 'FRUIT', 95);
-    const apple2 = fi('سیب', 'apple', 1, 'medium_apple', 'FRUIT', 95);
+    const apple = fi('سیب', 'apple', 1, 'piece', 'FRUIT', 95, { unitGrams: 180 });
+    const apple2 = fi('سیب', 'apple', 1, 'piece', 'FRUIT', 95, { unitGrams: 180 });
     const custom = fi('کشک', 'kashk', 30, 'g', 'OTHER', 60, { ruleGroups: ['DAIRY'] });
     expect(ruleObservation(rule, [ruleDay([[apple, apple2]])], true)).toMatchObject({
       status: 'NOT_MET',

@@ -70,6 +70,7 @@ const planItem = (id: string, name: string, quantity: number | null, extra = {})
   englishLabel: name,
   quantity,
   unit: quantity === null ? null : 'g',
+  unitGrams: null,
   quantityAssumed: false,
   category: 'OTHER' as const,
   alternatives: [],
@@ -105,7 +106,7 @@ const breakfast: RubricSlot = {
       position: 0,
       label: null,
       items: [
-        planItem('pi-egg', 'egg', 2, { unit: 'piece' }),
+        planItem('pi-egg', 'egg', 2, { unit: 'piece', unitGrams: 50 }),
         planItem('pi-oil', 'oil', 1, { unit: 'tsp', quantityAssumed: true, category: 'OIL' }),
       ],
     },
@@ -377,6 +378,7 @@ describe('analyzeDraft', () => {
         englishLabel: 'rice',
         quantity: 150,
         unit: 'g',
+        unitGrams: null,
         quantityUnknown: false,
         quantityAssumed: false,
         preparation: null,
@@ -492,6 +494,7 @@ describe('analyzeDraft in REFINE mode (B1)', () => {
     englishLabel: originalName,
     quantity,
     unit,
+    unitGrams: null,
     quantityUnknown: quantity === null,
     quantityAssumed: false,
     preparation: null,
@@ -541,6 +544,7 @@ describe('analyzeDraft in REFINE mode (B1)', () => {
           englishLabel: 'bread',
           quantity: null,
           unit: null,
+          unitGrams: null,
           quantityUnknown: true,
           nutrition: null,
         }),
@@ -606,6 +610,7 @@ describe('analyzeDraft in REFINE mode (B1)', () => {
       originalName: 'نان',
       quantity: 2,
       unit: 'slice_sangak',
+      unitGrams: null,
       quantityUnknown: false,
       scaleFlag: 'SCALED',
     });
@@ -709,6 +714,30 @@ describe('analyzeDraft in REFINE mode (B1)', () => {
         position: 3,
         isAddedItem: true,
       });
+    });
+
+    it('takes the grams per unit with a filled quantity, or for a counted item that had none (decision 024)', () => {
+      const current = [
+        draftItem({ key: 'a', quantity: null, unit: null, quantityUnknown: true, nutrition: null }),
+        draftItem({ key: 'b', quantity: 3, unit: 'piece', unitGrams: null }),
+        draftItem({ key: 'c', quantity: 2, unit: 'piece', unitGrams: 45 }),
+        draftItem({ key: 'd', quantity: 100, unit: 'g', unitGrams: null }),
+      ];
+      const merged = mergeRefinedItems(
+        current,
+        reply([
+          { ...aiItem('bread', 2, 'slice', 160), unitGrams: 80 },
+          { ...aiItem('egg', 3, 'piece', 210), unitGrams: 50 },
+          { ...aiItem('egg', 2, 'piece', 140), unitGrams: 50 },
+          { ...aiItem('rice', 100, 'g', 130), unitGrams: 100 },
+        ]),
+      );
+      expect(merged.map((i) => [i.key, i.unit, i.unitGrams])).toEqual([
+        ['a', 'slice', 80],
+        ['b', 'piece', 50],
+        ['c', 'piece', 45],
+        ['d', 'g', null],
+      ]);
     });
   });
 });

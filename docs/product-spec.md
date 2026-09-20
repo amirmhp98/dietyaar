@@ -182,7 +182,17 @@ V1 supports daily and weekly repetition. More complex cycles or ambiguous schedu
 
 ### Household units and unquantified items
 
-Maintain a regional unit table used by both plan and meal estimation: glass 240 ml, cup 200 ml, teaspoon 5 ml, tablespoon 15 ml, one medium apple 180 g, one small banana 100 g, one date 8 g, one slice of sangak 80 g, and similar entries with a source note. Items with no quantity get a labeled default: “cucumber and tomato” as 150 g, “large salad” as 200 g of mixed raw vegetables, and so on. Defaults are shown as “Assumed” in review and editable. During plan review, ask a question only when an unquantified item is calorie-significant, meaning oil, bread, rice, potato, nuts, dairy, or meat; do not ask about raw vegetables or herbs.
+A unit is a measure, never a food or a size (decision 024). The unit table used by both plan and meal estimation holds:
+
+| Kind   | Units                                                                         | Weight                                                      |
+| ------ | ----------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Mass   | g, kg                                                                         | —                                                           |
+| Volume | ml, l, glass 240 ml, cup 200 ml, teaspoon 5 ml, tablespoon 15 ml, bowl 350 ml | Converted through a density only when one is known          |
+| Count  | piece, slice, sheet, skewer, handful, serving                                 | None of their own: the grams of one unit belong to the item |
+
+A counted item reads “2 × سیب”, “1 slice · نان سنگک”, “1 skewer · جوجه کباب”; plurals are correct (“2 slices”). The size stays in the name exactly as the user or the plan wrote it (“سیب کوچک”); it never becomes part of the unit. The grams of one unit (`unitGrams`) are an attribute of each counted item that the AI estimates from a food-weight hint table (medium apple ≈ 180 g, small banana ≈ 100 g, date ≈ 8 g, slice of sangak ≈ 80 g, egg ≈ 50 g, walnut kernel ≈ 4 g, kabab skewer ≈ 120 g, and similar entries with a source note) or from its own knowledge for any other food, assuming a medium size when none is stated. Item details show “≈ 180 g each”; the value is editable on review (“grams each”), and a count whose weight is unknown still counts as a portion (2 eggs against 3 eggs). A household unit not in the table is kept verbatim on the item and never given a weight.
+
+Items with no quantity get a labeled default: “cucumber and tomato” as 150 g, “large salad” as 200 g of mixed raw vegetables, and so on. Defaults are shown as “Assumed” in review and editable. During plan review, ask a question only when an unquantified item is calorie-significant, meaning oil, bread, rice, potato, nuts, dairy, or meat; do not ask about raw vegetables or herbs.
 
 ### Review rules
 
@@ -309,6 +319,8 @@ These thresholds are fixed in V1, not user-configurable, and versioned with the 
 | Order when the plan has no times     | Eaten in plan order relative to the other recorded prescribed meals | Out of order: “Eaten before lunch”                                    | No large band                                           |
 
 Unknown quantities or times are “Not evaluated”, never zero and never a difference.
+
+Portions are compared in a common measure when every side converts to one (a counted item through its grams per unit, so “1 slice” of sangak and “120 g” compare); otherwise by count when the recorded item uses the plan item’s own count unit (“3 instead of 2” eggs, even with no weight known); otherwise “Not evaluated” (decision 024). The wording uses the plan item’s unit when both sides share it, else grams: “A bit more than planned (3 instead of 2)”, “More than planned (120 g instead of 80 g)”.
 
 ### Matching a recorded meal to a plan with options
 

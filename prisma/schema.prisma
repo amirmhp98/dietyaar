@@ -359,8 +359,10 @@ model PlanItem {
   originalName     String
   englishLabel     String
   quantity         Decimal?     @db.Decimal(10, 2)
-  /// Unit-table key (services/food-data/units.ts).
+  /// Unit-table key (services/food-data/units.ts): a measure, never a food or a size.
   unit             String?
+  /// Grams of one unit when `unit` is a count unit (piece, slice, …); null otherwise (decision 024).
+  unitGrams        Decimal?     @db.Decimal(10, 2)
   quantityAssumed  Boolean      @default(false)
   assumedDefaultKey String?
   preparationNote  String?
@@ -535,6 +537,8 @@ model FoodItem {
   englishLabel      String
   quantity          Decimal?     @db.Decimal(10, 2)
   unit              String?
+  /// Grams of one unit when `unit` is a count unit; null otherwise (decision 024).
+  unitGrams         Decimal?     @db.Decimal(10, 2)
   quantityUnknown   Boolean      @default(false)
   quantityAssumed   Boolean      @default(false)
   preparation       String?

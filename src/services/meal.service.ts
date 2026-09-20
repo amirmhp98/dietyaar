@@ -6,6 +6,7 @@ import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
 import { t } from '@/lib/t';
 import { bestOption, matchSlot, optionRequiredFor } from '@/lib/rubric/match-slot';
+import { isCountUnit } from '@/lib/units';
 import { foodKey, sameFood } from '@/lib/rubric/names';
 import { restrictionHits } from '@/lib/rubric/restrictions';
 import type {
@@ -84,6 +85,7 @@ export interface MealFoodItemView {
   englishLabel: string;
   quantity: number | null;
   unit: string | null;
+  unitGrams: number | null;
   quantityUnknown: boolean;
   quantityAssumed: boolean;
   preparation: string | null;
@@ -205,6 +207,7 @@ function rowToDraftItem(row: FoodItem): DraftFoodItem {
     englishLabel: row.englishLabel,
     quantity: row.quantity === null ? null : Number(row.quantity),
     unit: row.unit,
+    unitGrams: row.unitGrams === null ? null : Number(row.unitGrams),
     quantityUnknown: row.quantityUnknown,
     quantityAssumed: row.quantityAssumed,
     preparation: row.preparation,
@@ -225,6 +228,7 @@ function rowToItemView(row: FoodItem): MealFoodItemView {
     englishLabel: row.englishLabel,
     quantity: row.quantity === null ? null : Number(row.quantity),
     unit: row.unit,
+    unitGrams: row.unitGrams === null ? null : Number(row.unitGrams),
     quantityUnknown: row.quantityUnknown,
     quantityAssumed: row.quantityAssumed,
     preparation: row.preparation,
@@ -375,8 +379,10 @@ export function reconcileItem(next: DraftFoodItem, prev: DraftFoodItem | undefin
     nutrition: base,
     fromQuantity: prev.quantity,
     fromUnit: prev.unit,
+    fromUnitGrams: prev.unitGrams,
     toQuantity: next.quantity,
     toUnit: next.unit,
+    toUnitGrams: next.unitGrams,
     identityChanged: identityChanged && alternativeNutrition === null,
   });
 
@@ -440,6 +446,7 @@ function planItemsToDraftItems(option: RubricOption): DraftFoodItem[] {
       englishLabel: p.englishLabel,
       quantity: p.quantity,
       unit: p.unit,
+      unitGrams: p.unitGrams,
       quantityUnknown: false,
       quantityAssumed: p.quantityAssumed,
       category: p.category,
@@ -470,6 +477,7 @@ function normaliseForStorage(item: DraftFoodItem): Nutrition | null {
     fromUnit: null,
     toQuantity: item.quantity,
     toUnit: item.unit,
+    toUnitGrams: item.unitGrams,
   });
   return flag === 'SCALED' && nutrition ? toRecordedPortion(nutrition, item) : n;
 }
@@ -487,6 +495,7 @@ function toFoodItemRows(
     englishLabel: item.englishLabel,
     quantity: item.quantityUnknown ? null : item.quantity,
     unit: item.unit,
+    unitGrams: item.unitGrams,
     quantityUnknown: item.quantityUnknown,
     quantityAssumed: item.quantityAssumed,
     preparation: item.preparation,
@@ -691,6 +700,7 @@ function outputToItem(item: MealAnalysisOutput['items'][number], position: numbe
     englishLabel: item.englishLabel,
     quantity: item.quantity,
     unit: item.unit,
+    unitGrams: item.unitGrams,
     quantityUnknown: item.quantityUnknown,
     quantityAssumed: item.quantityAssumed,
     preparation: item.preparation,
@@ -756,6 +766,7 @@ function refineContextFor(state: MealDraftState): MealRefineContext {
       englishLabel: item.englishLabel,
       quantity: item.quantityUnknown ? null : item.quantity,
       unit: item.unit,
+      unitGrams: item.unitGrams,
       quantityUnknown: item.quantityUnknown,
       preparation: item.preparation,
       category: item.category,
@@ -783,8 +794,17 @@ export function mergeRefinedItems(
     if (item.quantityUnknown && !fresh.quantityUnknown && fresh.quantity !== null) {
       next.quantity = fresh.quantity;
       next.unit = fresh.unit ?? item.unit;
+      next.unitGrams = fresh.unitGrams;
       next.quantityUnknown = false;
       next.quantityAssumed = fresh.quantityAssumed;
+    } else if (
+      item.unitGrams === null &&
+      fresh.unitGrams !== null &&
+      fresh.unit === item.unit &&
+      isCountUnit(item.unit)
+    ) {
+      // A counted item the user quantified without a weight: the model's grams per unit fill the gap.
+      next.unitGrams = fresh.unitGrams;
     }
     const takeNutrition =
       fresh.nutrition !== null &&
