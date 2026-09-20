@@ -71,6 +71,7 @@ export function ReflectionCard({
         {ready && !acknowledged && onAcknowledge ? (
           <Button
             type="button"
+            variant="outline"
             size="sm"
             className="h-11 shrink-0 px-3"
             onClick={onAcknowledge}
