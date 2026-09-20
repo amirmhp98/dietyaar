@@ -317,7 +317,10 @@ export function ItemRow({
               patch({ unitGrams: parseGrams(event.target.value) });
             }}
           />
-          <Label htmlFor={`${id}-each`} className="text-xs text-muted-foreground">
+          <Label
+            htmlFor={`${id}-each`}
+            className="shrink-0 whitespace-nowrap text-xs text-muted-foreground"
+          >
             {t('unit.gramsEach.suffix')}
           </Label>
         </div>
