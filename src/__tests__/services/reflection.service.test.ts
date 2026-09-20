@@ -36,10 +36,11 @@ import {
   pickFallbackState,
 } from '@/services/reflection/fallbacks';
 import {
+  acknowledge,
   getMessageForDate,
   getOrCreateMessage,
   markStaleIfNeeded,
-  setCollapsed,
+  peekMessage,
   timeOfDayFor,
   updateMessage,
 } from '@/services/reflection.service';
@@ -112,7 +113,8 @@ function messageRow(overrides: Partial<MorningMessage> = {}): MorningMessage {
     claimedAt: NOW,
     providerModel: 'deepseek-flash',
     stale: false,
-    collapsed: false,
+    isStatic: false,
+    acknowledgedAt: null,
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,
@@ -277,6 +279,106 @@ describe('getOrCreateMessage — owner path', () => {
   });
 });
 
+describe('getOrCreateMessage — static states (no AI call)', () => {
+  function finishedData() {
+    return prismaMock.morningMessage.updateMany.mock.calls[0][0].data as Record<string, unknown>;
+  }
+
+  function expectNoProvider() {
+    expect(admitOperation).not.toHaveBeenCalled();
+    expect(generateReflection).not.toHaveBeenCalled();
+    expect(finishOperation).not.toHaveBeenCalled();
+    expect(recordEvent).not.toHaveBeenCalled();
+  }
+
+  beforeEach(() => {
+    prismaMock.$queryRaw.mockResolvedValue([{ id: 'new-id' }]);
+    prismaMock.morningMessage.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.morningMessage.findUnique.mockResolvedValue(messageRow({ isStatic: true }));
+  });
+
+  it('first day: the welcome paragraph, static, without admission or provider', async () => {
+    prismaMock.meal.findFirst.mockResolvedValue(null);
+
+    const card = await getOrCreateMessage(OWNER, TODAY, NOW);
+
+    expectNoProvider();
+    expect(prismaMock.morningMessage.updateMany).toHaveBeenCalledWith({
+      where: { id: expect.any(String), status: 'GENERATING', claimedAt: NOW },
+      data: expect.objectContaining({
+        status: 'READY',
+        isStatic: true,
+        isFallback: false,
+        fallbackState: 'FIRST_DAY',
+        providerModel: null,
+        stale: false,
+      }),
+    });
+    expect(finishedData().paragraph).toBe(
+      'Good morning, Sara. ' +
+        t('reflection.fallback.firstDay.welcome') +
+        ' ' +
+        t('reflection.fallback.firstDay.startsWith', { slot: 'صبحانه (Breakfast)' }) +
+        ' ' +
+        t('reflection.fallback.firstDay.tomorrow') +
+        ' ' +
+        t('reflection.fallback.close.morning'),
+    );
+    expect(card.isStatic).toBe(true);
+  });
+
+  it('no records yesterday: static, resting on the coverage fact', async () => {
+    const empty = computeDayView(dayInput(plan.slots, { localDate: YESTERDAY, meals: [] }));
+    mockViews(empty);
+
+    await getOrCreateMessage(OWNER, TODAY, NOW);
+
+    expectNoProvider();
+    const data = finishedData();
+    expect(data).toMatchObject({ isStatic: true, isFallback: false, fallbackState: 'NO_RECORDS' });
+    expect(data.paragraph).toBe(
+      'Good morning, Sara. ' +
+        t('reflection.fallback.noRecords.intro') +
+        ' ' +
+        t('reflection.fallback.noRecords.startsWith', { slot: 'صبحانه (Breakfast)' }) +
+        ' ' +
+        t('reflection.fallback.noRecords.history') +
+        ' ' +
+        t('reflection.fallback.close.morning'),
+    );
+    expect(data.usedFactIds).toEqual(expect.arrayContaining(['coverage']));
+  });
+
+  it('no plan: static, and states nothing about yesterday', async () => {
+    mockViews(yesterdayView(), todayView(), false);
+
+    await getOrCreateMessage(OWNER, TODAY, NOW);
+
+    expectNoProvider();
+    const data = finishedData();
+    expect(data).toMatchObject({ isStatic: true, isFallback: false, fallbackState: 'NO_PLAN' });
+    expect(data.paragraph).toBe(
+      'Good morning, Sara. ' +
+        t('reflection.fallback.noPlan.body') +
+        ' ' +
+        t('reflection.fallback.close.morning'),
+    );
+    expect(data.usedFactIds).toEqual([]);
+  });
+
+  it('an evening first visit keeps the time-of-day greeting and close', async () => {
+    prismaMock.meal.findFirst.mockResolvedValue(null);
+    const evening = new Date('2026-09-17T15:00:00Z');
+
+    await getOrCreateMessage(OWNER, TODAY, evening);
+
+    const paragraph = finishedData().paragraph as string;
+    expect(paragraph.startsWith('Good evening, Sara.')).toBe(true);
+    expect(paragraph.endsWith(t('reflection.fallback.close.evening'))).toBe(true);
+    expectNoProvider();
+  });
+});
+
 describe('getOrCreateMessage — reader path', () => {
   it('READY returns the paragraph without generating', async () => {
     prismaMock.$queryRaw.mockResolvedValue([]);
@@ -286,8 +388,9 @@ describe('getOrCreateMessage — reader path', () => {
       status: 'READY',
       paragraph: 'A ready paragraph.',
       stale: false,
-      collapsed: false,
+      acknowledged: false,
       isFallback: false,
+      isStatic: false,
       localDate: TODAY,
     });
     expect(generateReflection).not.toHaveBeenCalled();
@@ -407,6 +510,49 @@ describe('updateMessage', () => {
     expect(generateReflection).not.toHaveBeenCalled();
   });
 
+  it('a static state regenerates without admission (nothing to cap)', async () => {
+    mockViews(yesterdayView(), todayView(), false);
+    prismaMock.morningMessage.findUnique
+      .mockResolvedValueOnce(messageRow({ isStatic: true, fallbackState: 'NO_PLAN' }))
+      .mockResolvedValueOnce(messageRow({ isStatic: true, fallbackState: 'NO_PLAN' }));
+    prismaMock.morningMessage.update.mockResolvedValue(messageRow());
+    prismaMock.morningMessage.updateMany.mockResolvedValue({ count: 1 });
+
+    const card = await updateMessage(OWNER, TODAY, NOW);
+
+    expect(admitOperation).not.toHaveBeenCalled();
+    expect(generateReflection).not.toHaveBeenCalled();
+    expect(card.isStatic).toBe(true);
+  });
+
+  it('a "no records" paragraph made stale by a meal added to yesterday regenerates with the provider', async () => {
+    const existing = messageRow({ isStatic: true, fallbackState: 'NO_RECORDS', stale: true });
+    prismaMock.morningMessage.findUnique
+      .mockResolvedValueOnce(existing)
+      .mockResolvedValueOnce(messageRow({ paragraph: okParagraph }));
+    prismaMock.morningMessage.update.mockResolvedValue(existing);
+    vi.mocked(generateReflection).mockResolvedValue({
+      ok: true,
+      data: { paragraph: okParagraph, usedFactIds: [] },
+      attempts: [],
+      usage: { promptTokens: 1, completionTokens: 1 },
+      model: 'deepseek-flash',
+      durationMs: 10,
+    });
+    prismaMock.morningMessage.updateMany.mockResolvedValue({ count: 1 });
+
+    const card = await updateMessage(OWNER, TODAY, NOW);
+
+    expect(admitOperation).toHaveBeenCalledTimes(1);
+    expect(generateReflection).toHaveBeenCalledTimes(1);
+    expect(prismaMock.morningMessage.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ isStatic: false, isFallback: false, stale: false }),
+      }),
+    );
+    expect(card.paragraph).toBe(okParagraph);
+  });
+
   it('without a row it behaves like the first visit', async () => {
     prismaMock.morningMessage.findUnique
       .mockResolvedValueOnce(null)
@@ -425,14 +571,22 @@ describe('updateMessage', () => {
   });
 });
 
-describe('setCollapsed / getMessageForDate', () => {
-  it('persists the collapse per date, scoped to the owner', async () => {
+describe('acknowledge / peekMessage / getMessageForDate', () => {
+  it('Got it stores the timestamp per date, scoped to the owner', async () => {
     prismaMock.morningMessage.updateMany.mockResolvedValue({ count: 1 });
-    await setCollapsed(OWNER, TODAY, true);
+    await acknowledge(OWNER, TODAY, NOW);
     expect(prismaMock.morningMessage.updateMany).toHaveBeenCalledWith({
       where: { userId: OWNER, localDate: TODAY },
-      data: { collapsed: true },
+      data: { acknowledgedAt: NOW },
     });
+  });
+
+  it('peekMessage reads the day without claiming it and reports the acknowledgement', async () => {
+    prismaMock.morningMessage.findUnique.mockResolvedValue(messageRow({ acknowledgedAt: NOW }));
+    expect(await peekMessage(OWNER, TODAY)).toMatchObject({ acknowledged: true });
+    expect(prismaMock.$queryRaw).not.toHaveBeenCalled();
+    prismaMock.morningMessage.findUnique.mockResolvedValue(null);
+    expect(await peekMessage(OWNER, TODAY)).toBeNull();
   });
 
   it('History reads the next day’s message and ignores one still generating', async () => {
@@ -507,6 +661,70 @@ describe('markStaleIfNeeded (TS-§21.13)', () => {
     });
   });
 
+  it('a static "no records" paragraph goes stale when a meal is added to yesterday', async () => {
+    const empty = computeDayView(dayInput(plan.slots, { localDate: YESTERDAY, meals: [] }));
+    prismaMock.morningMessage.findMany.mockResolvedValue([
+      messageRow({
+        isStatic: true,
+        fallbackState: 'NO_RECORDS',
+        factsSnapshot: facts(empty) as never,
+        usedFactIds: ['coverage', 'today:next', 'today:plan'],
+      }),
+    ]);
+    prismaMock.morningMessage.updateMany.mockResolvedValue({ count: 1 });
+    mockViews(yesterdayView());
+
+    await markStaleIfNeeded(OWNER, YESTERDAY, NOW);
+
+    expect(prismaMock.morningMessage.updateMany).toHaveBeenCalledWith({
+      where: { id: 'msg-1', status: 'READY', generatedAt: NOW },
+      data: { stale: true },
+    });
+  });
+
+  it('a static "no records" paragraph ignores changes to today (only the coverage fact counts)', async () => {
+    const empty = computeDayView(dayInput(plan.slots, { localDate: YESTERDAY, meals: [] }));
+    prismaMock.morningMessage.findMany.mockResolvedValue([
+      messageRow({
+        isStatic: true,
+        fallbackState: 'NO_RECORDS',
+        factsSnapshot: facts(empty) as never,
+        usedFactIds: ['coverage', 'today:next', 'today:plan'],
+      }),
+    ]);
+    const breakfastLogged = computeDayView(
+      dayInput(plan.slots, {
+        localDate: TODAY,
+        dayPhase: 'ONGOING',
+        meals: [
+          meal(plan.breakfast.id, plan.breakfast.options[0].id, '08:00', [
+            eaten(plan.breakfast.options[0].items[0]),
+          ]),
+        ],
+      }),
+    );
+    mockViews(empty, breakfastLogged);
+
+    await markStaleIfNeeded(OWNER, TODAY, NOW);
+
+    expect(prismaMock.morningMessage.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('first-day and no-plan static paragraphs never go stale', async () => {
+    prismaMock.morningMessage.findMany.mockResolvedValue([
+      messageRow({
+        isStatic: true,
+        fallbackState: 'FIRST_DAY',
+        factsSnapshot: facts(null, todayView(), { isFirstDay: true }) as never,
+        usedFactIds: ['today:next', 'today:plan'],
+      }),
+    ]);
+    mockViews(yesterdayView());
+    await markStaleIfNeeded(OWNER, YESTERDAY, NOW);
+    expect(prismaMock.morningMessage.updateMany).not.toHaveBeenCalled();
+    expect(getDayView).not.toHaveBeenCalled();
+  });
+
   it('never throws', async () => {
     prismaMock.user.findUnique.mockRejectedValue(new Error('db down'));
     await expect(markStaleIfNeeded(OWNER, YESTERDAY)).resolves.toBeUndefined();
@@ -559,27 +777,78 @@ describe('fallbacks', () => {
     expect(out.usedFactIds).toContain('completeness');
   });
 
-  it('NO_RECORDS: acknowledges the absence and suggests the next slot', () => {
+  it('NO_RECORDS: reads as written, names the first slot, and points to History', () => {
     const empty = computeDayView(dayInput(plan.slots, { localDate: YESTERDAY, meals: [] }));
     const out = fallbackParagraph('NO_RECORDS', facts(empty), ctx);
-    check(out.paragraph);
-    expect(out.paragraph).toContain('No meals were recorded yesterday');
+    expect(out.paragraph).toBe(
+      'Good morning, Sara. Yesterday went by without any meals logged — that happens, and nothing is lost. ' +
+        'Today is a fresh page: your plan starts with صبحانه (Breakfast), and logging it takes a few taps. ' +
+        "If you'd like to fill in yesterday, History is always open. One meal at a time is plenty.",
+    );
+    expect(out.paragraph).not.toMatch(BANNED);
     expect(out.usedFactIds).toEqual(expect.arrayContaining(['coverage', 'today:next']));
   });
 
-  it('FIRST_DAY: welcomes and lists today’s plan without a yesterday', () => {
-    const out = fallbackParagraph('FIRST_DAY', facts(null, todayView(), { isFirstDay: true }), ctx);
-    check(out.paragraph);
-    expect(out.paragraph).toContain("Today's plan, in order:");
-    expect(out.paragraph).not.toContain('yesterday');
-    expect(out.usedFactIds).toEqual(['today:plan']);
+  it('NO_RECORDS: a later slot in the afternoon, and no dangling sentence for a target-only plan', () => {
+    const empty = computeDayView(dayInput(plan.slots, { localDate: YESTERDAY, meals: [] }));
+    const afternoon = { greetingName: 'Sara', timeOfDay: 'AFTERNOON' as const };
+    const later = computeDayView(
+      dayInput(plan.slots, {
+        localDate: TODAY,
+        dayPhase: 'ONGOING',
+        meals: [
+          meal(plan.breakfast.id, plan.breakfast.options[0].id, '08:00', [
+            eaten(plan.breakfast.options[0].items[0]),
+          ]),
+        ],
+      }),
+    );
+    expect(fallbackParagraph('NO_RECORDS', facts(empty, later), afternoon).paragraph).toContain(
+      'Today is a fresh page: the next meal in your plan is میان‌وعده اول (First snack), and logging it takes a few taps.',
+    );
+
+    const targetsOnly = reflectionFacts(empty, [], todayView(), context);
+    const out = fallbackParagraph('NO_RECORDS', targetsOnly, ctx);
+    expect(out.paragraph).toBe(
+      'Good morning, Sara. Yesterday went by without any meals logged — that happens, and nothing is lost. ' +
+        "If you'd like to fill in yesterday, History is always open. One meal at a time is plenty.",
+    );
   });
 
-  it('NO_PLAN: invites plan setup and invents no targets', () => {
+  it('FIRST_DAY: welcomes, names the first slot, and promises tomorrow’s card', () => {
+    const out = fallbackParagraph('FIRST_DAY', facts(null, todayView(), { isFirstDay: true }), ctx);
+    expect(out.paragraph).toBe(
+      "Good morning, Sara. Welcome — there's nothing to look back on yet, and today is day one. " +
+        'Your plan starts with صبحانه (Breakfast); when you eat it, log it and adjust the portions to what you actually had. ' +
+        'From tomorrow on, this card will tell you how the day before went. One meal at a time is plenty.',
+    );
+    expect(out.paragraph).not.toMatch(BANNED);
+    expect(out.usedFactIds).toEqual(['today:next', 'today:plan']);
+  });
+
+  it('FIRST_DAY without a plan: the plan invitation instead of a slot', () => {
+    const out = fallbackParagraph(
+      'FIRST_DAY',
+      facts(null, null, { isFirstDay: true, hasPlan: false }),
+      ctx,
+    );
+    expect(out.paragraph).toBe(
+      "Good morning, Sara. Welcome — there's nothing to look back on yet, and today is day one. " +
+        t('reflection.fallback.firstDay.noPlan') +
+        ' From tomorrow on, this card will tell you how the day before went. One meal at a time is plenty.',
+    );
+    expect(out.usedFactIds).toEqual([]);
+  });
+
+  it('NO_PLAN: invites plan setup, invents no targets, states nothing about yesterday', () => {
     const out = fallbackParagraph('NO_PLAN', facts(yesterdayView(), null, { hasPlan: false }), ctx);
-    check(out.paragraph);
-    expect(out.paragraph).toContain("There's no active plan yet");
-    expect(out.paragraph).not.toContain("Today's plan");
+    expect(out.paragraph).toBe(
+      "Good morning, Sara. Your meals can't be compared with anything yet because there's no plan. " +
+        "Add it from the Plan tab whenever you're ready; until then, everything you log still counts towards your totals. " +
+        'One meal at a time is plenty.',
+    );
+    expect(out.paragraph).not.toContain('prescribed meals');
+    expect(out.usedFactIds).toEqual([]);
   });
 
   it('PROVIDER_FAILURE: neutral, factual, time-appropriate', () => {

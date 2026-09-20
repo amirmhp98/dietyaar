@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import {
+  acknowledgeReflectionAction,
   getMorningMessageAction,
-  setReflectionCollapsedAction,
   updateReflectionAction,
 } from '@/actions/reflection.actions';
 import { toast } from '@/components/UiComponents';
@@ -27,13 +27,24 @@ export function markReflectionRequested(localDate: string) {
 
 /**
  * Today's reflection island: requests (or reads) the day's message on mount,
- * polls while it is being prepared, and persists the collapse choice per date.
- * Never blocks the page; logging stays usable throughout.
+ * polls while it is being prepared, and records "Got it" for the date. The
+ * placement (top of Today until acknowledged, bottom afterwards) belongs to
+ * the parent, which owns `acknowledged`; a stale paragraph opens expanded
+ * wherever it sits so the badge and Update reflection are seen. Never blocks
+ * the page; logging stays usable throughout.
  */
-export function ReflectionCardIsland({ localDate }: { localDate: string }) {
+export function ReflectionCardIsland({
+  localDate,
+  acknowledged,
+  onAcknowledged,
+}: {
+  localDate: string;
+  acknowledged: boolean;
+  onAcknowledged: () => void;
+}) {
   const [phase, setPhase] = useState<ReflectionPhase>('LOADING');
   const [card, setCard] = useState<ReflectionCardData | null>(null);
-  const [collapsed, setCollapsed] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [updating, startUpdate] = useTransition();
 
@@ -52,7 +63,7 @@ export function ReflectionCardIsland({ localDate }: { localDate: string }) {
       }
       setCard(result.data);
       if (result.data.status === 'READY') {
-        setCollapsed(result.data.collapsed);
+        setExpanded(result.data.stale);
         setPhase('READY');
         return;
       }
@@ -75,9 +86,10 @@ export function ReflectionCardIsland({ localDate }: { localDate: string }) {
     setAttempt((n) => n + 1);
   }
 
-  function toggleCollapsed(next: boolean) {
-    setCollapsed(next);
-    void setReflectionCollapsedAction(localDate, next).then((result) => {
+  function acknowledge() {
+    setExpanded(false);
+    onAcknowledged();
+    void acknowledgeReflectionAction({ localDate }).then((result) => {
       if (!result.ok) toast.error(result.error);
     });
   }
@@ -92,6 +104,7 @@ export function ReflectionCardIsland({ localDate }: { localDate: string }) {
       }
       setCard(result.data);
       if (result.data.status === 'READY') {
+        setExpanded(true);
         setPhase('READY');
         toast.success(t('reflection.updated'));
       } else retry();
@@ -103,8 +116,10 @@ export function ReflectionCardIsland({ localDate }: { localDate: string }) {
       phase={phase}
       paragraph={card?.paragraph ?? null}
       stale={card?.stale ?? false}
-      collapsed={collapsed}
-      onToggleCollapsed={toggleCollapsed}
+      acknowledged={acknowledged}
+      expanded={expanded}
+      onToggleExpanded={setExpanded}
+      onAcknowledge={acknowledge}
       onUpdate={update}
       onRetry={retry}
       updating={updating}

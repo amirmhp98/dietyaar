@@ -22,6 +22,7 @@ import { getDayView, isPlanActive } from '@/services/day-view.service';
 import { greetingNameFor, toProfileView, type ProfileView } from '@/services/profile.service';
 import {
   fallbackParagraph,
+  isStaticState,
   pickFallbackState,
   type FallbackState,
 } from '@/services/reflection/fallbacks';
@@ -32,6 +33,13 @@ import {
  * claimer generates, everyone else reads or, after 20 s, takes over with the
  * fallback. Every finishing write is conditional on the claim it belongs to,
  * so a late provider response cannot overwrite a takeover (§ 21.12).
+ *
+ * The empty data states (first day, no records yesterday, no plan) have
+ * nothing to reflect on: the claimer finishes at once with the static
+ * paragraph and the provider is never admitted or called. A static paragraph
+ * is not a fallback and is never marked stale, with one exception: a meal
+ * added to yesterday after a "no records" paragraph makes it stale, so the
+ * next Update regenerates with the provider.
  */
 
 /** The AI call's total budget, shared by every stage (tech spec § 10.2). */
@@ -44,8 +52,12 @@ export interface ReflectionCard {
   status: 'READY' | 'GENERATING';
   paragraph: string | null;
   stale: boolean;
-  collapsed: boolean;
+  /** "Got it" was tapped for this date: the card sits at the bottom of Today, collapsed. */
+  acknowledged: boolean;
+  /** A provider failure replaced by the deterministic paragraph for the data state. */
   isFallback: boolean;
+  /** An empty data state written without a provider call (first day, no records, no plan). */
+  isStatic: boolean;
   localDate: string;
 }
 
@@ -54,8 +66,9 @@ function toCard(row: MorningMessage): ReflectionCard {
     status: row.status,
     paragraph: row.status === 'READY' ? row.paragraph : null,
     stale: row.stale,
-    collapsed: row.collapsed,
+    acknowledged: row.acknowledgedAt !== null,
     isFallback: row.isFallback,
+    isStatic: row.isStatic,
     localDate: row.localDate,
   };
 }
@@ -164,6 +177,7 @@ interface Finished {
   paragraph: string;
   usedFactIds: string[];
   isFallback: boolean;
+  isStatic: boolean;
   fallbackState: FallbackState | null;
   providerModel: string | null;
 }
@@ -177,6 +191,7 @@ async function finish(claim: Claim, result: Finished, now: Date): Promise<boolea
       paragraph: result.paragraph,
       usedFactIds: result.usedFactIds,
       isFallback: result.isFallback,
+      isStatic: result.isStatic,
       fallbackState: result.fallbackState,
       providerModel: result.providerModel,
       generatedAt: now,
@@ -186,23 +201,35 @@ async function finish(claim: Claim, result: Finished, now: Date): Promise<boolea
   return count > 0;
 }
 
-/** The data-state fallback; an unusable snapshot gets the provider-failure wording. */
-function fallbackFor(facts: ReflectionFact[], context: ReflectionContext): Finished {
+/**
+ * The deterministic paragraph for the data state: static for the empty
+ * states, a fallback otherwise; an unusable snapshot gets the provider-failure
+ * wording.
+ */
+function deterministicFor(facts: ReflectionFact[], context: ReflectionContext): Finished {
   const state: FallbackState =
     facts.length === 0 ? 'PROVIDER_FAILURE' : pickFallbackState(facts, context);
   const built = fallbackParagraph(state, facts, context);
+  const isStatic = isStaticState(state);
   return {
     paragraph: built.paragraph,
     usedFactIds: built.usedFactIds,
-    isFallback: true,
+    isFallback: !isStatic,
+    isStatic,
     fallbackState: state,
     providerModel: null,
   };
 }
 
+/** True when the bundle describes an empty data state: no provider call is needed. */
+function isStaticBundle(bundle: FactsBundle): boolean {
+  return isStaticState(pickFallbackState(bundle.facts, bundle.context));
+}
+
 /**
- * The owner path (§ 10.3 step 2): admit, call the provider under the 15 s
- * deadline, validate, and finish with the paragraph or the fallback.
+ * The owner path (§ 10.3 step 2): a static state finishes at once; otherwise
+ * admit, call the provider under the 15 s deadline, validate, and finish with
+ * the paragraph or the fallback.
  */
 async function generate(
   ownerId: string,
@@ -213,12 +240,16 @@ async function generate(
   admission?: Admission,
 ): Promise<void> {
   const { facts, context } = bundle;
+  if (isStaticBundle(bundle)) {
+    await finish(claim, deterministicFor(facts, context), new Date());
+    return;
+  }
   const admitted = admission ?? (await admitOperation(ownerId, 'REFLECTION', localDate));
   let finished: Finished;
   let reason: string | null = null;
   if (!admitted.ok) {
     reason = admitted.code;
-    finished = fallbackFor(facts, context);
+    finished = deterministicFor(facts, context);
   } else {
     const recent = await prisma.morningMessage.findMany({
       where: { userId: ownerId, status: 'READY', localDate: { lt: localDate } },
@@ -254,12 +285,13 @@ async function generate(
         paragraph: result.data.paragraph,
         usedFactIds: result.data.usedFactIds,
         isFallback: false,
+        isStatic: false,
         fallbackState: null,
         providerModel: result.model,
       };
     } else {
       reason = result.ok ? `SCHEMA_REJECTED:${rejected}` : result.reason;
-      finished = fallbackFor(facts, context);
+      finished = deterministicFor(facts, context);
       if (result.ok) {
         result = {
           ok: false,
@@ -330,9 +362,9 @@ async function readerPath(ownerId: string, localDate: string, owner: Owner, now:
   if (!row || row.status === 'READY') return;
   if (now.getTime() - row.claimedAt.getTime() < REFLECTION_TAKEOVER_MS) return;
   const facts = snapshotFacts(row);
-  const finished = fallbackFor(facts, contextFromSnapshot(facts, owner, now));
+  const finished = deterministicFor(facts, contextFromSnapshot(facts, owner, now));
   const won = await finish({ id: row.id, claimedAt: row.claimedAt }, finished, now);
-  if (won) {
+  if (won && finished.isFallback) {
     await recordEvent(
       'reflection_fallback',
       { state: finished.fallbackState, reason: 'TAKEOVER', won },
@@ -342,8 +374,9 @@ async function readerPath(ownerId: string, localDate: string, owner: Owner, now:
 }
 
 /**
- * § 10.3 step 4: regenerate in place. Admission comes first so a capped user
- * keeps the current paragraph (`DAILY_AI_CAP`).
+ * § 10.3 step 4: regenerate in place. Admission comes before the re-claim so
+ * a capped user keeps the current paragraph (`DAILY_AI_CAP`); a static state
+ * needs no admission.
  */
 export async function updateMessage(
   ownerId: string,
@@ -352,8 +385,12 @@ export async function updateMessage(
 ): Promise<ReflectionCard> {
   const existing = await findMessage(ownerId, localDate);
   if (!existing) return getOrCreateMessage(ownerId, localDate, now);
-  const admission = await admitOperation(ownerId, 'REFLECTION', localDate);
-  if (!admission.ok) {
+  const owner = await loadOwner(ownerId);
+  const bundle = await buildFacts(ownerId, localDate, now, owner);
+  const admission = isStaticBundle(bundle)
+    ? undefined
+    : await admitOperation(ownerId, 'REFLECTION', localDate);
+  if (admission && !admission.ok) {
     throw new ServiceError(
       admission.code === 'DAILY_AI_CAP'
         ? t('reflection.errors.dailyCap')
@@ -361,8 +398,6 @@ export async function updateMessage(
       admission.code,
     );
   }
-  const owner = await loadOwner(ownerId);
-  const bundle = await buildFacts(ownerId, localDate, now, owner);
   const claimedAt = now;
   await prisma.morningMessage.update({
     where: { id: existing.id },
@@ -380,15 +415,21 @@ export async function updateMessage(
   return toCard(row);
 }
 
-export async function setCollapsed(
-  ownerId: string,
-  localDate: string,
-  collapsed: boolean,
-): Promise<void> {
+/** "Got it": remembered per date across devices; the card moves to the bottom of Today. */
+export async function acknowledge(ownerId: string, localDate: string, now: Date): Promise<void> {
   await prisma.morningMessage.updateMany({
     where: { userId: ownerId, localDate },
-    data: { collapsed },
+    data: { acknowledgedAt: now },
   });
+}
+
+/** The day's message as it is now, without claiming one (Today's first render places the card). */
+export async function peekMessage(
+  ownerId: string,
+  localDate: string,
+): Promise<ReflectionCard | null> {
+  const row = await findMessage(ownerId, localDate);
+  return row ? toCard(row) : null;
 }
 
 /** The reflection that looked back on `localDate`: the next day's message. Read-only, for History. */
@@ -400,9 +441,16 @@ export async function getMessageForDate(
   return row && row.status === 'READY' ? toCard(row) : null;
 }
 
-/** Context facts (name, time of day) change without any log change and never make a paragraph stale. */
-function trackedFactIds(usedFactIds: string[]): string[] {
-  return usedFactIds.filter((id) => !id.startsWith('ctx:'));
+/**
+ * The facts whose change makes the paragraph stale. Context facts (name,
+ * time of day) change without any log change and never count. A static
+ * paragraph never goes stale, except "no records yesterday": a meal added to
+ * yesterday changes its coverage fact, and the next Update has something to
+ * reflect on.
+ */
+function trackedFactIds(row: MorningMessage): string[] {
+  if (row.isStatic) return row.fallbackState === 'NO_RECORDS' ? ['coverage'] : [];
+  return row.usedFactIds.filter((id) => !id.startsWith('ctx:'));
 }
 
 /**
@@ -424,7 +472,7 @@ export async function markStaleIfNeeded(
       where: { userId: ownerId, localDate: { in: candidates }, status: 'READY', stale: false },
     });
     for (const row of rows) {
-      const used = trackedFactIds(row.usedFactIds);
+      const used = trackedFactIds(row);
       if (used.length === 0) continue;
       const { facts } = await buildFacts(ownerId, row.localDate, now, owner);
       if (!isReflectionStale(snapshotFacts(row), facts, used)) continue;

@@ -301,10 +301,9 @@ describe('import draft finalize', () => {
       sourceLanguage: null,
       slots: [],
       targets: [],
-      rules: [],
       notes: [],
       questions: [],
-      reviewed: { meals: false, targets: false, rules: false },
+      reviewed: { meals: false, targets: false, notes: false },
       manualStep: null,
     });
     expect(written).toBe(false);

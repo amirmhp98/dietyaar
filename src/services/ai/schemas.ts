@@ -2,8 +2,6 @@ import { z } from 'zod';
 import {
   FOOD_CATEGORIES,
   NOTE_REASONS,
-  RULE_KINDS,
-  RULE_PERIODS,
   TARGET_NUTRIENTS,
   TARGET_TYPES,
   alternativeSchema,
@@ -68,16 +66,6 @@ export const aiTargetSchema = z.object({
   sourceExcerpt: z.string().max(2000).nullable().default(null),
 });
 
-export const aiRuleSchema = z.object({
-  kind: z.enum(RULE_KINDS),
-  period: z.enum(RULE_PERIODS).nullable().default(null),
-  definition: z.unknown().default({}),
-  originalText: z.string().trim().min(1).max(2000),
-  sourceExcerpt: excerpt,
-  isConflicting: z.boolean().default(false),
-  unsupportedReason: z.string().max(300).nullable().default(null),
-});
-
 export const aiNoteSchema = z.object({
   originalText: z.string().trim().min(1).max(2000),
   reason: z.enum(NOTE_REASONS).default('OTHER'),
@@ -97,7 +85,6 @@ export const planImportOutputSchema = z.object({
   sourceLanguage: z.string().trim().max(20).nullable().default(null),
   slots: z.array(aiSlotSchema).max(60).default([]),
   targets: z.array(aiTargetSchema).max(200).default([]),
-  rules: z.array(aiRuleSchema).max(60).default([]),
   notes: z.array(aiNoteSchema).max(60).default([]),
   uncertainties: z.array(aiUncertaintySchema).max(60).default([]),
 });

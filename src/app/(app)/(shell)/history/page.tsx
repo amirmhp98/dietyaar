@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
-import { Disclosure } from '@/components/product/Disclosure';
 import { fillNames, InlineName } from '@/components/product/InlineName';
 import { requireOnboarded } from '@/lib/auth';
 import { formatLocalDate } from '@/lib/format';
@@ -11,14 +10,13 @@ import { APP_TIME_ZONE } from '@/lib/time/zone';
 import { getSevenDayView, type DayRow } from '@/services/day-view.service';
 import { requireProfile } from '@/services/profile.service';
 import { HistoryDatePicker } from './history-date-picker';
-import { ruleStatus } from './rule-status';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * History, seven days ending today (design-scope screen 7, product spec § 10):
- * one pattern sentence with denominators, day rows, weekly rules, a date
- * picker for older days.
+ * one pattern sentence with denominators, day rows, a date picker for older
+ * days.
  */
 export default async function HistoryPage() {
   const user = await requireOnboarded();
@@ -94,26 +92,6 @@ export default async function HistoryPage() {
             date: formatLocalDate(week.historyStart, { month: 'short', day: 'numeric' }),
           })}
         </p>
-      ) : null}
-
-      {week.weeklyRules.length > 0 ? (
-        <div className="rounded-xl border border-border bg-card px-3 py-1">
-          <Disclosure label={t('history.weeklyRules')} testId="weekly-rules">
-            <ul className="space-y-3 text-sm">
-              {week.weeklyRules.map((rule) => (
-                <li key={rule.rule.id} className="space-y-0.5">
-                  <p className="bidi-plaintext">{rule.rule.originalText}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {t('day.rule.period.week')} · {ruleStatus(rule.observation)}
-                  </p>
-                  {rule.planChangedInPeriod ? (
-                    <p className="text-xs text-muted-foreground">{t('day.rule.planChanged')}</p>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          </Disclosure>
-        </div>
       ) : null}
 
       <HistoryDatePicker today={today} weekStart={profile.weekStart} />

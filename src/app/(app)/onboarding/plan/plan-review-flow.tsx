@@ -10,7 +10,7 @@ import {
   getPlanDraftAction,
   updatePlanDraftAction,
 } from '@/actions/plan.actions';
-import { RulesReview } from '@/components/product/plan-review/RulesReview';
+import { NotesReview } from '@/components/product/plan-review/NotesReview';
 import { SlotReview, normalize } from '@/components/product/plan-review/SlotReview';
 import { TargetsReview, type EstimateState } from '@/components/product/plan-review/TargetsReview';
 import { WeekdaySummary } from '@/components/product/plan-review/WeekdaySummary';
@@ -22,7 +22,7 @@ import type { DraftSection, DraftSlot, PlanDraft } from '@/lib/validations/plan'
 import { ONBOARDING_STEP, PlanScreen, planRoutes, type PlanFlowMode } from './plan-screen';
 
 type Screen =
-  { kind: 'slot'; key: string } | { kind: 'summary' } | { kind: 'targets' } | { kind: 'rules' };
+  { kind: 'slot'; key: string } | { kind: 'summary' } | { kind: 'targets' } | { kind: 'notes' };
 
 /**
  * Screens 8a–8c for import, manual and edit drafts. Owns the draft and its
@@ -80,7 +80,7 @@ export function PlanReviewFlow({
       return { kind: 'slot', key: first.key };
     }
     if (draftKind === 'EDIT' || !draft.reviewed.targets) return { kind: 'targets' };
-    return { kind: 'rules' };
+    return { kind: 'notes' };
   });
 
   // ── Saving ─────────────────────────────────────────────────
@@ -141,7 +141,7 @@ export function PlanReviewFlow({
 
   // ── 8c: the affected-meals line ────────────────────────────
   useEffect(() => {
-    if (screen.kind !== 'rules' || affected !== null) return;
+    if (screen.kind !== 'notes' || affected !== null) return;
     void countAffectedMealsAction().then((result) => {
       setAffected(result.ok ? result.data.affectedMeals : 0);
     });
@@ -176,15 +176,9 @@ export function PlanReviewFlow({
     else setScreen({ kind: 'slot', key: slotOrder[slotOrder.length - 1].key });
   }
 
-  function confirm(rules: PlanDraft['rules']) {
+  function confirm() {
     return busy(async () => {
-      let current = draft;
-      if (JSON.stringify(rules) !== JSON.stringify(draft.rules)) {
-        const saved = await save('rules', rules, current);
-        if (!saved) return;
-        current = saved;
-      }
-      const reviewed = await save('reviewed', { rules: true, targets: true, meals: true }, current);
+      const reviewed = await save('reviewed', { notes: true, targets: true, meals: true });
       if (!reviewed) return;
       const result = await confirmPlanAction({ draftRevision: reviewed.draftRevision });
       if (!result.ok) {
@@ -321,7 +315,7 @@ export function PlanReviewFlow({
                 current = saved;
               }
               const done = await save('reviewed', { targets: true }, current);
-              if (done) setScreen({ kind: 'rules' });
+              if (done) setScreen({ kind: 'notes' });
             })
           }
         />
@@ -330,10 +324,8 @@ export function PlanReviewFlow({
   }
 
   return (
-    <PlanScreen step={stepFor(ONBOARDING_STEP.RULES)} title={t('plan.review.rulesTitle')}>
-      <RulesReview
-        key={draft.draftRevision}
-        rules={draft.rules}
+    <PlanScreen step={stepFor(ONBOARDING_STEP.NOTES)} title={t('plan.review.notesTitle')}>
+      <NotesReview
         notes={draft.notes}
         affectedMeals={draftKind === 'IMPORT' && mode === 'onboarding' ? 0 : affected}
         saving={saving}

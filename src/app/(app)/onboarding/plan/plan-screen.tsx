@@ -7,10 +7,10 @@ import { t } from '@/lib/t';
 
 /**
  * Onboarding steps after the five profile questions: the plan text (6), then
- * the review screens each count as a step (meals 7, targets 8, rules 9) and
+ * the review screens each count as a step (meals 7, targets 8, notes 9) and
  * "You're all set" closes the count, so the bar reaches 100 % only there.
  */
-export const ONBOARDING_STEP = { ADD_PLAN: 6, MEALS: 7, TARGETS: 8, RULES: 9, READY: 10 } as const;
+export const ONBOARDING_STEP = { ADD_PLAN: 6, MEALS: 7, TARGETS: 8, NOTES: 9, READY: 10 } as const;
 export const ONBOARDING_TOTAL_STEPS = ONBOARDING_STEP.READY;
 
 export type PlanFlowMode = 'onboarding' | 'plan';

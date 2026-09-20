@@ -6,7 +6,7 @@ import { t } from '@/lib/t';
 vi.mock('@/services/reflection.service', () => ({
   getOrCreateMessage: vi.fn(),
   updateMessage: vi.fn(),
-  setCollapsed: vi.fn(),
+  acknowledge: vi.fn(),
 }));
 vi.mock('@/services/analytics.service', () => ({ recordEvent: vi.fn(async () => {}) }));
 vi.mock('@/lib/auth', () => ({
@@ -23,8 +23,8 @@ vi.mock('@/lib/auth', () => ({
 import { recordEvent } from '@/services/analytics.service';
 import * as reflections from '@/services/reflection.service';
 import {
+  acknowledgeReflectionAction,
   getMorningMessageAction,
-  setReflectionCollapsedAction,
   updateReflectionAction,
 } from '@/actions/reflection.actions';
 
@@ -32,8 +32,9 @@ const ready = {
   status: 'READY' as const,
   paragraph: 'Good morning, Sara.',
   stale: false,
-  collapsed: false,
+  acknowledged: false,
   isFallback: false,
+  isStatic: false,
   localDate: '2026-09-17',
 };
 
@@ -57,7 +58,11 @@ describe('getMorningMessageAction', () => {
       '2026-09-17',
       expect.any(Date),
     );
-    expect(recordEvent).toHaveBeenCalledWith('reflection_opened', { isFallback: false }, 'u1');
+    expect(recordEvent).toHaveBeenCalledWith(
+      'reflection_opened',
+      { isFallback: false, isStatic: false },
+      'u1',
+    );
   });
 
   it('returns GENERATING for the client to poll, without an open event', async () => {
@@ -77,7 +82,11 @@ describe('updateReflectionAction', () => {
     vi.mocked(reflections.updateMessage).mockResolvedValue({ ...ready, isFallback: true });
     const result = await updateReflectionAction('2026-09-17');
     expect(result.ok).toBe(true);
-    expect(recordEvent).toHaveBeenCalledWith('reflection_updated', { isFallback: true }, 'u1');
+    expect(recordEvent).toHaveBeenCalledWith(
+      'reflection_updated',
+      { isFallback: true, isStatic: false },
+      'u1',
+    );
     expect(revalidatePath).toHaveBeenCalledWith('/today');
     expect(revalidatePath).toHaveBeenCalledWith('/history/2026-09-17');
   });
@@ -92,14 +101,14 @@ describe('updateReflectionAction', () => {
   });
 });
 
-describe('setReflectionCollapsedAction', () => {
-  it('validates both arguments and persists the choice', async () => {
-    expect((await setReflectionCollapsedAction('2026-09-17', 'yes')).ok).toBe(false);
-    expect((await setReflectionCollapsedAction('nope', true)).ok).toBe(false);
-    expect(reflections.setCollapsed).not.toHaveBeenCalled();
+describe('acknowledgeReflectionAction', () => {
+  it('validates the input and records Got it for the date', async () => {
+    expect((await acknowledgeReflectionAction({ localDate: 'nope' })).ok).toBe(false);
+    expect((await acknowledgeReflectionAction('2026-09-17')).ok).toBe(false);
+    expect(reflections.acknowledge).not.toHaveBeenCalled();
 
-    const result = await setReflectionCollapsedAction('2026-09-17', true);
+    const result = await acknowledgeReflectionAction({ localDate: '2026-09-17' });
     expect(result.ok).toBe(true);
-    expect(reflections.setCollapsed).toHaveBeenCalledWith('u1', '2026-09-17', true);
+    expect(reflections.acknowledge).toHaveBeenCalledWith('u1', '2026-09-17', expect.any(Date));
   });
 });

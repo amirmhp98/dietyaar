@@ -9,7 +9,6 @@ import {
 } from '@/__tests__/factories';
 import { buildMenuPlan } from '@/__tests__/fixtures/plans/menu-plan';
 import type { RubricPlanItem, RubricSlot } from '@/lib/rubric/types';
-import { weekBounds } from '@/lib/time/local-date';
 import { APP_TIME_ZONE } from '@/lib/time/zone';
 
 // plan.service → reflection.service → day-view.service → plan.service is a cycle, so the
@@ -31,7 +30,6 @@ import { getProfile, toProfileView } from '@/services/profile.service';
 import {
   dayRowState,
   getDayView,
-  getRuleProgress,
   getSevenDayView,
   historyStartFor,
 } from '@/services/day-view.service';
@@ -58,7 +56,6 @@ function activePlan(overrides: Partial<ActivePlan> = {}) {
     createdAt: new Date('2026-08-30T00:00:00Z'),
     slots: p.slots,
     targets: p.targets.map((t, i) => ({ ...t, id: `target-${i}`, weekday: null })),
-    rules: [],
     notes: [],
     draft: null,
     ...overrides,
@@ -246,52 +243,7 @@ describe('getDayView', () => {
     expect(result.plan).toBeNull();
   });
 
-  it('assembles a weekly rule from the anchored week in one range query', async () => {
-    const { plan, lunch, dinner } = activePlan();
-    const fishRule: ActivePlan['rules'][number] = {
-      id: 'rule-fish',
-      kind: 'SERVING_COUNT',
-      tracking: 'TRACK',
-      period: 'WEEK',
-      definition: {
-        food: { originalName: 'ماهی', englishLabel: 'grilled fish', synonyms: ['fish'] },
-        count: 2,
-        comparator: 'AT_LEAST',
-      },
-      originalText: 'fish twice a week',
-      sourceExcerpt: '',
-      isConflicting: false,
-      unsupportedReason: null,
-    };
-    vi.mocked(getActivePlan).mockResolvedValue({ ...plan, rules: [fishRule] });
-    const fish = lunch.options[2].items[0];
-    const today = dayRow(DATE, [
-      mealRow('m1', lunch.id, lunch.options[2].id, '13:00', [itemFrom(fish, 'm1')]),
-    ]);
-    const monday = {
-      ...dayRecordFactory.build({ id: 'day-2', localDate: '2026-09-14', timeZone: ZONE }),
-      meals: [
-        mealRow('m2', dinner.id, dinner.options[0].id, '20:00', [itemFrom(fish, 'm2')], 'day-2'),
-      ],
-      skippedSlots: [],
-    };
-    prismaMock.dayRecord.findUnique.mockResolvedValue(today as never);
-    prismaMock.dayRecord.findMany.mockResolvedValue([today, monday] as never);
-
-    const { view } = await getDayView(OWNER, DATE, NOW);
-    const { start, end } = weekBounds(DATE, 6);
-    expect(start).toBe('2026-09-12');
-    expect(end).toBe('2026-09-18');
-    expect(prismaMock.dayRecord.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { userId: OWNER, localDate: { gte: start, lte: end } },
-      }),
-    );
-    const obs = view.rules.find((r) => r.ruleId === 'rule-fish');
-    expect(obs).toMatchObject({ status: 'PROGRESS', count: 2, required: 2, periodEnded: false });
-  });
-
-  it('skips the week query when no weekly rule is tracked', async () => {
+  it('reads one day only: no range query', async () => {
     vi.mocked(getActivePlan).mockResolvedValue(activePlan().plan);
     prismaMock.dayRecord.findUnique.mockResolvedValue(null);
     await getDayView(OWNER, DATE, NOW);
@@ -386,7 +338,6 @@ describe('getSevenDayView', () => {
     vi.mocked(getActivePlan).mockResolvedValue(activePlan().plan);
     const result = await getSevenDayView(OWNER, '2026-09-17', NOW);
     expect(result.planChangedInWindow).toBe(false);
-    expect(result.weeklyRules).toEqual([]);
   });
 
   it('does not flag a first plan: confirmed on the day its row was created', async () => {
@@ -424,37 +375,5 @@ describe('historyStartFor', () => {
     );
     // A record before the window: the whole window is history.
     expect(historyStartFor('2026-09-11', '2026-09-14', ['2026-09-05'])).toBeNull();
-  });
-});
-
-describe('getRuleProgress', () => {
-  it('returns nothing without tracked rules and current-period progress otherwise', async () => {
-    vi.mocked(getActivePlan).mockResolvedValue(activePlan().plan);
-    expect(await getRuleProgress(OWNER, NOW)).toEqual([]);
-
-    const { plan } = activePlan();
-    vi.mocked(getActivePlan).mockResolvedValue({
-      ...plan,
-      rules: [
-        {
-          id: 'rule-groups',
-          kind: 'DISTINCT_GROUPS',
-          tracking: 'TRACK',
-          period: 'WEEK',
-          definition: { groups: ['FRUIT', 'DAIRY'], minimum: 2 },
-          originalText: 'a different fruit each day',
-          sourceExcerpt: '',
-          isConflicting: false,
-          unsupportedReason: null,
-        },
-      ],
-    });
-    const progress = await getRuleProgress(OWNER, NOW);
-    expect(progress).toHaveLength(1);
-    expect(progress[0]).toMatchObject({
-      periodStart: '2026-09-12',
-      periodEnd: '2026-09-18',
-      observation: { status: 'PROGRESS', count: 0, required: 2 },
-    });
   });
 });

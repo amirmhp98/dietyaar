@@ -65,7 +65,6 @@ function output(overrides: Partial<PlanImportOutput> = {}): PlanImportOutput {
     sourceLanguage: null,
     slots: [],
     targets: [],
-    rules: [],
     notes: [],
     uncertainties: [],
     ...overrides,
@@ -188,24 +187,12 @@ describe('sanitizeExcerpts', () => {
             sourceExcerpt: 'حدود 2200 کالری',
           },
         ],
-        rules: [
-          {
-            kind: 'INSTRUCTION',
-            period: null,
-            definition: {},
-            originalText: 'x',
-            sourceExcerpt: 'not there',
-            isConflicting: false,
-            unsupportedReason: null,
-          },
-        ],
       }),
       WEEKDAY_PLAN,
     );
     expect(cleaned.slots[0]!.sourceExcerpt).toBe('ناهار: 150 گرم مرغ گریل');
     expect(cleaned.slots[0]!.options[0]!.items[0]!.sourceExcerpt).toBe('');
     expect(cleaned.targets[0]!.sourceExcerpt).toBe('حدود 2200 کالری');
-    expect(cleaned.rules[0]!.sourceExcerpt).toBe('');
   });
 });
 
@@ -237,17 +224,6 @@ describe('mergeChunks', () => {
               sourceExcerpt: null,
             },
           ],
-          rules: [
-            {
-              kind: 'INSTRUCTION',
-              period: null,
-              definition: {},
-              originalText: 'r',
-              sourceExcerpt: '',
-              isConflicting: false,
-              unsupportedReason: null,
-            },
-          ],
           notes: [{ originalText: 'n', reason: 'DAY_TYPE' }],
         }),
       },
@@ -264,17 +240,6 @@ describe('mergeChunks', () => {
               low: 400,
               high: 500,
               sourceExcerpt: null,
-            },
-          ],
-          rules: [
-            {
-              kind: 'INSTRUCTION',
-              period: null,
-              definition: {},
-              originalText: 'r',
-              sourceExcerpt: '',
-              isConflicting: false,
-              unsupportedReason: null,
             },
           ],
           notes: [{ originalText: 'n', reason: 'DAY_TYPE' }],
@@ -297,7 +262,7 @@ describe('mergeChunks', () => {
       [null, null],
       [2, 0],
     ]);
-    expect(merged.rules).toHaveLength(1);
+    // The same note from two chunks appears once.
     expect(merged.notes).toHaveLength(1);
     expect(merged.uncertainties).toEqual([
       { slotIndex: 2, optionIndex: 0, itemIndex: 0, question: 'How much?' },
@@ -389,7 +354,7 @@ describe('interpretPlan', () => {
     expect(completeMock).toHaveBeenCalledTimes(1);
     const call = completeMock.mock.calls[0]![0];
     expect(call.kind).toBe('PLAN_IMPORT');
-    expect(call.system.startsWith('# dietyaar:PLAN_IMPORT v1')).toBe(true);
+    expect(call.system.startsWith('# dietyaar:PLAN_IMPORT v2')).toBe(true);
     // The parsing copy is sent: Persian digits normalised.
     expect(call.user).toContain('صبحانه: 2 تخم‌مرغ');
     expect(call.user).not.toContain('۲');

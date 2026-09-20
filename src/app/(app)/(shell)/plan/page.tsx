@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Badge, Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/UiComponents';
+import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/UiComponents';
 import { Disclosure } from '@/components/product/Disclosure';
 import {
   targetSourceLabel,
@@ -9,11 +9,9 @@ import {
 } from '@/components/product/plan-review/helpers';
 import { requireOnboarded } from '@/lib/auth';
 import { formatDate } from '@/lib/format';
-import type { RuleObservation } from '@/lib/rubric/types';
 import { t } from '@/lib/t';
 import { APP_TIME_ZONE, localDateFor, weekdayOf } from '@/lib/time';
-import { EVERY_DAY } from '@/lib/validations/plan';
-import { getRuleProgress, type RuleProgress } from '@/services/day-view.service';
+import { EVERY_DAY, NOTE_REASONS } from '@/lib/validations/plan';
 import { getPlan, slotsForWeekday, type PlanView } from '@/services/plan.service';
 import { requireProfile } from '@/services/profile.service';
 import { PlanSlotSummary } from './PlanSlotSummary';
@@ -28,7 +26,6 @@ export default async function PlanPage() {
   const now = new Date();
   const [profile, plan] = await Promise.all([requireProfile(user.id), getPlan(user.id)]);
   const active = isActive(plan);
-  const progress = active ? await getRuleProgress(user.id, now) : [];
   const today = weekdayOf(localDateFor(now, APP_TIME_ZONE));
 
   return (
@@ -83,25 +80,13 @@ export default async function PlanPage() {
             <DailyTargets plan={plan} />
           </Section>
 
-          <Section title={t('plan.page.rules')}>
-            {plan.rules.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t('plan.page.rules.none')}</p>
-            ) : (
-              <ul className="divide-y divide-border rounded-xl border border-border bg-card">
-                {plan.rules.map((rule) => (
-                  <RuleRow
-                    key={rule.id}
-                    rule={rule}
-                    progress={progress.find((p) => p.rule.id === rule.id) ?? null}
-                  />
-                ))}
-              </ul>
-            )}
-          </Section>
-
           {plan.notes.length > 0 ? (
             <Section title={t('plan.page.notes')}>
-              <ul className="divide-y divide-border rounded-xl border border-border bg-card">
+              <p className="text-xs text-muted-foreground">{t('plan.review.notes.hint')}</p>
+              <ul
+                className="divide-y divide-border rounded-xl border border-border bg-card"
+                data-testid="plan-notes"
+              >
                 {plan.notes.map((note) => (
                   <li key={note.id} className="space-y-1 p-3 text-sm">
                     <p dir="auto">
@@ -257,63 +242,8 @@ function DailyTargets({ plan }: { plan: PlanView }) {
   );
 }
 
-function RuleRow({
-  rule,
-  progress,
-}: {
-  rule: PlanView['rules'][number];
-  progress: RuleProgress | null;
-}) {
-  return (
-    <li className="space-y-1 p-3 text-sm">
-      <div className="flex items-start justify-between gap-3">
-        <p dir="auto">
-          <bdi>{rule.originalText}</bdi>
-        </p>
-        <Badge variant={rule.tracking === 'TRACK' ? 'brand' : 'outline'} className="shrink-0">
-          {t(`plan.page.rule.tracking.${rule.tracking}`)}
-        </Badge>
-      </div>
-      {progress ? (
-        <p className="text-xs text-muted-foreground">
-          {rule.period === 'WEEK' ? t('day.rule.period.week') : t('day.rule.period.day')} ·{' '}
-          {observationText(progress.observation)}
-          {progress.planChangedInPeriod ? ` · ${t('day.rule.planChanged')}` : ''}
-        </p>
-      ) : null}
-    </li>
-  );
-}
-
-function observationText(o: RuleObservation): string {
-  const count = o.count ?? 0;
-  const required = o.required ?? 0;
-  switch (o.status) {
-    case 'PROGRESS':
-      return t('day.rule.progress', { count, required });
-    case 'MET':
-      return t('day.rule.met', { count, required });
-    case 'NOT_MET':
-      return t('day.rule.notMet', { count, required });
-    case 'INCOMPLETE':
-      return t('day.rule.incomplete');
-    case 'FLAGGED':
-      return t('day.rule.flagged', { names: o.hits.map((h) => h.originalName).join(', ') });
-    default:
-      return t('day.rule.note');
-  }
-}
-
-function noteReason(reason: string) {
-  const known = [
-    'TRAINING_CONDITIONAL',
-    'EXERCISE',
-    'FASTING',
-    'DAY_TYPE',
-    'UNSUPPORTED_SCHEDULE',
-    'OTHER',
-  ] as const;
-  return (known as readonly string[]).includes(reason)
-    ? (reason as (typeof known)[number])
+function noteReason(reason: string): (typeof NOTE_REASONS)[number] {
+  return (NOTE_REASONS as readonly string[]).includes(reason)
+    ? (reason as (typeof NOTE_REASONS)[number])
     : 'OTHER';
 }
