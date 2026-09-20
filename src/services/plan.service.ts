@@ -3,6 +3,7 @@ import { Prisma, type PlanItem, type PlanOption, type PlanSlot } from '@prisma/c
 import { ServiceError } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
 import type { RubricPlanItem, RubricSlot, RubricTarget } from '@/lib/rubric/types';
+import { assignWindows } from '@/lib/rubric/windows';
 import { t } from '@/lib/t';
 import { localDateFor } from '@/lib/time/local-date';
 import { APP_TIME_ZONE } from '@/lib/time/zone';
@@ -134,6 +135,7 @@ function toRubricSlot(
     englishLabel: row.englishLabel,
     timeStart: row.timeStart,
     timeEnd: row.timeEnd,
+    timeAssumed: row.timeAssumed,
     options: row.options.map((o) => ({
       id: o.id,
       position: o.position,
@@ -155,7 +157,8 @@ function toPlanView(plan: PlanWithRows, draft: ActivePlan['draft'], error: strin
     sourceText: plan.sourceText,
     confirmedAt: plan.confirmedAt,
     createdAt: plan.createdAt,
-    slots: plan.slots.map(toRubricSlot),
+    // Rows confirmed before windows existed get theirs on read; confirm writes them from then on.
+    slots: assignWindows(plan.slots.map(toRubricSlot)),
     targets: plan.targets.map((row) => ({
       id: row.id,
       planSlotId: row.planSlotId,
@@ -361,6 +364,7 @@ export function draftFromRows(plan: PlanWithRows): PlanDraft {
     englishLabel: slot.englishLabel,
     timeStart: slot.timeStart,
     timeEnd: slot.timeEnd,
+    timeAssumed: slot.timeAssumed,
     sourceExcerpt: slot.sourceExcerpt,
     reviewed: true,
     options: slot.options.map((option) => ({
@@ -780,15 +784,20 @@ export async function countAffectedMeals(ownerId: string, draft: PlanDraft): Pro
   });
 }
 
-/** Slots get `weekday = 7` outside weekday plans and a unique position per weekday. */
+/**
+ * Slots get `weekday = 7` outside weekday plans, a unique position per
+ * weekday, and a time window each: stated times stay, the rest are assumed
+ * from the names (product spec § 6).
+ */
 function normalizeSlots(draft: PlanDraft): DraftSlot[] {
   const counters = new Map<number, number>();
-  return draft.slots.map((slot) => {
+  const slots = draft.slots.map((slot) => {
     const weekday = draft.structure === 'BY_WEEKDAY' ? slot.weekday : EVERY_DAY;
     const position = counters.get(weekday) ?? 0;
     counters.set(weekday, position + 1);
     return { ...slot, weekday, position };
   });
+  return assignWindows(slots);
 }
 
 function targetData(
@@ -879,6 +888,7 @@ export async function confirmPlan(
         englishLabel: slot.englishLabel,
         timeStart: slot.timeStart,
         timeEnd: slot.timeEnd,
+        timeAssumed: slot.timeAssumed,
         sourceExcerpt: slot.sourceExcerpt,
       };
       const slotRow =

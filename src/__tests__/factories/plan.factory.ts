@@ -40,6 +40,7 @@ export const planSlotFactory = Factory.define<PlanSlot>(({ sequence }) => ({
   englishLabel: 'Lunch',
   timeStart: null,
   timeEnd: null,
+  timeAssumed: false,
   sourceExcerpt: '',
   createdAt: at,
   updatedAt: at,

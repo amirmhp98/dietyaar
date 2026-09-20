@@ -293,9 +293,11 @@ model PlanSlot {
   position      Int
   originalName  String
   englishLabel  String
-  /// "HH:mm" local clock time, or null when the plan gives none.
+  /// "HH:mm" local clock time; stated by the plan, or assumed from the slot's name on confirm.
   timeStart     String?  @db.VarChar(5)
   timeEnd       String?  @db.VarChar(5)
+  /// True when the window was assumed (lib/rubric/windows.ts): shown on Today, never scored.
+  timeAssumed   Boolean  @default(false)
   sourceExcerpt String   @default("")
   createdAt     DateTime @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime @updatedAt @db.Timestamptz(3)

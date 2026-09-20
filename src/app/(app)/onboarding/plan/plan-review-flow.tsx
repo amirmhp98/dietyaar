@@ -17,6 +17,7 @@ import { WeekdaySummary } from '@/components/product/plan-review/WeekdaySummary'
 import { slotsOfWeekday, weekdaysInPlanOrder } from '@/components/product/plan-review/helpers';
 import { Button, toast } from '@/components/UiComponents';
 import type { ActionResult } from '@/lib/action-result';
+import { assignWindows, windowOf } from '@/lib/rubric/windows';
 import { t } from '@/lib/t';
 import type { DraftSection, DraftSlot, PlanDraft } from '@/lib/validations/plan';
 import { ONBOARDING_STEP, PlanScreen, planRoutes, type PlanFlowMode } from './plan-screen';
@@ -68,6 +69,11 @@ export function PlanReviewFlow({
     [firstDaySlots, otherDays, reviewEach],
   );
   const hasSlots = draft.structure !== 'TARGETS_ONLY' && slotOrder.length > 0;
+  /** The windows confirm will write, previewed from the current names (product spec § 6). */
+  const windows = useMemo(
+    () => new Map(assignWindows(draft.slots).map((s) => [s.key, windowOf(s)])),
+    [draft.slots],
+  );
   const hasSummary = byWeekday && !reviewEach && otherDays.length > 0;
   /** Screens of the meals step: one per slot, plus the weekday summary when it shows. */
   const mealScreens = slotOrder.length + (hasSummary ? 1 : 0);
@@ -226,6 +232,7 @@ export function PlanReviewFlow({
         <SlotReview
           key={`${slot.key}:${draft.draftRevision}`}
           slot={slot}
+          window={windows.get(slot.key) ?? null}
           question={question}
           current={index + 1}
           total={slotOrder.length}

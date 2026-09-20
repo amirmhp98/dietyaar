@@ -60,7 +60,7 @@ admin pages use the same shell.
 | `/signup`                                               | everyone  | Username/password sign-up (common-password list, per-IP rate limit `SIGNUP_RATE_LIMIT`); says a forgotten password cannot be recovered; sets the session and the `appearance` cookie, redirects to onboarding                                                                                                      |
 | `/onboarding`                                           | signed-in | One question per screen: age (under-18 stop deletes the account), sex, height, weight (metric/imperial), display name; resumable from `Profile.onboardingStep`; `?step=` reopens an answered question (Back from the plan step). Progress counts 10 steps: five questions, plan text, meals, targets, notes, ready |
 | `/onboarding/plan`, `/plan/add`, `/plan/review`         | signed-in | Plan entry: paste text → import job with progress/retry/cancel, or the manual wizard (`/onboarding/plan/manual`); review draft (slots, options, items, targets, questions; notes shown read-only) → confirm; "No plan yet"                                                                                         |
-| `/today` (`/`)                                          | signed-in | Date header, reflection card, "Your plan today" (score card, slot rows with match/portion/timing, Why this score, nutrition details), recorded meals, completeness checkbox                                                                                                                                        |
+| `/today` (`/`)                                          | signed-in | Date header, reflection card, "Your plan today" (score card, slot rows with their window, match/portion/timing and window-state actions, Why this score, nutrition details), recorded meals, completeness checkbox                                                                                                 |
 | `/history`, `/history/[date]`                           | signed-in | Seven-day list with day states, starting at the account's first day ("Your history starts on …"); a past day's full view with its reflection; date picker for older days                                                                                                                                           |
 | `/plan`                                                 | signed-in | The one plan: today's slots with options and items, targets, "Notes from your plan"; Edit (in place through a draft), Replace, Delete; pending-draft banner                                                                                                                                                        |
 | `/meals/[id]`                                           | signed-in | One meal: items, nutrition, photos, slot link and match, edit in place (revisioned), delete with confirmation, reuse                                                                                                                                                                                               |
@@ -152,6 +152,14 @@ lives in `lib/rubric` (matching, portions, timing, score, nutrition, facts, seve
   shown only for a confirmation after the plan's first day.
 - Account deletion is scheduled (`deletionScheduledFor`) and purged by the purge job, including
   backup copies of photos.
+- Every plan slot has a time window: stated times as written, otherwise one assumed from the
+  slot's name on confirm (`lib/rubric/windows.ts`, `PlanSlot.timeAssumed`; unrecognised names
+  split 07:00–22:00 between their neighbours). Today shows it as "≈ 12:00–15:30" and lets the
+  window state drive the row's icon actions (open or passed: Log ＋ and Skip —, passed adds
+  "Window passed · log it or mark skipped"; upcoming: one faint ＋ only); the highlighted row is
+  the first open or passed unrecorded slot, with an outline "Log this meal" so the floating Log
+  meal button stays the one filled action. An assumed window never enters the timing score (the
+  order rule stays); typing a time in the slot editor makes it stated.
 
 ## Data model
 

@@ -196,6 +196,45 @@ describe('getDayView', () => {
     expect(energy(after)?.status).toBe('BELOW_RANGE');
   });
 
+  it('slot window states come from the clock in the app zone; a past day has all passed, a future one none open', async () => {
+    const { plan } = activePlan();
+    vi.mocked(getActivePlan).mockResolvedValue(plan);
+    prismaMock.dayRecord.findUnique.mockResolvedValue(null);
+    const states = async (date: string, now: Date) =>
+      (await getDayView(OWNER, date, now)).view.slots.map((s) => s.windowState);
+
+    // 2026-09-16 08:00 / 12:15 / 16:00 in Asia/Dubai (UTC+4).
+    expect(await states(DATE, new Date('2026-09-16T04:00:00Z'))).toEqual([
+      'OPEN',
+      'UPCOMING',
+      'UPCOMING',
+      'UPCOMING',
+      'UPCOMING',
+    ]);
+    expect(await states(DATE, new Date('2026-09-16T08:15:00Z'))).toEqual([
+      'PASSED',
+      'OPEN',
+      'OPEN',
+      'UPCOMING',
+      'UPCOMING',
+    ]);
+    expect(await states(DATE, new Date('2026-09-16T12:00:00Z'))).toEqual([
+      'PASSED',
+      'PASSED',
+      'PASSED',
+      'OPEN',
+      'UPCOMING',
+    ]);
+    expect(await states('2026-09-15', new Date('2026-09-16T04:00:00Z'))).toEqual(
+      Array(5).fill('PASSED'),
+    );
+    expect(await states('2026-09-17', new Date('2026-09-16T04:00:00Z'))).toEqual(
+      Array(5).fill('UPCOMING'),
+    );
+    const { view } = await getDayView(OWNER, DATE, new Date('2026-09-16T04:00:00Z'));
+    expect(view.slots[2].window).toEqual({ start: '12:00', end: '15:30', assumed: true });
+  });
+
   it('past day, checked, 2 of 5 → complete by default and out of the trend denominator', async () => {
     const { plan, breakfast, lunch } = activePlan();
     vi.mocked(getActivePlan).mockResolvedValue(plan);

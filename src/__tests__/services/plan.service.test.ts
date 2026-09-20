@@ -249,6 +249,7 @@ describe('recomputeDerivedTargets', () => {
     englishLabel: key,
     timeStart: null,
     timeEnd: null,
+    timeAssumed: false,
     sourceExcerpt: '',
     reviewed: false,
     options: [
@@ -471,6 +472,44 @@ describe('confirmPlan', () => {
       sourceText: 'متن برنامه',
       draftSourceText: null,
     });
+  });
+
+  it('confirm writes a window per slot: stated times as they are, the rest assumed from the names', async () => {
+    const draft = editDraft();
+    draft.slots[0]!.timeStart = '07:30';
+    draft.slots[0]!.timeEnd = '08:30';
+    draft.slots[0]!.timeAssumed = false;
+    arrangeConfirm(draft);
+    await confirmPlan('user-1', 0);
+    const written = prismaMock.planSlot.update.mock.calls
+      .map((call) => call[0].data)
+      .filter((data) => 'originalName' in data);
+    expect(written).toEqual([
+      expect.objectContaining({ timeStart: '07:30', timeEnd: '08:30', timeAssumed: false }),
+      expect.objectContaining({ timeStart: '12:00', timeEnd: '15:30', timeAssumed: true }),
+    ]);
+  });
+
+  it('confirm re-assumes a window the editor cleared, and reads one onto rows confirmed without any', async () => {
+    const draft = editDraft();
+    // The user emptied the time fields of a slot whose window was assumed: assumed again from the name.
+    draft.slots[1]!.timeStart = null;
+    draft.slots[1]!.timeEnd = null;
+    draft.slots[1]!.timeAssumed = false;
+    arrangeConfirm(draft);
+    await confirmPlan('user-1', 0);
+    expect(prismaMock.planSlot.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'slot-l' },
+        data: expect.objectContaining({ timeStart: '12:00', timeEnd: '15:30', timeAssumed: true }),
+      }),
+    );
+    prismaMock.plan.findUnique.mockResolvedValue(buildPlanWithRows() as never);
+    const plan = await getActivePlan('user-1');
+    expect(plan?.slots.map((s) => [s.timeStart, s.timeEnd, s.timeAssumed])).toEqual([
+      ['06:00', '10:30', true],
+      ['12:00', '15:30', true],
+    ]);
   });
 
   it('weekday plans seed the week start from the first listed weekday', async () => {

@@ -108,6 +108,7 @@ export async function buildExport(ownerId: string, now: Date): Promise<ExportBun
               englishLabel: slot.englishLabel,
               timeStart: slot.timeStart,
               timeEnd: slot.timeEnd,
+              timeAssumed: slot.timeAssumed,
               sourceExcerpt: slot.sourceExcerpt,
               options: slot.options.map((option) => ({
                 id: option.id,

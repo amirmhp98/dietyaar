@@ -2,6 +2,17 @@ import type { RubricSlot, TimingResult } from '@/lib/rubric/types';
 import { circularMinutesBetween, timeBand } from '@/lib/time/bands';
 
 /**
+ * The window the timing rubric may compare with: only times the plan states.
+ * An assumed window (product spec § 6) leaves the order rule in force, so a
+ * plan without clock times is never scored on invented ones.
+ */
+export function statedWindow(
+  slot: Pick<RubricSlot, 'timeStart' | 'timeEnd' | 'timeAssumed'>,
+): { start: string; end: string | null } | null {
+  return slot.timeStart && !slot.timeAssumed ? { start: slot.timeStart, end: slot.timeEnd } : null;
+}
+
+/**
  * Consumed time against a stated time or window: descriptive detail with the
  * 60 / 120-minute bands, measured around the clock so a late supper at 00:30
  * counts as after a 21:00 slot. Unknown time → not evaluated.

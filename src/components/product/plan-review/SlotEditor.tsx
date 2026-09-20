@@ -9,11 +9,12 @@ import { UnitSelect } from './UnitSelect';
 import { newKey, numberText, parseNumber, renamed, withQuantity } from './helpers';
 
 /**
- * Inline editor for one slot: name, options and their items (name, amount,
- * unit). Used by 7a "Fix" and by the manual wizard. A name typed here is also
- * the English label (the AI's label survives only edits to other fields);
- * changing a quantity or a name clears "Assumed" and flags the item for
- * re-estimation on 7b. A quantity typed without a unit is in grams.
+ * Inline editor for one slot: name, times, options and their items (name,
+ * amount, unit). Used by 7a "Fix" and by the manual wizard. A name typed here
+ * is also the English label (the AI's label survives only edits to other
+ * fields); changing a quantity or a name clears "Assumed" and flags the item
+ * for re-estimation on 7b. A quantity typed without a unit is in grams.
+ * Typing a time turns an assumed window into a stated one.
  */
 
 export function newItem(position: number): DraftItem {
@@ -49,6 +50,7 @@ export function newSlot(weekday: number, position: number): DraftSlot {
     englishLabel: '',
     timeStart: null,
     timeEnd: null,
+    timeAssumed: false,
     sourceExcerpt: '',
     // Items come on the next wizard screen; an empty option is valid until then.
     options: [newOption(0, false)],
@@ -96,27 +98,36 @@ export function SlotEditor({
         </FormField>
       ) : null}
       {showTimes ? (
-        <div className="grid grid-cols-2 gap-3">
-          <FormField label={t('plan.review.timeStart')}>
-            <Input
-              inputMode="numeric"
-              dir="auto"
-              className="h-11"
-              placeholder="08:00"
-              value={slot.timeStart ?? ''}
-              onChange={(e) => onChange({ ...slot, timeStart: e.target.value || null })}
-            />
-          </FormField>
-          <FormField label={t('plan.review.timeEnd')}>
-            <Input
-              inputMode="numeric"
-              dir="auto"
-              className="h-11"
-              placeholder="09:00"
-              value={slot.timeEnd ?? ''}
-              onChange={(e) => onChange({ ...slot, timeEnd: e.target.value || null })}
-            />
-          </FormField>
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-3">
+            <FormField label={t('plan.review.timeStart')}>
+              <Input
+                inputMode="numeric"
+                dir="auto"
+                className="h-11"
+                placeholder="08:00"
+                value={slot.timeStart ?? ''}
+                onChange={(e) =>
+                  onChange({ ...slot, timeStart: e.target.value || null, timeAssumed: false })
+                }
+              />
+            </FormField>
+            <FormField label={t('plan.review.timeEnd')}>
+              <Input
+                inputMode="numeric"
+                dir="auto"
+                className="h-11"
+                placeholder="09:00"
+                value={slot.timeEnd ?? ''}
+                onChange={(e) =>
+                  onChange({ ...slot, timeEnd: e.target.value || null, timeAssumed: false })
+                }
+              />
+            </FormField>
+          </div>
+          {slot.timeAssumed ? (
+            <p className="text-xs text-muted-foreground">{t('plan.time.assumedHint')}</p>
+          ) : null}
         </div>
       ) : null}
       {slot.options.map((option, index) => (
