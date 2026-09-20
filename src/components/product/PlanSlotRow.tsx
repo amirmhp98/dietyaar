@@ -31,6 +31,7 @@ export function PlanSlotRow({
   onLog,
   onSkip,
   reviewHref,
+  ongoing = true,
 }: {
   slot: SlotView;
   /** The next slot to log (the first open or passed unrecorded one) carries "Log this meal". */
@@ -40,6 +41,8 @@ export function PlanSlotRow({
   onSkip?: (skipped: boolean) => void;
   /** Meal details of the first linked meal (Needs review → choose the option there). */
   reviewHref?: string;
+  /** False on a past day: every window has passed, so the "window passed" nudge stays quiet. */
+  ongoing?: boolean;
 }) {
   const { state, match, windowState } = slot;
   const name = slot.slot.originalName;
@@ -121,7 +124,7 @@ export function PlanSlotRow({
       {state === 'NOT_RECORDED' && !highlighted && windowState !== 'UPCOMING' ? (
         <div className="flex items-center justify-between gap-3">
           <p className="min-w-0 text-xs text-muted-foreground">
-            {windowState === 'PASSED' ? (
+            {windowState === 'PASSED' && ongoing ? (
               <span data-testid="window-passed">{t('slot.window.passed')}</span>
             ) : null}
           </p>
@@ -158,7 +161,7 @@ export function PlanSlotRow({
         </div>
       ) : null}
 
-      {state === 'NOT_RECORDED' && highlighted && windowState === 'PASSED' ? (
+      {state === 'NOT_RECORDED' && highlighted && windowState === 'PASSED' && ongoing ? (
         <p className="text-xs text-muted-foreground" data-testid="window-passed">
           {t('slot.window.passed')}
         </p>

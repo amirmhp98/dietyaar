@@ -141,6 +141,7 @@ export function DayBlocks({
                   key={slot.slot.id}
                   slot={slot}
                   highlighted={nextSlot?.slot.id === slot.slot.id}
+                  ongoing={ongoing}
                   pending={pending}
                   onLog={() => openComposer({ planSlotId: slot.slot.id, localDate })}
                   onSkip={(skipped) => skip(slot.slot.id, skipped)}
