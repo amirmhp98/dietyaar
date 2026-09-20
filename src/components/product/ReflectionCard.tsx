@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, RefreshCw } from 'lucide-react';
+import { Check, ChevronDown, RefreshCw } from 'lucide-react';
 import { Badge, Button, Skeleton } from '@/components/UiComponents';
 import { t } from '@/lib/t';
 import { cn } from '@/lib/utils';
@@ -9,17 +9,22 @@ export type ReflectionPhase = 'LOADING' | 'GENERATING' | 'READY' | 'TIMED_OUT';
 
 /**
  * Reflection card (product spec § 11, design-scope screen 3): the day's
- * paragraph, a collapse toggle remembered per date, the "based on an earlier
- * log" badge with Update reflection when stale, and a calm skeleton while the
- * paragraph is being prepared. Action-free: the island passes callbacks.
+ * paragraph with one action, "Got it", while it is the morning moment; once
+ * acknowledged, a title strip with a "Read again" toggle that expands in
+ * place. The "based on an earlier log" badge and Update reflection show
+ * wherever the card sits, and a calm skeleton while the paragraph is being
+ * prepared. Action-free: the island passes callbacks; History passes none
+ * and gets the paragraph always expanded.
  */
 export function ReflectionCard({
   phase,
   paragraph,
   stale,
-  collapsed,
   title = t('reflection.title'),
-  onToggleCollapsed,
+  acknowledged = false,
+  expanded = true,
+  onToggleExpanded,
+  onAcknowledge,
   onUpdate,
   onRetry,
   updating = false,
@@ -28,38 +33,65 @@ export function ReflectionCard({
   phase: ReflectionPhase;
   paragraph: string | null;
   stale: boolean;
-  collapsed: boolean;
   title?: string;
-  onToggleCollapsed?: (collapsed: boolean) => void;
+  /** "Got it" was tapped for this date: the card collapses to its title with a Read again toggle. */
+  acknowledged?: boolean;
+  /** Only read while acknowledged: whether the paragraph is shown. */
+  expanded?: boolean;
+  onToggleExpanded?: (expanded: boolean) => void;
+  onAcknowledge?: () => void;
   onUpdate?: () => void;
   onRetry?: () => void;
   updating?: boolean;
   className?: string;
 }) {
   const bodyId = 'reflection-paragraph';
+  const ready = phase === 'READY';
+  const collapsible = ready && acknowledged && onToggleExpanded !== undefined;
+  const open = !collapsible || expanded;
   return (
     <section
       aria-labelledby="reflection-title"
       data-testid="reflection-card"
       data-phase={phase}
+      data-acknowledged={acknowledged ? 'true' : 'false'}
       className={cn('rounded-xl border border-border bg-card p-4', className)}
     >
       <div className="flex items-center justify-between gap-3">
-        <h2 id="reflection-title" className="text-sm font-medium text-muted-foreground">
-          {title}
-        </h2>
-        {phase === 'READY' && onToggleCollapsed ? (
+        <div className="min-w-0 space-y-1">
+          <h2 id="reflection-title" className="text-sm font-medium text-muted-foreground">
+            {title}
+          </h2>
+          {ready && stale ? (
+            <Badge variant="secondary" data-testid="reflection-stale">
+              {t('reflection.staleBadge')}
+            </Badge>
+          ) : null}
+        </div>
+        {ready && !acknowledged && onAcknowledge ? (
+          <Button
+            type="button"
+            size="sm"
+            className="h-11 shrink-0 px-3"
+            onClick={onAcknowledge}
+            data-testid="reflection-got-it"
+          >
+            <Check aria-hidden="true" />
+            {t('reflection.gotIt')}
+          </Button>
+        ) : null}
+        {collapsible ? (
           <button
             type="button"
-            onClick={() => onToggleCollapsed(!collapsed)}
-            aria-expanded={!collapsed}
+            onClick={() => onToggleExpanded(!open)}
+            aria-expanded={open}
             aria-controls={bodyId}
-            className="-me-2 flex min-h-11 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            data-testid="reflection-collapse"
+            className="-me-2 flex min-h-11 shrink-0 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            data-testid="reflection-toggle"
           >
-            {collapsed ? t('reflection.expand') : t('reflection.collapse')}
+            {open ? t('reflection.collapse') : t('reflection.readAgain')}
             <ChevronDown
-              className={cn('size-4 transition-transform duration-200', !collapsed && 'rotate-180')}
+              className={cn('size-4 transition-transform duration-200', open && 'rotate-180')}
               aria-hidden="true"
             />
           </button>
@@ -87,13 +119,8 @@ export function ReflectionCard({
         </div>
       ) : null}
 
-      {phase === 'READY' ? (
-        <div id={bodyId} className={cn('mt-3 space-y-3', collapsed && 'hidden')}>
-          {stale ? (
-            <Badge variant="secondary" data-testid="reflection-stale">
-              {t('reflection.staleBadge')}
-            </Badge>
-          ) : null}
+      {ready ? (
+        <div id={bodyId} className={cn('mt-3 space-y-3', !open && 'hidden')}>
           <p
             className="bidi-plaintext text-base leading-relaxed"
             data-testid="reflection-paragraph"

@@ -55,7 +55,6 @@ export default async function HistoryDayPage({ params }: { params: Promise<{ dat
           phase="READY"
           paragraph={message.paragraph}
           stale={message.stale}
-          collapsed={false}
           title={t('reflection.forDate')}
         />
       ) : null}

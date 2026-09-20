@@ -117,7 +117,11 @@ lives in `lib/rubric` (matching, portions, timing, score, nutrition, rules, fact
   read, with no stored score (decision 013). The AI notice is shown once per kind (plan, meal,
   photo) and acknowledged on the profile.
 - The morning reflection uses the claim protocol (facts in, `usedFactIds` out), is marked stale
-  when a claimed fact changes, and falls back to fixed paragraphs when the AI is unavailable.
+  when a claimed fact changes, falls back to fixed paragraphs when the AI is unavailable, and uses
+  fixed paragraphs, without an AI call, on the first day, when yesterday has no records and when
+  there is no plan (`isStatic`; only a "no records" paragraph goes stale, when a meal is added to
+  yesterday). Got it (`acknowledgedAt`) moves the card to the bottom of Today for the day, collapsed
+  to its title with Read again.
 - Photo logging is behind `PHOTO_LOGGING_ENABLED` (off by default); photos are converted and
   downscaled on the device, stored in a private bucket, and served only through an owner-checked
   route.
@@ -163,7 +167,7 @@ authorise first (`requireAuth` / `requireOnboarded` / `requireAdmin`), validate 
 | `meal.actions.ts`            | `createMealDraftAction`, `analyzeMealDraftAction`, `updateMealDraftAction`, `saveMealAction`, `updateMealAction`, `deleteMealAction`, `setMealLinkAction`, `reuseMealAction`, `removeMealPhotoAction`, `getMealDraftAction`, `getRecentMealsAction`                                                      |
 | `composer.actions.ts`        | `getComposerContextAction`, `getLastUsedOptionAction`                                                                                                                                                                                                                                                    |
 | `day.actions.ts`             | `getDayAction`, `getSevenDayAction`, `markSlotSkippedAction`, `setDayCompletenessAction`                                                                                                                                                                                                                 |
-| `reflection.actions.ts`      | `getMorningMessageAction`, `updateReflectionAction`, `setReflectionCollapsedAction`                                                                                                                                                                                                                      |
+| `reflection.actions.ts`      | `getMorningMessageAction`, `updateReflectionAction`, `acknowledgeReflectionAction`                                                                                                                                                                                                                       |
 
 ## Non-functional
 

@@ -1,17 +1,33 @@
 import type { ReflectionContext, ReflectionFact } from '@/lib/rubric/facts';
-import { t } from '@/lib/t';
+import { t, type MessageKey } from '@/lib/t';
 import { wordCount } from '@/services/ai/schemas';
 
 /**
- * Deterministic fallback paragraphs (product spec § 11 "Distinct content
- * states"). Every sentence is template glue from the dictionary or the
- * verbatim text of a fact, so a fallback never says something its snapshot
- * does not contain, never claims the user confirmed completeness, and never
- * mentions training, exercise or fasting. `usedFactIds` lists the facts whose
- * text was included, which drives the staleness check like an AI paragraph.
+ * Deterministic paragraphs (product spec § 11 "Distinct content states").
+ * Every sentence is template glue from the dictionary or the verbatim text of
+ * a fact, so a paragraph never says something its snapshot does not contain,
+ * never claims the user confirmed completeness, and never mentions training,
+ * exercise or fasting. `usedFactIds` lists the facts whose text was included,
+ * which drives the staleness check like an AI paragraph.
+ *
+ * The static states (`STATIC_STATES`) have nothing for the provider to
+ * reflect on: they are written without an AI call, read exactly as the
+ * dictionary has them plus the greeting and close, and are not failures. The
+ * other states are fallbacks for a provider failure and are padded or
+ * trimmed into the fallback word range.
  */
 export type FallbackState =
   'COMPLETE' | 'UNCHECKED' | 'NO_RECORDS' | 'FIRST_DAY' | 'NO_PLAN' | 'PROVIDER_FAILURE';
+
+export const STATIC_STATES: ReadonlySet<FallbackState> = new Set<FallbackState>([
+  'NO_RECORDS',
+  'FIRST_DAY',
+  'NO_PLAN',
+]);
+
+export function isStaticState(state: FallbackState): boolean {
+  return STATIC_STATES.has(state);
+}
 
 export interface FallbackParagraph {
   paragraph: string;
@@ -69,8 +85,21 @@ function closing(context: Pick<ReflectionContext, 'timeOfDay'>): Part {
   return { text };
 }
 
-/** Today's focus: the next slot by plan order, never a clock time (product spec § 11). */
-function todayPart(facts: ReflectionFact[]): Part | null {
+/** Dictionary keys with a `{slot}` parameter: one for the first slot of the day, one for a later slot. */
+type SlotKey = Extract<MessageKey, `reflection.fallback.${string}.${'startsWith' | 'next'}`>;
+type TodayWording = Record<'startsWith' | 'next', SlotKey>;
+
+const TODAY_WORDING: TodayWording = {
+  startsWith: 'reflection.fallback.today.startsWith',
+  next: 'reflection.fallback.today.next',
+};
+
+/**
+ * Today's focus: the next slot by plan order, never a clock time (product
+ * spec § 11). Null without a plan or with a target-only plan (no slots);
+ * "already recorded" once every slot has a record, so no sentence dangles.
+ */
+function todayPart(facts: ReflectionFact[], wording: TodayWording = TODAY_WORDING): Part | null {
   const plan = factById(facts, 'today:plan');
   if (!plan || plan.signature === 'NO_PLAN') return null;
   const next = factById(facts, 'today:next');
@@ -82,9 +111,7 @@ function todayPart(facts: ReflectionFact[]): Part | null {
   const firstSlotId = plan.signature.split(',')[0];
   const isFirst = next.signature === firstSlotId;
   return {
-    text: isFirst
-      ? t('reflection.fallback.today.startsWith', { slot })
-      : t('reflection.fallback.today.next', { slot }),
+    text: isFirst ? t(wording.startsWith, { slot }) : t(wording.next, { slot }),
     factIds: [next.id, plan.id],
   };
 }
@@ -104,6 +131,16 @@ function observations(facts: ReflectionFact[]): Part[] {
   return parts;
 }
 
+function join(parts: Part[]): FallbackParagraph {
+  const usedFactIds = [...new Set(parts.flatMap((p) => p.factIds ?? []))];
+  return { paragraph: parts.map((p) => p.text).join(' '), usedFactIds };
+}
+
+/** The static states read exactly as written: no padding, no trimming. */
+function assembleStatic(parts: Array<Part | null>): FallbackParagraph {
+  return join(parts.filter((p): p is Part => p !== null));
+}
+
 function assemble(parts: Array<Part | null>): FallbackParagraph {
   let kept = parts.filter((p): p is Part => p !== null);
   const words = () => wordCount(kept.map((p) => p.text).join(' '));
@@ -119,8 +156,7 @@ function assemble(parts: Array<Part | null>): FallbackParagraph {
     const filler = t('reflection.fallback.anythingToAdd');
     if (!kept.some((p) => p.text === filler)) kept.push({ text: filler });
   }
-  const usedFactIds = [...new Set(kept.flatMap((p) => p.factIds ?? []))];
-  return { paragraph: kept.map((p) => p.text).join(' '), usedFactIds };
+  return join(kept);
 }
 
 export function fallbackParagraph(
@@ -133,29 +169,38 @@ export function fallbackParagraph(
   switch (state) {
     case 'FIRST_DAY': {
       const plan = factById(facts, 'today:plan');
-      const hasPlan = plan && plan.signature !== 'NO_PLAN';
-      return assemble([
+      const hasPlan = plan !== undefined && plan.signature !== 'NO_PLAN';
+      return assembleStatic([
         greeting(context),
         { text: t('reflection.fallback.firstDay.welcome') },
         hasPlan
-          ? { text: plan.text, factIds: [plan.id] }
+          ? todayPart(facts, {
+              startsWith: 'reflection.fallback.firstDay.startsWith',
+              next: 'reflection.fallback.firstDay.next',
+            })
           : { text: t('reflection.fallback.firstDay.noPlan') },
-        hasPlan ? { text: t('reflection.fallback.firstDay.plan') } : null,
+        { text: t('reflection.fallback.firstDay.tomorrow') },
         closing(context),
       ]);
     }
     case 'NO_PLAN':
-      return assemble([
+      // States nothing about yesterday's log: without a plan there is nothing to compare it with.
+      return assembleStatic([
         greeting(context),
-        coverage ? { text: coverage.text, factIds: [coverage.id], optional: 1 } : null,
         { text: t('reflection.fallback.noPlan.body') },
         closing(context),
       ]);
     case 'NO_RECORDS':
-      return assemble([
+      // `coverage` (signature EMPTY) is the one fact this paragraph rests on: a meal
+      // added to yesterday later changes it, and the message is regenerated.
+      return assembleStatic([
         greeting(context),
-        { text: t('reflection.fallback.noRecords.body'), factIds: coverage ? [coverage.id] : [] },
-        todayPart(facts),
+        { text: t('reflection.fallback.noRecords.intro'), factIds: coverage ? [coverage.id] : [] },
+        todayPart(facts, {
+          startsWith: 'reflection.fallback.noRecords.startsWith',
+          next: 'reflection.fallback.noRecords.next',
+        }),
+        { text: t('reflection.fallback.noRecords.history') },
         closing(context),
       ]);
     case 'UNCHECKED': {
