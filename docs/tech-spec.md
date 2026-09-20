@@ -27,7 +27,7 @@ Where this document and the product spec still disagree on something not covered
 
 Every section is tagged with how it relates to the boilerplate: **Inherited** (the boilerplate does this; only deviations are listed), **Extended**, **Replaced**, or **Added**. Rules that change a boilerplate rule get a decision record under `docs/decisions/` numbered from 008; section 18 lists them.
 
-Terms: **plan** is the user's one diet. **Slot** is a named meal position in the plan on a given weekday. **Option** is one of several prescribed alternatives for a slot. **Meal** is a confirmed record of food eaten. **Draft** is an unsaved meal in analysis or review. **Day** is a calendar date in the user's time zone. **Rubric** is the versioned scoring rule set from product spec section 8. **Tunable** marks a number chosen as a default, not derived from a requirement.
+Terms: **plan** is the user's one diet. **Slot** is a named meal position in the plan on a given weekday. **Option** is one of several prescribed alternatives for a slot. **Meal** is a confirmed record of food eaten. **Draft** is an unsaved meal in analysis or review. **Day** is a calendar date in the app time zone (decision 022). **Rubric** is the versioned scoring rule set from product spec section 8. **Tunable** marks a number chosen as a default, not derived from a requirement.
 
 ## 1. Goals, non-goals, constraints
 
@@ -50,7 +50,7 @@ Anything in product spec section 3 "Deferred", plus: plan history, multi-region,
 | Hosting on Darkube, Iran-based cluster          | Owner                   | Docker image deploy; shared IPv4 egress; Docker Hub only through `hub.hamdocker.ir`; no privileged containers; no native cron; reachability of every foreign API verified from the cluster before product code is written |
 | Supabase free tier                              | Owner                   | 500 MB database, 1 GB files, 5 GB egress per month, 50 MB per file, no provider backups, project paused after 7 idle days, database reachable over IPv4 only through the Supavisor pooler; Data API must be disabled      |
 | Unpaid first release, single developer          | Product spec            | One replica; no managed queue; AI cost caps                                                                                                                                                                               |
-| English UI, Gregorian dates, any-language input | Product spec            | `en` locale profile; per-user IANA time zone in the profile; original text stored verbatim                                                                                                                                |
+| English UI, Gregorian dates, any-language input | Product spec            | `en` locale profile; one app time zone (decision 022); original text stored verbatim                                                                                                                                      |
 | DeepSeek as AI provider                         | Owner                   | Adapter isolates the provider; JSON mode without schema enforcement; every response validated with zod                                                                                                                    |
 | Mobile-first web app                            | Product spec            | Bottom tab shell replaces the boilerplate sidebar; Playwright runs a mobile project                                                                                                                                       |
 | Health data privacy                             | Product spec section 15 | Private bucket; photo bytes reach the browser only through an owner-checked route; logger and error-tracker redaction; no health content in analytics                                                                     |
@@ -169,7 +169,7 @@ Implemented as `no-restricted-imports`, type-only imports allowed:
 1. `services/ai/**` may not import `@/lib/prisma`. The adapter returns validated data plus usage; the calling service persists both the result and the `AiCall` row.
 2. `lib/rubric/**`, `lib/time/**`, `lib/text/**` import nothing from `@/services` or `@/lib/prisma`. They take plain numbers and strings; the service converts Prisma `Decimal` to `number` at the boundary and back.
 3. `components/product/**` may not import `@/actions/*`. Product components receive callbacks from page-level islands.
-4. Nothing outside `lib/locale.ts` and `lib/format.ts` may read `locale.timeZone`.
+4. Nothing outside `lib/locale.ts` and `lib/format.ts` may read `locale.timeZone` (decision 022).
 
 ### Module inventory
 
@@ -196,7 +196,7 @@ The model has 15 tables. Nothing is cached; comparisons are computed on read (se
 
 **Session** (boilerplate): unchanged.
 
-**Profile**: one per user, created at the `SEX` step (age is validated before it is written, so an under-18 user never gets a row). Columns are nullable until `completedAt` is set; the service refuses to set `completedAt` unless `ageYears`, `sex`, `heightCm`, `weightKg`, `timeZone` are present. `weightMeasuredAt` date, `unitSystem` (`METRIC`, `IMPERIAL`), `weekStart` int 0–6 (default from the plan at confirm time, then user-owned), `appearance` (`SYSTEM`, `LIGHT`, `DARK`), `displayName`, `goal`, `restrictions` text[] (normalized parsing copies; the originals are shown from `restrictionsOriginal` text[]), `aiNoticePlanShownAt`, `aiNoticeMealTextShownAt`, `aiNoticePhotoShownAt`, `lastSeenDeviceTimeZone`. Values are stored in metric.
+**Profile**: one per user, created at the `SEX` step (age is validated before it is written, so an under-18 user never gets a row). Columns are nullable until `completedAt` is set; the service refuses to set `completedAt` unless `ageYears`, `sex`, `heightCm`, `weightKg` are present. `weightMeasuredAt` date, `unitSystem` (`METRIC`, `IMPERIAL`), `weekStart` int 0–6 (default from the plan at confirm time, then user-owned), `appearance` (`SYSTEM`, `LIGHT`, `DARK`), `displayName`, `goal`, `restrictions` text[] (normalized parsing copies; the originals are shown from `restrictionsOriginal` text[]), `aiNoticePlanShownAt`, `aiNoticeMealTextShownAt`, `aiNoticePhotoShownAt`. Values are stored in metric.
 
 ### Plan
 
@@ -222,7 +222,7 @@ Applying a draft to rows: an edit draft (`startEdit`) carries the existing row i
 
 ### Day
 
-**DayRecord**: `userId`, `localDate` date, `timeZone` (the zone in effect when the row was created), `logComplete` bool default true. Unique `(userId, localDate)`. Created lazily on the first meal, skip, or completeness change for that date; viewing a day does not create a row.
+**DayRecord**: `userId`, `localDate` date, `timeZone` (the app zone when the row was created, decision 022), `logComplete` bool default true. Unique `(userId, localDate)`. Created lazily on the first meal, skip, or completeness change for that date; viewing a day does not create a row.
 
 **DaySkippedSlot**: `dayRecordId`, `planSlotId`. Unique pair. A slot cannot be marked skipped while a meal is linked to it on that day; the action returns `SLOT_HAS_MEAL`.
 
@@ -314,7 +314,7 @@ All calculations are pure functions in `lib/rubric` and `lib/time` over plain ob
 | `isReflectionStale(snapshotFacts, currentFacts, usedFactIds)` → bool                                     | staleness rule                      |
 | `sevenDaySummary(dayViews)` → sentence key and denominators                                              | section 10                          |
 
-Historical days use `DayRecord.timeZone`, not the current profile zone. A plan edit changes past comparisons by design (section 0.1); the confirm screen says "Past days will be compared against the updated plan."
+Historical days use `DayRecord.timeZone`, not the current app zone. A plan edit changes past comparisons by design (section 0.1); the confirm screen says "Past days will be compared against the updated plan."
 
 Fixtures under `src/__tests__/fixtures/` cover both reference plans and every worked example in product spec section 8. Section 22 flags the three examples in the product spec that are internally inconsistent; fixtures encode the rule text, not the flawed example.
 
@@ -324,16 +324,16 @@ Server actions return `ActionResult<T>`, authorize first, parse with zod, check 
 
 ### Account, profile, onboarding
 
-| Action                                                                                 | Auth                             | Input              | Result                                 | Notes                                                                                |
-| -------------------------------------------------------------------------------------- | -------------------------------- | ------------------ | -------------------------------------- | ------------------------------------------------------------------------------------ |
-| `signUpAction`                                                                         | none                             | username, password | session cookie, redirect to onboarding | 10 per IP per hour (tunable); the form says a forgotten password cannot be recovered |
-| `loginAction`                                                                          | none                             | boilerplate        |                                        | boilerplate throttle                                                                 |
-| `changePasswordAction`                                                                 | user                             | current, new       | `ok()`                                 | revokes other sessions                                                               |
-| `requestAccountDeletionAction`                                                         | user                             | typed username     | `ok()`                                 | revokes all sessions, refuses login, cancels jobs, schedules purge in 7 days         |
-| `deleteUnderageAccountAction`                                                          | user with `onboardingStep = AGE` |                    | `ok()`                                 | immediate purge; no Profile row exists                                               |
-| `saveOnboardingStepAction`                                                             | user                             | step, values       | next step                              | age is validated and never stored when under 18                                      |
-| `updateProfileAction`, `updatePreferencesAction`                                       | user                             | partial            | profile                                | appearance also set in a cookie                                                      |
-| `acknowledgeAiNoticeAction`, `dismissTimeZoneHintAction`, `reportDeviceTimeZoneAction` | user                             |                    |                                        |                                                                                      |
+| Action                                           | Auth                             | Input              | Result                                 | Notes                                                                                |
+| ------------------------------------------------ | -------------------------------- | ------------------ | -------------------------------------- | ------------------------------------------------------------------------------------ |
+| `signUpAction`                                   | none                             | username, password | session cookie, redirect to onboarding | 10 per IP per hour (tunable); the form says a forgotten password cannot be recovered |
+| `loginAction`                                    | none                             | boilerplate        |                                        | boilerplate throttle                                                                 |
+| `changePasswordAction`                           | user                             | current, new       | `ok()`                                 | revokes other sessions                                                               |
+| `requestAccountDeletionAction`                   | user                             | typed username     | `ok()`                                 | revokes all sessions, refuses login, cancels jobs, schedules purge in 7 days         |
+| `deleteUnderageAccountAction`                    | user with `onboardingStep = AGE` |                    | `ok()`                                 | immediate purge; no Profile row exists                                               |
+| `saveOnboardingStepAction`                       | user                             | step, values       | next step                              | age is validated and never stored when under 18                                      |
+| `updateProfileAction`, `updatePreferencesAction` | user                             | partial            | profile                                | appearance also set in a cookie                                                      |
+| `acknowledgeAiNoticeAction`                      | user                             |                    |                                        |                                                                                      |
 
 ### Plan
 
@@ -411,7 +411,7 @@ Inherited: cookie sessions with SHA-256 hashed tokens, bcrypt 12 rounds, per-use
 
 Inherited: `en` profile, `t()` dictionary, `format` helpers, logical CSS utilities, `<Ltr>` and `bidi-plaintext`, `dir="auto"` inputs.
 
-- **Time zone is per user.** `Profile.timeZone` for today; `DayRecord.timeZone` for stored days. The profile constant is never read (section 4 rule 4).
+- **Time zone is one app constant** (decision 022, supersedes 009): `APP_TIME_ZONE` (`Asia/Dubai`, `lib/time/zone.ts`) for today; `DayRecord.timeZone` for stored days. The `lib/time` functions keep their `zone` parameter; the profile constant is never read (section 4 rule 4).
 - **Week start is per user** from `Profile.weekStart`, seeded from the plan's first listed weekday at confirm time, else Saturday.
 - **Original text is stored verbatim.** `originalText`, `originalName`, `sourceText`, `restrictionsOriginal` are never normalized. A parsing copy produced by `lib/text/normalize.ts` (Persian and Arabic digits to Western; Arabic yeh and kaf to Persian forms; whitespace collapse) is used for numeric fields, restriction matching, and the text sent to the AI. The boilerplate's `lib/persian.ts` is restored after setup and becomes `lib/text/normalize.ts`.
 - **Right-to-left runs.** The `Original + English name label` component wraps the original in `<bdi>` and the English label in an LTR span. It is the only place mixed-direction text is composed.
@@ -617,7 +617,7 @@ Target workload for the first release, used for capacity statements and the sect
 | #   | Decision                                                                                                     |
 | --- | ------------------------------------------------------------------------------------------------------------ |
 | 008 | Self-service sign-up with username and password only; no recovery; the Users module stays as an ops tool     |
-| 009 | Per-user time zone and week start; the locale profile's zone is never read                                   |
+| 009 | Per-user time zone and week start (superseded by 022)                                                        |
 | 010 | In-process scheduler under a heartbeat lease row; rate-limit stores move to a table at more than one replica |
 | 011 | Photos converted and downscaled on the device; the server accepts JPEG, PNG, WebP                            |
 | 012 | AI adapters return validated data and persist nothing; prompts are versioned constants                       |

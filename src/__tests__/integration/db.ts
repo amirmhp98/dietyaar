@@ -9,8 +9,8 @@ export async function resetDatabase(): Promise<void> {
 
 let counter = 0;
 
-/** A fresh onboarded user with a profile in `zone`. */
-export async function createTestUser(zone = 'Asia/Tehran') {
+/** A fresh onboarded user with a profile. */
+export async function createTestUser() {
   counter += 1;
   const username = `it_user_${Date.now()}_${counter}`;
   return prisma.user.create({
@@ -25,7 +25,6 @@ export async function createTestUser(zone = 'Asia/Tehran') {
           sex: 'MALE',
           heightCm: 175,
           weightKg: 70,
-          timeZone: zone,
           completedAt: new Date(),
         },
       },

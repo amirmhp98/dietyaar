@@ -41,7 +41,14 @@ import type { ActionResult } from '@/lib/action-result';
 import { formatDate, formatTime } from '@/lib/format';
 import type { MatchResult, RubricSlot } from '@/lib/rubric/types';
 import { t, tp } from '@/lib/t';
-import { addDays, instantFor, isLateNightWindow, localDateFor, localTimeFor } from '@/lib/time';
+import {
+  APP_TIME_ZONE,
+  addDays,
+  instantFor,
+  isLateNightWindow,
+  localDateFor,
+  localTimeFor,
+} from '@/lib/time';
 import type { DraftFoodItem, MealDraftState } from '@/lib/validations/meal';
 import type { AiNoticeKind } from '@/lib/validations/profile';
 
@@ -218,13 +225,7 @@ async function dropStagedUpload(uploadId: string): Promise<void> {
   }
 }
 
-export function MealComposerIsland({
-  timeZone,
-  photoEnabled,
-}: {
-  timeZone: string;
-  photoEnabled: boolean;
-}) {
+export function MealComposerIsland({ photoEnabled }: { photoEnabled: boolean }) {
   const user = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -293,7 +294,7 @@ export function MealComposerIsland({
   const refineFlightRef = useRef<Promise<void> | null>(null);
   const refineTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const today = localDateFor(new Date(), timeZone);
+  const today = localDateFor(new Date(), APP_TIME_ZONE);
 
   // ── Mirror every change to sessionStorage (per user) ───────────────────
   useEffect(() => {
@@ -329,26 +330,29 @@ export function MealComposerIsland({
     return null;
   }, [context]);
 
-  const loadDay = useCallback(async (localDate: string) => {
-    setDayInfo((prev) => (prev?.date === localDate ? prev : null));
-    const result = await getDayAction(localDate);
-    if (!result.ok) {
-      setDayInfo({ date: localDate, slots: [], recordedSlotIds: [], hasPlan: false });
-      return [] as RubricSlot[];
-    }
-    const views = result.data.view.slots;
-    const slots = views.map((s) => s.slot);
-    const plan = result.data.plan;
-    setDayInfo({
-      date: localDate,
-      slots,
-      recordedSlotIds: views
-        .filter((s) => s.state === 'RECORDED' || s.state === 'NEEDS_REVIEW')
-        .map((s) => s.slot.id),
-      hasPlan: plan !== null && plan.confirmedAt !== null,
-    });
-    return slots;
-  }, [setDayInfo]);
+  const loadDay = useCallback(
+    async (localDate: string) => {
+      setDayInfo((prev) => (prev?.date === localDate ? prev : null));
+      const result = await getDayAction(localDate);
+      if (!result.ok) {
+        setDayInfo({ date: localDate, slots: [], recordedSlotIds: [], hasPlan: false });
+        return [] as RubricSlot[];
+      }
+      const views = result.data.view.slots;
+      const slots = views.map((s) => s.slot);
+      const plan = result.data.plan;
+      setDayInfo({
+        date: localDate,
+        slots,
+        recordedSlotIds: views
+          .filter((s) => s.state === 'RECORDED' || s.state === 'NEEDS_REVIEW')
+          .map((s) => s.slot.id),
+        hasPlan: plan !== null && plan.confirmedAt !== null,
+      });
+      return slots;
+    },
+    [setDayInfo],
+  );
 
   const loadRecent = useCallback(async () => {
     const result = await getRecentMealsAction();
@@ -895,25 +899,22 @@ export function MealComposerIsland({
     setComp((prev) => ({ ...prev, step: 'compose' }));
   }, [flushAutosave, setComp]);
 
-  const startNew = useCallback(
-    (request: ComposerRequest): Composition => {
-      const now = new Date();
-      const todayLocal = localDateFor(now, timeZone);
-      const localDate = request.localDate ?? todayLocal;
-      const backdated = localDate !== todayLocal;
-      const comp = newComposition(localDate, backdated ? null : localTimeFor(now, timeZone));
-      if (request.planSlotId) {
-        comp.slotChoice = request.planSlotId;
-        comp.optionId = request.planOptionId ?? null;
-        comp.expandSlotId = request.planSlotId;
-      }
-      if (!request.localDate && !request.planSlotId && isLateNightWindow(now, timeZone)) {
-        comp.step = 'late-night';
-      }
-      return comp;
-    },
-    [timeZone],
-  );
+  const startNew = useCallback((request: ComposerRequest): Composition => {
+    const now = new Date();
+    const todayLocal = localDateFor(now, APP_TIME_ZONE);
+    const localDate = request.localDate ?? todayLocal;
+    const backdated = localDate !== todayLocal;
+    const comp = newComposition(localDate, backdated ? null : localTimeFor(now, APP_TIME_ZONE));
+    if (request.planSlotId) {
+      comp.slotChoice = request.planSlotId;
+      comp.optionId = request.planOptionId ?? null;
+      comp.expandSlotId = request.planSlotId;
+    }
+    if (!request.localDate && !request.planSlotId && isLateNightWindow(now, APP_TIME_ZONE)) {
+      comp.step = 'late-night';
+    }
+    return comp;
+  }, []);
 
   /** Discards the server draft, its staged photos and the mirror; a fresh compose step for the same date and slot. */
   const startOver = useCallback(async () => {
@@ -1128,17 +1129,23 @@ export function MealComposerIsland({
         ? t('meal.compose.summaryToday')
         : comp.localDate === addDays(today, -1)
           ? t('meal.compose.summaryYesterday')
-          : formatDate(instantFor(comp.localDate, '12:00', timeZone), { timeZone });
+          : formatDate(instantFor(comp.localDate, '12:00', APP_TIME_ZONE), {
+              timeZone: APP_TIME_ZONE,
+            });
     const timeLabel = comp.time
-      ? formatTime(instantFor(comp.localDate, comp.time, timeZone), { timeZone })
+      ? formatTime(instantFor(comp.localDate, comp.time, APP_TIME_ZONE), {
+          timeZone: APP_TIME_ZONE,
+        })
       : t('meal.compose.timeUnknownShort');
     return `${dayLabel} · ${timeLabel}`;
-  }, [comp, timeZone, today]);
+  }, [comp, today]);
 
   const backdatedLabel =
     comp && comp.localDate !== today
       ? t('meal.compose.loggingFor', {
-          date: formatDate(instantFor(comp.localDate, '12:00', timeZone), { timeZone }),
+          date: formatDate(instantFor(comp.localDate, '12:00', APP_TIME_ZONE), {
+            timeZone: APP_TIME_ZONE,
+          }),
         })
       : null;
 
@@ -1266,7 +1273,7 @@ export function MealComposerIsland({
                 return {
                   ...prev,
                   localDate,
-                  time: isToday ? (prev.time ?? localTimeFor(new Date(), timeZone)) : null,
+                  time: isToday ? (prev.time ?? localTimeFor(new Date(), APP_TIME_ZONE)) : null,
                   timeUnknown: !isToday,
                   slotChoice: null,
                   optionId: null,

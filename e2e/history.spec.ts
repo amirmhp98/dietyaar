@@ -49,7 +49,7 @@ test.describe('History', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     const username = await createOnboardedUser(page, { skipPlan: true, prefix: 'hst' });
     const plan = await seedMenuPlan(username);
-    const yesterday = await localDateOf(username, -1);
+    const yesterday = localDateOf(-1);
 
     // A brand-new account lists only its first day and says where history starts.
     await page.goto('/history');
@@ -123,14 +123,14 @@ test.describe('History', () => {
 
     // Three complete days with a different lunch → the pattern sentence carries denominators.
     for (const offset of [-2, -3, -4]) {
-      await completeDayWithDifferentLunch(username, plan, await localDateOf(username, offset));
+      await completeDayWithDifferentLunch(username, plan, localDateOf(offset));
     }
     await page.reload();
     await expect(page.getByTestId('history-summary')).toContainText('Lunch');
     await expect(page.getByTestId('history-summary')).toContainText(/on 3 of \d complete days/);
 
     // A future date is not a page (streamed with loading.tsx, so assert the not-found content).
-    await page.goto(`/history/${await localDateOf(username, 1)}`);
+    await page.goto(`/history/${localDateOf(1)}`);
     await expect(page.getByText(t('notFound.title'))).toBeVisible();
   });
 });

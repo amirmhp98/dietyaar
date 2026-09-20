@@ -7,6 +7,7 @@ import { formatLocalDate } from '@/lib/format';
 import type { SevenDaySummary } from '@/lib/rubric/seven-day';
 import { t, tp } from '@/lib/t';
 import { addDays, localDateFor } from '@/lib/time/local-date';
+import { APP_TIME_ZONE } from '@/lib/time/zone';
 import { getSevenDayView, type DayRow } from '@/services/day-view.service';
 import { requireProfile } from '@/services/profile.service';
 import { HistoryDatePicker } from './history-date-picker';
@@ -23,7 +24,7 @@ export default async function HistoryPage() {
   const user = await requireOnboarded();
   const profile = await requireProfile(user.id);
   const now = new Date();
-  const today = localDateFor(now, profile.timeZone);
+  const today = localDateFor(now, APP_TIME_ZONE);
   const week = await getSevenDayView(user.id, today, now);
 
   return (

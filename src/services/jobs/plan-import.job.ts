@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
 import { localDateFor } from '@/lib/time/local-date';
+import { APP_TIME_ZONE } from '@/lib/time/zone';
 import {
   draftRuleSchema,
   planDraftSchema,
@@ -16,7 +17,6 @@ import type { AiResult, BaselineItemInput, ProfileContext } from '@/services/ai/
 import { admitOperation, finishOperation } from '@/services/ai-usage.service';
 import { registerTask, type JobContext } from '@/services/jobs/registry';
 import { recomputeDerivedTargets } from '@/services/plan.service';
-import { DEFAULT_TIME_ZONE } from '@/services/profile.service';
 
 /**
  * `plan-import` task (tech spec § 12, implementation plan task 4.1). Jobs are
@@ -299,12 +299,11 @@ async function processJob(job: ClaimedJob, ctx: JobContext): Promise<void> {
       heightCm: profileRow?.heightCm === null || !profileRow ? null : Number(profileRow.heightCm),
       weightKg: profileRow?.weightKg === null || !profileRow ? null : Number(profileRow.weightKg),
     };
-    const zone = profileRow?.timeZone ?? DEFAULT_TIME_ZONE;
     // One import is one user operation: the first attempt takes the day's admission, retries reuse it.
     const admission = await admitOperation(
       job.userId,
       'PLAN_IMPORT',
-      localDateFor(ctx.now, zone),
+      localDateFor(ctx.now, APP_TIME_ZONE),
       ctx.now,
       { retryOfAdmitted: job.attempt > 1 },
     );

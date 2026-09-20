@@ -176,7 +176,7 @@ export function range(
 export function dayInput(slots: RubricSlot[], overrides: Partial<DayInput> = {}): DayInput {
   return {
     localDate: '2026-09-16',
-    zone: 'Asia/Tehran',
+    zone: 'Asia/Dubai',
     dayPhase: 'PAST',
     logComplete: true,
     hasRecord: true,

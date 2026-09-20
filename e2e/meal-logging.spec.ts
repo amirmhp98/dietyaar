@@ -165,7 +165,8 @@ test('J11: between 00:00 and 04:00 the composer asks "Was this for yesterday?"',
   page,
 }) => {
   await newUserWithPlan(page, 'j11');
-  // 00:30 in Asia/Tehran (UTC+3:30) on the real calendar day, so the date is never in the future.
+  // 21:00 UTC = 01:00 in Asia/Dubai (UTC+4, no DST, decision 022): inside the window, and
+  // "yesterday" is the real UTC calendar day, so the date is never in the future.
   // The fake clock is set before the navigation so the page starts with it.
   const today = new Date();
   const fixed = new Date(

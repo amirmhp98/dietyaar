@@ -47,7 +47,7 @@ function seed() {
     rules: [planRuleFactory.build({ planId: 'plan-1' })],
     notes: [],
   } as never);
-  const day = dayRecordFactory.build({ localDate: '2026-09-16', timeZone: 'Asia/Tehran' });
+  const day = dayRecordFactory.build({ localDate: '2026-09-16' });
   prismaMock.meal.findMany.mockResolvedValue([
     {
       ...mealFactory.build({ id: 'meal-1', userId: 'user-1', planSlotId: 'slot-1' }),
@@ -88,7 +88,6 @@ describe('buildExport', () => {
     const bundle = await buildExport('user-1', now);
 
     expect(bundle.exportedAt).toBe(now.toISOString());
-    expect(bundle.timeZone).toBe('Asia/Tehran');
 
     expect(bundle.profile).toMatchObject({
       username: 'Sara',
@@ -113,7 +112,7 @@ describe('buildExport', () => {
     expect(bundle.meals[0]).toMatchObject({
       id: 'meal-1',
       date: '2026-09-16',
-      timeZone: 'Asia/Tehran',
+      timeZone: 'Asia/Dubai',
       planSlotId: 'slot-1',
       photos: ['photos/up-1.jpg'],
     });
@@ -159,6 +158,5 @@ describe('buildExport', () => {
     prismaMock.profile.findUnique.mockResolvedValue(null);
     const bundle = await buildExport('user-1', now);
     expect(bundle.profile).toEqual({ username: 'Sara', accountCreatedAt: expect.any(Date) });
-    expect(bundle.timeZone).toBeNull();
   });
 });

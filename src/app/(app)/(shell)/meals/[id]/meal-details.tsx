@@ -172,14 +172,12 @@ export function MealDetails({
   slotView,
   slots,
   photos,
-  timeZone,
   today,
 }: {
   meal: MealView;
   slotView: SlotView | null;
   slots: RubricSlot[];
   photos: Array<{ id: string; url: string }>;
-  timeZone: string;
   today: string;
 }) {
   const router = useRouter();
@@ -207,9 +205,11 @@ export function MealDetails({
     : -1;
   const diffs = useMemo(() => differences(slotView), [slotView]);
   const name = mealName(meal);
-  const dateLabel = formatDate(instantFor(meal.localDate, '12:00', timeZone), { timeZone });
+  // The meal's day carries the zone it was computed in.
+  const zone = meal.timeZone;
+  const dateLabel = formatDate(instantFor(meal.localDate, '12:00', zone), { timeZone: zone });
   const timeLabel = meal.consumedLocalTime
-    ? formatTime(instantFor(meal.localDate, meal.consumedLocalTime, timeZone), { timeZone })
+    ? formatTime(instantFor(meal.localDate, meal.consumedLocalTime, zone), { timeZone: zone })
     : t('meal.details.timeUnknown');
   const extraNutrients = NUTRIENT_KEYS.filter(
     (k) => !(MAIN_NUTRIENTS as readonly string[]).includes(k),

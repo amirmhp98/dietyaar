@@ -12,7 +12,8 @@ const prisma = new PrismaClient();
 
 const USERNAME = 'testrich';
 const PASSWORD = 'Test1234!';
-const TZ = 'Asia/Tehran';
+// Day rows carry the zone they were computed in (decision 022).
+const TZ = 'Asia/Dubai';
 
 const nutrition = (
   values: Partial<
@@ -64,7 +65,6 @@ async function main() {
           heightCm: 178,
           weightKg: new Prisma.Decimal(82.4),
           weightMeasuredAt: isoDaysAgo(1),
-          timeZone: TZ,
           unitSystem: 'METRIC',
           weekStart: 6,
           appearance: 'SYSTEM',

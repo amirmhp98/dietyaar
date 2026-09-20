@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { prisma } from '@/lib/prisma';
+import { APP_TIME_ZONE } from '@/lib/time/zone';
 import { createTestUser, resetDatabase } from '@/__tests__/integration/db';
 
 vi.mock('@/services/ai/interpret-plan', () => ({
@@ -133,7 +134,7 @@ async function logMeal(
 ) {
   const day = await prisma.dayRecord.upsert({
     where: { userId_localDate: { userId, localDate: date } },
-    create: { userId, localDate: date, timeZone: 'Asia/Tehran' },
+    create: { userId, localDate: date, timeZone: APP_TIME_ZONE },
     update: {},
   });
   return prisma.meal.create({
@@ -240,7 +241,7 @@ describe('confirmPlan (edit)', () => {
     const { breakfast, lunch } = await confirmManualPlan(user.id);
     const meal = await logMeal(user.id, '2026-09-14', lunch.id, lunch.options[0]!.id);
     const day = await prisma.dayRecord.create({
-      data: { userId: user.id, localDate: '2026-09-13', timeZone: 'Asia/Tehran' },
+      data: { userId: user.id, localDate: '2026-09-13', timeZone: APP_TIME_ZONE },
     });
     await prisma.daySkippedSlot.create({ data: { dayRecordId: day.id, planSlotId: lunch.id } });
 

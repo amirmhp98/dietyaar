@@ -50,10 +50,6 @@ export const day = {
 
   // ── Today / History day page (design-scope screen 3, product spec § 9) ──
   'today.greeting': 'Hello, {name}',
-  'today.timeZone.changed': 'Your device is in {device}, but your days are counted in {profile}.',
-  'today.timeZone.update': 'Update',
-  'today.timeZone.dismiss': 'Dismiss',
-  'today.timeZone.updated': 'Time zone updated',
   'today.error.description': "We couldn't load this day. Please try again.",
   'today.error.retry': 'Try again',
 

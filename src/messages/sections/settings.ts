@@ -28,9 +28,6 @@ export const settings = {
   'settings.preferences.units': 'Units',
   'settings.preferences.units.METRIC': 'Metric (cm, kg)',
   'settings.preferences.units.IMPERIAL': 'Imperial (ft, lb)',
-  'settings.preferences.timeZone': 'Time zone',
-  'settings.preferences.timeZoneHint':
-    'Your day starts and ends at local midnight. Past days keep the zone they were recorded in.',
   'settings.preferences.weekStart': 'Week starts on',
   'settings.preferences.weekStartHint': 'Used for weekly plan rules.',
   'settings.preferences.appearance': 'Appearance',

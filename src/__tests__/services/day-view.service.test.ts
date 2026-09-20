@@ -10,6 +10,7 @@ import {
 import { buildMenuPlan } from '@/__tests__/fixtures/plans/menu-plan';
 import type { RubricPlanItem, RubricSlot } from '@/lib/rubric/types';
 import { weekBounds } from '@/lib/time/local-date';
+import { APP_TIME_ZONE } from '@/lib/time/zone';
 
 // plan.service → reflection.service → day-view.service → plan.service is a cycle, so the
 // mock cannot load the original module; `slotsForWeekday` is restated here.
@@ -38,10 +39,11 @@ import {
 resetPrismaMock();
 
 const OWNER = 'user-1';
-const ZONE = 'Asia/Tehran';
+/** Stored days are written in the app zone (decision 022). */
+const ZONE = APP_TIME_ZONE;
 /** 2026-09-16 is a Wednesday; the profile's week starts on Saturday (6). */
 const DATE = '2026-09-16';
-/** 2026-09-17 12:00 Tehran. */
+/** 2026-09-17 12:30 in Asia/Dubai. */
 const NOW = new Date('2026-09-17T08:30:00Z');
 
 function activePlan(overrides: Partial<ActivePlan> = {}) {
@@ -106,9 +108,7 @@ function dayRow(localDate: string, meals: ReturnType<typeof mealRow>[], override
 /** The profile (and so the account) dates from 2026-09-10 unless a test says otherwise. */
 function useProfile(overrides: Partial<Parameters<typeof profileFactory.build>[0]> = {}) {
   vi.mocked(getProfile).mockResolvedValue(
-    toProfileView(
-      profileFactory.build({ userId: OWNER, timeZone: ZONE, weekStart: 6, ...overrides }),
-    ),
+    toProfileView(profileFactory.build({ userId: OWNER, weekStart: 6, ...overrides })),
   );
 }
 
@@ -187,9 +187,9 @@ describe('getDayView', () => {
     ]);
     prismaMock.dayRecord.findUnique.mockResolvedValue(row as never);
 
-    // 2026-09-16 23:59 Tehran (UTC+3:30) = 20:29Z; 2026-09-17 00:01 Tehran = 20:31Z.
-    const before = await getDayView(OWNER, DATE, new Date('2026-09-16T20:29:00Z'));
-    const after = await getDayView(OWNER, DATE, new Date('2026-09-16T20:31:00Z'));
+    // 2026-09-16 23:59 in Asia/Dubai (UTC+4) = 19:59Z; 2026-09-17 00:01 = 20:01Z.
+    const before = await getDayView(OWNER, DATE, new Date('2026-09-16T19:59:00Z'));
+    const after = await getDayView(OWNER, DATE, new Date('2026-09-16T20:01:00Z'));
     const energy = (v: typeof before) => v.view.nutrition.find((n) => n.nutrient === 'ENERGY_KCAL');
     expect(before.view.dayPhase).toBe('ONGOING');
     expect(before.view.score.nutritionComponent).toBeNull();
@@ -241,7 +241,6 @@ describe('getDayView', () => {
 
     const result = await getDayView(OWNER, DATE, NOW);
     expect(result.zone).toBe('Europe/Berlin');
-    expect(result.profileZone).toBe(ZONE);
     expect(result.view.planStructure).toBeNull();
     expect(result.view.slots).toEqual([]);
     expect(result.plan).toBeNull();
@@ -391,7 +390,7 @@ describe('getSevenDayView', () => {
   });
 
   it('does not flag a first plan: confirmed on the day its row was created', async () => {
-    // Import started 09:00 Tehran, confirmed 09:20 the same local day.
+    // Import started 09:30 Dubai, confirmed 09:50 the same local day.
     vi.mocked(getActivePlan).mockResolvedValue(
       activePlan({
         createdAt: new Date('2026-09-13T05:30:00Z'),

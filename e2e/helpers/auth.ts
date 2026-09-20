@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import { t } from '../../src/lib/t';
 
-/** Seeded accounts (prisma/seed.ts). `demo` is onboarded with a Tehran profile. */
+/** Seeded accounts (prisma/seed.ts). `demo` is onboarded. */
 export const ADMIN = {
   username: process.env.TEST_ADMIN_USERNAME ?? 'admin',
   password: process.env.TEST_ADMIN_PASSWORD ?? 'admin123',

@@ -40,7 +40,7 @@ test.describe('Reflection', () => {
     // The paragraph used the "today's plan" fact (no plan). A plan appears, and a completeness
     // toggle on yesterday runs the staleness check: the fact changed, so the badge shows.
     await seedMenuPlan(username);
-    const yesterday = await localDateOf(username, -1);
+    const yesterday = localDateOf(-1);
     await page.goto(`/history/${yesterday}`);
     await page.getByTestId('completeness').click();
     await expect(page.getByTestId('completeness')).not.toBeChecked();

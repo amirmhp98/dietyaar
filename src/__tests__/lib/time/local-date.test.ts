@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  APP_TIME_ZONE,
   addDays,
   dateRange,
   dayBounds,
@@ -9,7 +10,6 @@ import {
   isLateNightWindow,
   isValidLocalDate,
   isValidLocalTime,
-  isValidTimeZone,
   localDateFor,
   localTimeFor,
   weekBounds,
@@ -27,6 +27,15 @@ describe('localDateFor / localTimeFor', () => {
   it('handles the midnight edge (TS-§21.5)', () => {
     expect(localDateFor(new Date('2026-09-16T20:29:59Z'), 'Asia/Tehran')).toBe('2026-09-16');
     expect(localDateFor(new Date('2026-09-16T20:30:00Z'), 'Asia/Tehran')).toBe('2026-09-17');
+  });
+
+  it('counts the app zone as UTC+4 with no DST (decision 022)', () => {
+    expect(APP_TIME_ZONE).toBe('Asia/Dubai');
+    expect(localDateFor(new Date('2026-09-16T19:59:59Z'), APP_TIME_ZONE)).toBe('2026-09-16');
+    expect(localDateFor(new Date('2026-09-16T20:00:00Z'), APP_TIME_ZONE)).toBe('2026-09-17');
+    expect(localTimeFor(new Date('2026-01-16T20:00:00Z'), APP_TIME_ZONE)).toBe('00:00');
+    expect(isLateNightWindow(new Date('2026-09-16T21:00:00Z'), APP_TIME_ZONE)).toBe(true);
+    expect(isLateNightWindow(new Date('2026-09-17T00:00:00Z'), APP_TIME_ZONE)).toBe(false);
   });
 
   it('follows DST in Europe/Berlin', () => {
@@ -97,9 +106,6 @@ describe('calendar arithmetic', () => {
     expect(isValidLocalDate('2026-9-1')).toBe(false);
     expect(isValidLocalTime('23:59')).toBe(true);
     expect(isValidLocalTime('24:00')).toBe(false);
-    expect(isValidTimeZone('Asia/Tehran')).toBe(true);
-    expect(isValidTimeZone('UTC')).toBe(true);
-    expect(isValidTimeZone('Mars/Olympus')).toBe(false);
   });
 });
 

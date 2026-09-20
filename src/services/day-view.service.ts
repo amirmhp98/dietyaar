@@ -24,14 +24,10 @@ import type {
   RuleObservation,
 } from '@/lib/rubric/types';
 import { addDays, dateRange, localDateFor, weekBounds, weekdayOf } from '@/lib/time/local-date';
+import { APP_TIME_ZONE } from '@/lib/time/zone';
 import { nutritionSchema, type Nutrition } from '@/lib/validations/nutrition';
 import { getActivePlan, slotsForWeekday, type ActivePlan } from '@/services/plan.service';
-import {
-  DEFAULT_TIME_ZONE,
-  DEFAULT_WEEK_START,
-  getProfile,
-  type ProfileView,
-} from '@/services/profile.service';
+import { DEFAULT_WEEK_START, getProfile, type ProfileView } from '@/services/profile.service';
 
 /**
  * Day read model (tech spec § 6, decision 013): the comparison is computed on
@@ -64,7 +60,6 @@ export interface DayViewResult {
   meals: MealSummary[];
   /** The zone the day was computed in (the stored one for historical days). */
   zone: string;
-  profileZone: string;
   weekStart: number;
   plan: ActivePlan | null;
   /** True when the plan's `confirmedAt` falls inside the anchored week of a weekly rule. */
@@ -95,7 +90,6 @@ export interface SevenDayResult {
   planChangedInWindow: boolean;
   /** Weekly rules over the anchored week containing `endDate`. */
   weeklyRules: RuleProgress[];
-  profileZone: string;
 }
 
 export interface RuleProgress {
@@ -251,30 +245,17 @@ function hasWeeklyRule(plan: ActivePlan | null): boolean {
  * started; edits and replacements come later). A first plan reviewed
  * overnight is the one case still labelled a change.
  */
-function planChangedBetween(
-  plan: ActivePlan | null,
-  start: string,
-  end: string,
-  zone: string,
-): boolean {
+function planChangedBetween(plan: ActivePlan | null, start: string, end: string): boolean {
   if (!plan?.confirmedAt) return false;
-  const confirmed = localDateFor(plan.confirmedAt, zone);
+  const confirmed = localDateFor(plan.confirmedAt, APP_TIME_ZONE);
   if (confirmed < start || confirmed > end) return false;
-  return localDateFor(plan.createdAt, zone) !== confirmed;
+  return localDateFor(plan.createdAt, APP_TIME_ZONE) !== confirmed;
 }
 
 // ─── Building one day ───────────────────────────────────────────────────────
 
-interface Settings {
-  zone: string;
-  weekStart: number;
-}
-
-function settingsOf(profile: ProfileView | null): Settings {
-  return {
-    zone: profile?.timeZone ?? DEFAULT_TIME_ZONE,
-    weekStart: profile?.weekStart ?? DEFAULT_WEEK_START,
-  };
+function weekStartOf(profile: ProfileView | null): number {
+  return profile?.weekStart ?? DEFAULT_WEEK_START;
 }
 
 interface BuiltDay {
@@ -285,17 +266,16 @@ interface BuiltDay {
 
 /**
  * `DayInput` for one date: stored days keep their own zone; a date without a
- * row is computed as empty in the profile zone. `dayPhase` comes from `now`
+ * row is computed as empty in the app zone. `dayPhase` comes from `now`
  * (tech spec § 21.5), so midnight changes the result without any write.
  */
 function buildDay(
   localDate: string,
   row: DayRecordRow | null,
   plan: ActivePlan | null,
-  settings: Settings,
   now: Date,
 ): BuiltDay {
-  const zone = row?.timeZone ?? settings.zone;
+  const zone = row?.timeZone ?? APP_TIME_ZONE;
   const weekday = weekdayOf(localDate);
   const active = isPlanActive(plan) ? plan : null;
   const slots = active ? slotsForWeekday(active, weekday) : [];
@@ -356,28 +336,25 @@ function buildRange(
   end: string,
   rows: Map<string, DayRecordRow>,
   plan: ActivePlan | null,
-  settings: Settings,
   now: Date,
 ): BuiltDay[] {
-  return dateRange(start, end).map((date) =>
-    buildDay(date, rows.get(date) ?? null, plan, settings, now),
-  );
+  return dateRange(start, end).map((date) => buildDay(date, rows.get(date) ?? null, plan, now));
 }
 
 /**
  * Weekly rules over the anchored week containing `localDate` (review finding
  * 13): the rubric scores one day at a time, so the service assembles the week.
- * `periodEnded` when the week's last day is before today in the profile zone.
+ * `periodEnded` when the week's last day is before today in the app zone.
  */
 function weeklyObservations(
   plan: ActivePlan,
   localDate: string,
   week: BuiltDay[],
-  settings: Settings,
+  weekStart: number,
   now: Date,
 ): { observations: Map<string, RuleObservation>; planChanged: boolean } {
-  const { start, end } = weekBounds(localDate, settings.weekStart);
-  const today = localDateFor(now, settings.zone);
+  const { start, end } = weekBounds(localDate, weekStart);
+  const today = localDateFor(now, APP_TIME_ZONE);
   const periodEnded = end < today;
   const days = week.map(ruleDayOf);
   const observations = new Map<string, RuleObservation>();
@@ -385,7 +362,7 @@ function weeklyObservations(
     if (rule.period !== 'WEEK') continue;
     observations.set(rule.id, ruleObservation(rule, days, periodEnded));
   }
-  return { observations, planChanged: planChangedBetween(plan, start, end, settings.zone) };
+  return { observations, planChanged: planChangedBetween(plan, start, end) };
 }
 
 function mergeWeekly(view: DayView, weekly: Map<string, RuleObservation>): DayView {
@@ -410,18 +387,18 @@ export async function getDayView(
     getActivePlan(ownerId),
     getProfile(ownerId),
   ]);
-  const settings = settingsOf(profile);
-  const day = buildDay(localDate, row, plan, settings, now);
+  const weekStart = weekStartOf(profile);
+  const day = buildDay(localDate, row, plan, now);
   let view = day.view;
   let planChangedInPeriod = false;
 
   if (isPlanActive(plan) && hasWeeklyRule(plan)) {
-    const { start, end } = weekBounds(localDate, settings.weekStart);
+    const { start, end } = weekBounds(localDate, weekStart);
     const rows = await loadDays(ownerId, start, end);
-    const week = buildRange(start, end, rows, plan, settings, now).map((d) =>
+    const week = buildRange(start, end, rows, plan, now).map((d) =>
       d.view.localDate === localDate ? day : d,
     );
-    const weekly = weeklyObservations(plan, localDate, week, settings, now);
+    const weekly = weeklyObservations(plan, localDate, week, weekStart, now);
     view = mergeWeekly(view, weekly.observations);
     planChangedInPeriod = weekly.planChanged;
   }
@@ -430,8 +407,7 @@ export async function getDayView(
     view,
     meals: (row?.meals ?? []).map((m) => toMealSummary(m, isPlanActive(plan) ? plan : null)),
     zone: day.zone,
-    profileZone: settings.zone,
-    weekStart: settings.weekStart,
+    weekStart,
     plan,
     planChangedInPeriod,
   };
@@ -473,21 +449,21 @@ export async function getSevenDayView(
 ): Promise<SevenDayResult> {
   const startDate = addDays(endDate, -6);
   const [plan, profile] = await Promise.all([getActivePlan(ownerId), getProfile(ownerId)]);
-  const settings = settingsOf(profile);
+  const weekStart = weekStartOf(profile);
   const active = isPlanActive(plan) ? plan : null;
   // The anchored week containing endDate starts at most six days earlier, so one range covers both.
-  const week = active && hasWeeklyRule(active) ? weekBounds(endDate, settings.weekStart) : null;
+  const week = active && hasWeeklyRule(active) ? weekBounds(endDate, weekStart) : null;
   const rangeStart = week && week.start < startDate ? week.start : startDate;
   const rangeEnd = week && week.end > endDate ? week.end : endDate;
   const rows = await loadDays(ownerId, rangeStart, rangeEnd);
-  const built = buildRange(rangeStart, rangeEnd, rows, plan, settings, now);
+  const built = buildRange(rangeStart, rangeEnd, rows, plan, now);
 
   const weeklyRules: RuleProgress[] = [];
   if (active && week) {
     const weekDays = built.filter(
       (d) => d.view.localDate >= week.start && d.view.localDate <= week.end,
     );
-    const weekly = weeklyObservations(active, endDate, weekDays, settings, now);
+    const weekly = weeklyObservations(active, endDate, weekDays, weekStart, now);
     for (const rule of trackedRules(active)) {
       const observation = weekly.observations.get(rule.id);
       if (!observation) continue;
@@ -503,7 +479,7 @@ export async function getSevenDayView(
 
   const historyStart = historyStartFor(
     startDate,
-    profile ? localDateFor(profile.createdAt, settings.zone) : null,
+    profile ? localDateFor(profile.createdAt, APP_TIME_ZONE) : null,
     [...rows.keys()],
   );
   const rows7 = built
@@ -515,9 +491,8 @@ export async function getSevenDayView(
     rows: rows7,
     historyStart,
     summary: sevenDaySummary(rows7.map((r) => r.view)),
-    planChangedInWindow: planChangedBetween(active, startDate, endDate, settings.zone),
+    planChangedInWindow: planChangedBetween(active, startDate, endDate),
     weeklyRules,
-    profileZone: settings.zone,
   };
 }
 
@@ -530,14 +505,14 @@ export async function getRuleProgress(ownerId: string, now: Date): Promise<RuleP
   const active = isPlanActive(plan) ? plan : null;
   const rules = trackedRules(active);
   if (!active || rules.length === 0) return [];
-  const settings = settingsOf(profile);
-  const today = localDateFor(now, settings.zone);
-  const week = weekBounds(today, settings.weekStart);
+  const weekStart = weekStartOf(profile);
+  const today = localDateFor(now, APP_TIME_ZONE);
+  const week = weekBounds(today, weekStart);
   const rows = await loadDays(ownerId, week.start, week.end);
-  const built = buildRange(week.start, week.end, rows, active, settings, now);
+  const built = buildRange(week.start, week.end, rows, active, now);
   const todayDay = built.find((d) => d.view.localDate === today);
-  const weekly = weeklyObservations(active, today, built, settings, now);
-  const dailyChanged = planChangedBetween(active, today, today, settings.zone);
+  const weekly = weeklyObservations(active, today, built, weekStart, now);
+  const dailyChanged = planChangedBetween(active, today, today);
 
   const out: RuleProgress[] = [];
   for (const rule of rules) {
