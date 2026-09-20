@@ -76,13 +76,11 @@ test.describe('Slot windows on Today', () => {
     // The floating Log meal button is the only filled primary on the screen.
     await expect(page.getByTestId('log-meal')).toBeInViewport();
 
-    // Logging early opens the composer on that slot.
+    // Logging early opens the composer on that slot: its options lead (D2a).
     await lunchRow.getByTestId('log-slot-early').click();
     await expect(page.getByTestId('meal-composer')).toBeVisible();
-    await expect(page.getByTestId(`slot-chip-${lunch.id}`)).toHaveAttribute(
-      'aria-expanded',
-      'true',
-    );
+    await expect(page.getByTestId('slot-options')).toBeVisible();
+    await expect(page.getByTestId(`option-${lunch.id}-1`)).toBeVisible();
 
     // My plan: stated windows plain, assumed ones with "≈".
     await page.goto('/plan');

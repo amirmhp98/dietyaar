@@ -57,6 +57,10 @@ test('J2: planned meal with options — nothing preselected, option required, sa
   await page.getByTestId(`option-${lunch.id}-1`).click();
   await expect(page.getByRole('heading', { name: t('meal.review.title') })).toBeVisible();
   await expect(page.getByTestId('meal-items').getByRole('listitem')).toHaveCount(3);
+  // The three rows, the totals and Save fit one phone screen (D2b density target).
+  await expect(page.getByTestId('meal-item-3')).toBeInViewport();
+  await expect(page.getByTestId('meal-totals')).toBeInViewport();
+  await expect(page.getByTestId('save-meal')).toBeInViewport();
   await saveAndWait(page);
 
   const lunchRow = page.getByTestId('plan-slot-row').nth(2);
@@ -70,6 +74,43 @@ test('J2: planned meal with options — nothing preselected, option required, sa
   await expect(page.getByTestId('slot-options').getByRole('radio', { checked: true })).toHaveCount(
     0,
   );
+});
+
+test('D2a: opened from a slot row, the option list comes first and the text box follows as "Something else?"', async ({
+  page,
+}) => {
+  const plan = await newUserWithPlan(page, 'd2a');
+  const lunch = plan.slots[2];
+  const lunchRow = page.getByTestId('plan-slot-row').filter({ hasText: lunch.originalName });
+  // The row's log action, whatever its window state calls it ("Log ناهار", "… early", "Log this meal").
+  await lunchRow
+    .getByRole('button', { name: /^Log\b/ })
+    .first()
+    .click();
+  const composer = page.getByTestId('meal-composer');
+  await expect(composer).toBeVisible();
+  const lateNight = page.getByTestId('late-night');
+  if (await lateNight.isVisible().catch(() => false)) {
+    await lateNight.getByRole('button', { name: t('meal.compose.lateNight.today') }).click();
+  }
+
+  const options = page.getByTestId('slot-options');
+  await expect(options).toBeVisible();
+  await expect(options.getByRole('radio')).toHaveCount(4);
+  await expect(options.getByRole('radio', { checked: true })).toHaveCount(0);
+  // Options above the text box; no slot chips in this layout.
+  const optionsBox = await options.boundingBox();
+  const textBox = await page.getByTestId('composer-text').boundingBox();
+  expect(optionsBox && textBox && optionsBox.y < textBox.y).toBe(true);
+  await expect(composer.getByText(t('meal.compose.somethingElse'))).toBeVisible();
+  await expect(page.locator('[data-testid^="slot-chip-"]')).toHaveCount(0);
+  // The analyse action is outline: no filled primary until Save meal on the review.
+  await expect(page.getByTestId('analyze')).toHaveText(t('meal.compose.analyze'));
+  await expect(page.getByTestId('analyze')).toBeDisabled();
+
+  await page.getByTestId(`option-${lunch.id}-2`).click();
+  await expect(page.getByRole('heading', { name: t('meal.review.title') })).toBeVisible();
+  await expect(page.getByTestId('slot-summary')).toContainText(t('plan.option.n', { n: 2 }));
 });
 
 test('J3: text meal — AI notice once, analysis, restriction reminder, Added chip, saved and listed', async ({
@@ -198,6 +239,11 @@ test('J7: meal details — edit a quantity, then delete with a confirmation nami
   await expect(page.getByTestId('meal-match')).toContainText(t('slot.match.matched'));
 
   await page.getByTestId('edit-meal').click();
+  // Rows are compact (D2b): the editor opens on the chevron.
+  await page
+    .getByTestId('meal-item-1')
+    .getByRole('button', { name: /^Edit / })
+    .click();
   const quantity = page.getByTestId('item-quantity').first();
   await quantity.fill('150');
   await page.getByTestId('save-meal').click();

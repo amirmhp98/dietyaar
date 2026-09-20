@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, type ReactNode } from 'react';
-import { CloudOff, Plus } from 'lucide-react';
+import { CalendarDays, Check, CirclePlus, CloudOff, Flame, Pencil, Plus } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -13,23 +13,26 @@ import {
 } from '@/components/UiComponents';
 import { DifferenceChip } from '@/components/product/DifferenceChip';
 import { Disclosure } from '@/components/product/Disclosure';
+import { IconAction } from '@/components/product/IconAction';
 import { InlineName, InlineNames, fillNames } from '@/components/product/InlineName';
 import { NameLabel } from '@/components/product/NameLabel';
+import { SectionHeader } from '@/components/product/SectionHeader';
+import { StatusGlyph, type StatusGlyphName } from '@/components/product/StatusGlyph';
+import { Surface } from '@/components/product/Surface';
 import { ItemRow } from '@/components/product/meal/ItemRow';
 import type { StagedPhoto } from '@/components/product/meal/PhotoPicker';
 import { PhotoThumbnails } from '@/components/product/meal/PhotoThumbnails';
 import { QuestionCard } from '@/components/product/meal/QuestionCard';
 import { ResumedBanner } from '@/components/product/meal/ResumedBanner';
-import { OTHER_SLOT, SlotSelect } from '@/components/product/meal/SlotPicker';
-import { newDraftItem, timeMissing } from '@/components/product/meal/composition';
+import { OTHER_SLOT, OptionList, SlotSelect } from '@/components/product/meal/SlotPicker';
+import { newDraftItem } from '@/components/product/meal/composition';
 import { quantityFromChoice } from '@/components/product/meal/questions';
+import { reviewGate } from '@/components/product/meal/review-state';
 import { NUTRIENT_UNITS, sumTotals } from '@/components/product/meal/totals';
 import { formatNumber } from '@/lib/format';
-import { optionRequiredFor } from '@/lib/rubric/match-slot';
-import { optionNumber } from '@/lib/rubric/options';
-import type { MatchResult, RubricSlot } from '@/lib/rubric/types';
+import type { MatchResult, MatchStatus, RubricSlot } from '@/lib/rubric/types';
 import { t } from '@/lib/t';
-import { type DraftFoodItem, type MealDraftState, toRubricItem } from '@/lib/validations/meal';
+import type { DraftFoodItem, MealDraftState } from '@/lib/validations/meal';
 import { MAIN_NUTRIENTS } from '@/lib/validations/nutrition';
 import { cn } from '@/lib/utils';
 
@@ -74,7 +77,19 @@ export interface MealReviewProps {
   /** The sheet opened on a draft from before (B8). */
   resumed?: boolean;
   onStartOver?: () => void;
+  /**
+   * `inline` (default) renders the footer — slot link, date summary, Save —
+   * under the body; `external` leaves it to the caller, who renders
+   * `MealReviewFooter` with the same props in a pinned slot (D2c).
+   */
+  footer?: 'inline' | 'external';
 }
+
+const MATCH_GLYPH: Record<MatchStatus, StatusGlyphName> = {
+  MATCHED: 'RECORDED',
+  PARTLY_MATCHED: 'PARTLY',
+  DIFFERENT_FOOD: 'DIFFERENT',
+};
 
 function matchLabel(match: MatchResult): { text: string; reason: ReactNode | null } {
   const text = t(`meal.review.match.${match.status}`);
@@ -94,56 +109,46 @@ function matchLabel(match: MatchResult): { text: string; reason: ReactNode | nul
 
 /**
  * "Check your meal" (design-scope screen 4 row 2, product spec § 7 "AI
- * review"): editable items, grouped questions, reminders, totals computed
- * from the items, sources, and the slot summary. All state lives in the
- * island; this component only renders and reports edits.
+ * review", D2b): the photos, one compact row per item that expands into its
+ * editor, the grouped questions, the totals strip with what changed and the
+ * sources, and date/time/notes under "More details". All state lives in the
+ * island; this component only renders and reports edits. The footer —
+ * slot link, date summary, Save — is `MealReviewFooter`.
  */
 export function MealReview(props: MealReviewProps) {
   const {
-    mode,
     state,
     onChange,
     onAnswered,
     match,
     slots,
-    lastUsed,
-    otherChosen,
-    extraBecauseRecordedSlotId = null,
     photos = [],
     sync,
     online,
     conflict,
     saving,
-    error,
     refineError = null,
     canReestimate,
     onReestimate,
-    onSave,
     onReload,
-    onCancel,
-    dateSummary,
     today,
     resumed = false,
     onStartOver,
+    footer = 'inline',
   } = props;
-  const [changingSlot, setChangingSlot] = useState(false);
   const [localTimeUnknown, setLocalTimeUnknown] = useState(state.time === null);
   const timeUnknown = props.timeUnknown ?? localTimeUnknown;
   const totals = useMemo(() => sumTotals(state.items), [state.items]);
-  const slot = slots.find((s) => s.id === state.planSlotId) ?? null;
-  const option = slot?.options.find((o) => o.id === state.planOptionId) ?? null;
-  const optionN = slot ? optionNumber(slot, option?.id) : null;
-  const optionRequired =
-    slot !== null &&
-    option === null &&
-    optionRequiredFor(state.items.map(toRubricItem), slot, state.kind === 'PLANNED');
-  const extraSlot = slots.find((s) => s.id === extraBecauseRecordedSlotId) ?? null;
+  const gate = reviewGate({ state, slots, today, timeUnknown });
   const hitByKey = new Map(state.restrictionHits.map((h) => [h.itemKey, h.restriction]));
+  const askedKeys = new Set(
+    state.questions.filter((q) => q.itemKey && !q.answer).map((q) => q.itemKey),
+  );
   const added = match?.added ?? [];
-  const backdated = state.localDate !== today;
-  const timeRequired = timeMissing(state.time, timeUnknown);
-  const saveDisabled = saving || optionRequired || conflict || timeRequired;
-  const slotSummary = match ? matchLabel(match) : null;
+  const [moreOpen, setMoreOpen] = useState(false);
+  // What is needed to save accurately stays visible (product spec § 7): a
+  // backdated day or a missing time keeps the details open.
+  const detailsOpen = moreOpen || gate.backdated || gate.timeRequired;
 
   function updateItem(index: number, next: DraftFoodItem) {
     onChange({ items: state.items.map((it, i) => (i === index ? next : it)) });
@@ -207,7 +212,7 @@ export function MealReview(props: MealReviewProps) {
           data-testid="conflict-banner"
         >
           <span>{t('meal.errors.conflict')}</span>
-          <Button type="button" variant="outline" size="sm" className="h-9" onClick={onReload}>
+          <Button type="button" variant="outline" size="sm" onClick={onReload}>
             {t('meal.review.reload')}
           </Button>
         </div>
@@ -220,7 +225,7 @@ export function MealReview(props: MealReviewProps) {
           data-testid="refine-failed"
         >
           <span>{refineError}</span>
-          <Button type="button" variant="outline" size="sm" className="h-9" onClick={onReestimate}>
+          <Button type="button" variant="outline" size="sm" onClick={onReestimate}>
             {t('meal.compose.retry')}
           </Button>
         </div>
@@ -235,36 +240,39 @@ export function MealReview(props: MealReviewProps) {
         </p>
       ) : null}
 
-      {state.items.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
-          {t('meal.review.noItems')}
-        </p>
-      ) : (
-        <ul className="space-y-3" data-testid="meal-items">
-          {state.items.map((item, index) => (
-            <ItemRow
-              key={item.key}
-              item={item}
-              index={index}
-              restrictionHit={hitByKey.get(item.key) ?? null}
-              canReestimate={canReestimate}
-              onChange={(next) => updateItem(index, next)}
-              onRemove={() => removeItem(index)}
-              onReestimate={onReestimate}
-            />
-          ))}
-        </ul>
-      )}
-      <Button
-        type="button"
-        variant="outline"
-        className="h-11 w-full"
-        onClick={addItem}
-        data-testid="add-item"
-      >
-        <Plus className="size-4" aria-hidden="true" />
-        {t('meal.review.addItem')}
-      </Button>
+      <div className="space-y-2">
+        {state.items.length === 0 ? (
+          <Surface variant="note" rule>
+            <p className="text-sm text-muted-foreground">{t('meal.review.noItems')}</p>
+          </Surface>
+        ) : (
+          <Surface variant="list" as="ul" data-testid="meal-items">
+            {state.items.map((item, index) => (
+              <ItemRow
+                key={item.key}
+                item={item}
+                index={index}
+                restrictionHit={hitByKey.get(item.key) ?? null}
+                asked={askedKeys.has(item.key)}
+                canReestimate={canReestimate}
+                onChange={(next) => updateItem(index, next)}
+                onRemove={() => removeItem(index)}
+                onReestimate={onReestimate}
+              />
+            ))}
+          </Surface>
+        )}
+        <Button
+          type="button"
+          variant="ghost"
+          className="-ms-2 text-muted-foreground"
+          onClick={addItem}
+          data-testid="add-item"
+        >
+          <Plus aria-hidden="true" />
+          {t('meal.review.addItem')}
+        </Button>
+      </div>
 
       <QuestionCard questions={state.questions} items={state.items} onAnswer={answer} />
 
@@ -278,18 +286,24 @@ export function MealReview(props: MealReviewProps) {
         </div>
       ) : null}
 
-      <section
-        className="rounded-xl border border-border bg-card p-4"
+      <Surface
+        variant="note"
+        as="section"
+        padding="sm"
         aria-labelledby="meal-totals-title"
+        className="space-y-2"
       >
-        <h3 id="meal-totals-title" className="text-sm font-semibold">
-          {t('meal.review.totals')}
-        </h3>
-        <dl className="mt-2 grid grid-cols-4 gap-2" data-testid="meal-totals">
+        <SectionHeader
+          icon={Flame}
+          title={t('meal.review.totals')}
+          level={3}
+          id="meal-totals-title"
+        />
+        <dl className="grid grid-cols-4 gap-2" data-testid="meal-totals">
           {MAIN_NUTRIENTS.map((key) => (
             <div key={key} className="min-w-0">
               <dt className="text-xs text-muted-foreground">{t(`meal.nutrient.${key}`)}</dt>
-              <dd className="text-base font-semibold tabular-nums" dir="ltr">
+              <dd className="font-display text-base font-semibold tabular-nums" dir="ltr">
                 {totals.values[key] === null
                   ? t('meal.nutrient.unknown')
                   : `${formatNumber(totals.values[key], { maximumFractionDigits: 0 })} ${t(`meal.nutrient.unit.${NUTRIENT_UNITS[key]}`)}`}
@@ -298,17 +312,13 @@ export function MealReview(props: MealReviewProps) {
           ))}
         </dl>
         {totals.incomplete ? (
-          <p
-            className="mt-2 text-sm text-muted-foreground"
-            role="status"
-            data-testid="unknown-values"
-          >
+          <p className="text-sm text-muted-foreground" role="status" data-testid="unknown-values">
             <span className="font-medium text-foreground">{t('meal.review.unknownValues')}.</span>{' '}
             {t('meal.review.unknownValuesHint')}
           </p>
         ) : null}
         {state.lastChanges.length > 0 ? (
-          <div className="mt-2 text-sm text-muted-foreground" data-testid="what-changed">
+          <div className="text-sm text-muted-foreground" data-testid="what-changed">
             <p className="text-xs font-medium text-foreground">{t('meal.review.whatChanged')}</p>
             <ul className="mt-1 list-disc space-y-0.5 ps-4">
               {state.lastChanges.map((change, index) => (
@@ -317,7 +327,7 @@ export function MealReview(props: MealReviewProps) {
             </ul>
           </div>
         ) : null}
-        <Disclosure label={t('meal.review.sources')} className="mt-2" testId="sources-toggle">
+        <Disclosure label={t('meal.review.sources')} testId="sources-toggle">
           <ul className="space-y-1 text-sm">
             {state.items.map((item) => (
               <li key={item.key} className="flex flex-wrap items-baseline gap-x-2">
@@ -331,206 +341,272 @@ export function MealReview(props: MealReviewProps) {
             ))}
           </ul>
         </Disclosure>
-      </section>
+      </Surface>
 
-      <section
-        className="rounded-xl border border-border bg-card p-4 space-y-3"
-        aria-labelledby="meal-slot-title"
+      <Disclosure
+        label={t('meal.compose.moreDetails')}
+        open={detailsOpen}
+        onOpenChange={setMoreOpen}
+        testId="review-more-details"
       >
-        <div className="flex items-center justify-between gap-2">
-          <h3 id="meal-slot-title" className="text-sm font-semibold">
-            {t('meal.review.slot')}
-          </h3>
-          {mode === 'draft' ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-9"
-              onClick={() => setChangingSlot((v) => !v)}
-              aria-expanded={changingSlot}
-              data-testid="change-link"
-            >
-              {t('meal.review.change')}
-            </Button>
+        <div className="space-y-3 pt-1">
+          {gate.backdated ? (
+            <p className="text-sm text-muted-foreground">{t('meal.compose.confirmTime')}</p>
           ) : null}
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="review-date" className="text-xs">
+                {t('meal.compose.date')}
+              </Label>
+              <Input
+                id="review-date"
+                type="date"
+                className="h-11 w-44"
+                dir="ltr"
+                max={today}
+                value={state.localDate}
+                onChange={(event) => {
+                  if (event.target.value) onChange({ localDate: event.target.value });
+                }}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="review-time" className="text-xs">
+                {t('meal.compose.time')}
+              </Label>
+              <Input
+                id="review-time"
+                type="time"
+                className="h-11 w-32"
+                dir="ltr"
+                disabled={timeUnknown}
+                value={state.time ?? ''}
+                onChange={(event) => onChange({ time: event.target.value || null })}
+              />
+            </div>
+            <label className="flex min-h-11 items-center gap-2 text-sm">
+              <Checkbox
+                checked={timeUnknown}
+                data-testid="time-unknown"
+                onCheckedChange={(checked) => setTimeUnknown(checked === true)}
+              />
+              {t('meal.compose.timeUnknown')}
+            </label>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="review-notes" className="text-xs">
+              {t('meal.compose.notes')}
+            </Label>
+            <Textarea
+              id="review-notes"
+              dir="auto"
+              rows={2}
+              maxLength={1000}
+              placeholder={t('meal.compose.notesPlaceholder')}
+              value={state.notes ?? ''}
+              onChange={(event) => onChange({ notes: event.target.value || null })}
+            />
+          </div>
         </div>
-        {changingSlot && mode === 'draft' ? (
-          <SlotSelect
-            slots={slots}
-            slotId={state.planSlotId ?? (otherChosen ? OTHER_SLOT : null)}
-            optionId={state.planOptionId}
-            lastUsed={lastUsed}
-            idPrefix="review"
-            onChange={(slotId, optionId) =>
-              onChange({
-                planSlotId: slotId === OTHER_SLOT ? null : slotId,
-                planOptionId: slotId === OTHER_SLOT ? null : optionId,
-              })
-            }
-          />
-        ) : (
-          <div className="space-y-1 text-sm" data-testid="slot-summary">
-            <p>
-              {slot ? (
-                <>
-                  {fillNames(
-                    t(
-                      option || optionRequired
-                        ? 'meal.review.linkedTo'
-                        : 'meal.review.linkedDifferent',
-                      { slot: '{slot}' },
-                    ),
-                    { slot: <InlineName name={slot} /> },
-                  )}
-                  {optionN !== null && slot.options.length > 1 ? (
-                    <>
-                      {' · '}
-                      {t('plan.option.n', { n: optionN })}
-                    </>
-                  ) : null}
-                </>
-              ) : extraSlot ? (
-                fillNames(t('meal.review.extraBecauseRecorded', { slot: '{slot}' }), {
-                  slot: <InlineName name={extraSlot} />,
-                })
-              ) : (
-                t('meal.review.extraMeal')
-              )}
-            </p>
+      </Disclosure>
+
+      {footer === 'inline' ? (
+        <MealReviewFooter
+          {...props}
+          timeUnknown={timeUnknown}
+          onTimeUnknownChange={setTimeUnknown}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * The review's pinned footer (D2c): the slot sentence with its glyph and
+ * the Change action, the option chooser when one is owed, the date/time
+ * summary with the refining pill, the reason Save is held back, and Save
+ * meal — the one filled primary in the sheet.
+ */
+export function MealReviewFooter(props: MealReviewProps) {
+  const {
+    mode,
+    state,
+    onChange,
+    match,
+    slots,
+    lastUsed,
+    otherChosen,
+    extraBecauseRecordedSlotId = null,
+    sync,
+    conflict,
+    saving,
+    error,
+    onSave,
+    onCancel,
+    dateSummary,
+    today,
+  } = props;
+  const [changingSlot, setChangingSlot] = useState(false);
+  const timeUnknown = props.timeUnknown ?? state.time === null;
+  const gate = reviewGate({ state, slots, today, timeUnknown });
+  const { slot, option, optionN, optionRequired, timeRequired } = gate;
+  const extraSlot = slots.find((s) => s.id === extraBecauseRecordedSlotId) ?? null;
+  const saveDisabled = saving || optionRequired || conflict || timeRequired;
+  const slotSummary = match ? matchLabel(match) : null;
+  const changing = changingSlot && mode === 'draft';
+
+  function setLink(slotId: string | null, optionId: string | null) {
+    onChange({
+      planSlotId: slotId === OTHER_SLOT ? null : slotId,
+      planOptionId: slotId === OTHER_SLOT ? null : optionId,
+    });
+  }
+
+  let sentence: ReactNode;
+  let glyph: ReactNode;
+  if (slot) {
+    sentence = (
+      <>
+        {fillNames(
+          t(option || optionRequired ? 'meal.review.linkedTo' : 'meal.review.linkedDifferent', {
+            slot: '{slot}',
+          }),
+          { slot: <InlineName name={slot} /> },
+        )}
+        {optionN !== null && slot.options.length > 1 ? (
+          <>
+            {' · '}
+            {t('plan.option.n', { n: optionN })}
+          </>
+        ) : null}
+      </>
+    );
+    const status: StatusGlyphName = optionRequired
+      ? 'NEEDS_REVIEW'
+      : match
+        ? MATCH_GLYPH[match.status]
+        : option
+          ? 'RECORDED'
+          : 'DIFFERENT';
+    glyph = <StatusGlyph status={status} describe={false} />;
+  } else {
+    sentence = extraSlot
+      ? fillNames(t('meal.review.extraBecauseRecorded', { slot: '{slot}' }), {
+          slot: <InlineName name={extraSlot} />,
+        })
+      : t('meal.review.extraMeal');
+    glyph = (
+      <span className="inline-flex shrink-0 items-center justify-center text-foreground">
+        <CirclePlus className="size-5" aria-hidden="true" />
+      </span>
+    );
+  }
+
+  const changeAction =
+    mode === 'draft' ? (
+      <IconAction
+        label={t('meal.review.change')}
+        icon={Pencil}
+        aria-expanded={changing}
+        onClick={() => setChangingSlot((v) => !v)}
+        disabled={saving}
+        data-testid="change-link"
+      />
+    ) : null;
+
+  return (
+    <div className="space-y-2" data-testid="review-footer">
+      {changing ? (
+        <SlotSelect
+          slots={slots}
+          slotId={state.planSlotId ?? (otherChosen ? OTHER_SLOT : null)}
+          optionId={state.planOptionId}
+          lastUsed={lastUsed}
+          idPrefix="review"
+          onChange={setLink}
+          trailing={changeAction}
+        />
+      ) : (
+        <div className="flex min-h-11 items-center gap-2" data-testid="slot-summary">
+          {glyph}
+          <div className="min-w-0 flex-1 text-sm">
+            <p className="truncate">{sentence}</p>
             {slotSummary ? (
-              <p className="text-muted-foreground">
+              <p className="line-clamp-2 text-xs text-muted-foreground">
                 {slotSummary.text}
                 {slotSummary.reason ? <> · {slotSummary.reason}</> : null}
               </p>
             ) : null}
           </div>
-        )}
-        {optionRequired && !changingSlot && slot ? (
-          <div className="space-y-2" data-testid="option-required">
-            <p className="text-sm text-warning" role="status">
-              {t('meal.review.chooseOption')}
-            </p>
-            <SlotSelect
-              slots={slots}
-              slotId={slot.id}
-              optionId={null}
-              lastUsed={lastUsed}
-              idPrefix="review-option"
-              onChange={(slotId, optionId) =>
-                onChange({
-                  planSlotId: slotId === OTHER_SLOT ? null : slotId,
-                  planOptionId: slotId === OTHER_SLOT ? null : optionId,
-                })
-              }
-            />
-          </div>
-        ) : null}
-      </section>
-
-      <section
-        className="rounded-xl border border-border bg-card p-4 space-y-3"
-        aria-labelledby="meal-time-title"
-      >
-        <h3 id="meal-time-title" className="text-sm font-semibold">
-          {t('meal.review.dateTime')}
-        </h3>
-        <p className="text-sm" data-testid="date-summary">
-          {dateSummary}
-        </p>
-        {backdated ? (
-          <p className="text-sm text-muted-foreground">{t('meal.compose.confirmTime')}</p>
-        ) : null}
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="space-y-1">
-            <Label htmlFor="review-date" className="text-xs">
-              {t('meal.compose.date')}
-            </Label>
-            <Input
-              id="review-date"
-              type="date"
-              className="h-11 w-44"
-              dir="ltr"
-              max={today}
-              value={state.localDate}
-              onChange={(event) => {
-                if (event.target.value) onChange({ localDate: event.target.value });
-              }}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="review-time" className="text-xs">
-              {t('meal.compose.time')}
-            </Label>
-            <Input
-              id="review-time"
-              type="time"
-              className="h-11 w-32"
-              dir="ltr"
-              disabled={timeUnknown}
-              value={state.time ?? ''}
-              onChange={(event) => onChange({ time: event.target.value || null })}
-            />
-          </div>
-          <label className="flex min-h-11 items-center gap-2 text-sm">
-            <Checkbox
-              checked={timeUnknown}
-              data-testid="time-unknown"
-              onCheckedChange={(checked) => setTimeUnknown(checked === true)}
-            />
-            {t('meal.compose.timeUnknown')}
-          </label>
+          {changeAction}
         </div>
-        {timeRequired ? (
-          <p className="text-sm text-warning" role="status" data-testid="time-required">
-            {t('meal.review.timeRequired')}
+      )}
+      {optionRequired && !changing && slot ? (
+        <div className="space-y-2" data-testid="option-required">
+          <p className="text-sm text-warning" role="status">
+            {t('meal.review.chooseOption')}
           </p>
-        ) : null}
-        <div className="space-y-1">
-          <Label htmlFor="review-notes" className="text-xs">
-            {t('meal.compose.notes')}
-          </Label>
-          <Textarea
-            id="review-notes"
-            dir="auto"
-            rows={2}
-            maxLength={1000}
-            placeholder={t('meal.compose.notesPlaceholder')}
-            value={state.notes ?? ''}
-            onChange={(event) => onChange({ notes: event.target.value || null })}
+          <OptionList
+            slot={slot}
+            selectedOptionId={null}
+            lastUsedOptionId={lastUsed[slot.id] ?? null}
+            onPick={(optionId) => setLink(slot.id, optionId)}
           />
         </div>
-      </section>
+      ) : null}
 
-      <div className="space-y-2 pb-1">
-        {error ? (
-          <p role="alert" className="text-sm text-error" data-testid="save-error">
-            {error}
-          </p>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <p
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground"
+          data-testid="date-summary"
+        >
+          <CalendarDays className="size-4 shrink-0" aria-hidden="true" />
+          {dateSummary}
+        </p>
+        {sync === 'refining' ? (
+          <span
+            className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground"
+            role="status"
+            data-testid="refining"
+          >
+            <Spinner className="size-3.5" />
+            {t('meal.review.refining')}
+          </span>
         ) : null}
-        <div className={cn('flex gap-2', onCancel ? 'flex-row' : 'flex-col')}>
-          {onCancel ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 flex-1"
-              onClick={onCancel}
-              disabled={saving}
-            >
-              {t('meal.details.cancel')}
-            </Button>
-          ) : null}
+      </div>
+      {timeRequired ? (
+        <p className="text-sm text-warning" role="status" data-testid="time-required">
+          {t('meal.review.timeRequired')}
+        </p>
+      ) : null}
+      {error ? (
+        <p role="alert" className="text-sm text-error" data-testid="save-error">
+          {error}
+        </p>
+      ) : null}
+      <div className={cn('flex gap-2', onCancel ? 'flex-row' : 'flex-col')}>
+        {onCancel ? (
           <Button
             type="button"
-            className="h-11 flex-1"
-            onClick={onSave}
-            disabled={saveDisabled}
-            aria-disabled={saveDisabled}
-            data-testid="save-meal"
+            variant="outline"
+            className="flex-1"
+            onClick={onCancel}
+            disabled={saving}
           >
-            {saving ? t('meal.review.saving') : (props.saveLabel ?? t('meal.review.save'))}
+            {t('meal.details.cancel')}
           </Button>
-        </div>
+        ) : null}
+        <Button
+          type="button"
+          className="flex-1"
+          onClick={onSave}
+          disabled={saveDisabled}
+          aria-disabled={saveDisabled}
+          data-testid="save-meal"
+        >
+          {saving ? <Spinner /> : <Check aria-hidden="true" />}
+          {saving ? t('meal.review.saving') : (props.saveLabel ?? t('meal.review.save'))}
+        </Button>
       </div>
     </div>
   );
@@ -545,19 +621,7 @@ function SyncIndicator({ sync, online }: { sync: ReviewSyncStatus; online: boole
       </span>
     );
   }
-  if (sync === 'saved') return null;
-  if (sync === 'refining') {
-    return (
-      <span
-        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
-        role="status"
-        data-testid="refining"
-      >
-        <Spinner className="size-3.5" />
-        {t('meal.review.refining')}
-      </span>
-    );
-  }
+  if (sync === 'saved' || sync === 'refining') return null;
   return (
     <Badge variant={sync === 'failed' ? 'warning' : 'outline'} data-testid="unsaved">
       {t('meal.review.unsaved')}
