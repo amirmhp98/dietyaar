@@ -40,10 +40,10 @@ describe('InlineName', () => {
     expect(nameText({ originalName: '', englishLabel: 'Lunch' })).toBe('Lunch');
   });
 
-  it('joins several names with commas', () => {
+  it('joins several names with a direction-neutral dot', () => {
     const html = renderToStaticMarkup(
       <InlineNames names={[lunch, { originalName: 'شام', englishLabel: 'Dinner' }]} />,
     );
-    expect(html).toBe('<bdi>ناهار</bdi>, <bdi>شام</bdi>');
+    expect(html).toBe('<bdi>ناهار</bdi> · <bdi>شام</bdi>');
   });
 });

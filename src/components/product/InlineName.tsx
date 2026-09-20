@@ -35,7 +35,7 @@ export function InlineNames({ names }: { names: FoodName[] }) {
     <>
       {names.map((name, index) => (
         <Fragment key={`${name.originalName}-${index}`}>
-          {index > 0 ? ', ' : null}
+          {index > 0 ? ' · ' : null}
           <InlineName name={name} />
         </Fragment>
       ))}
