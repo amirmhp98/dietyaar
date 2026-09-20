@@ -1,11 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { Badge, Label } from '@/components/UiComponents';
 import { InlineNames, nameText } from '@/components/product/InlineName';
 import { NameLabel } from '@/components/product/NameLabel';
+import { StatusGlyph } from '@/components/product/StatusGlyph';
+import { Surface } from '@/components/product/Surface';
 import { OTHER_SLOT } from '@/components/product/meal/composition';
+import { formatNumber } from '@/lib/format';
 import { sortedOptions } from '@/lib/rubric/options';
 import type { RubricOption, RubricSlot } from '@/lib/rubric/types';
 import { t, tp } from '@/lib/t';
@@ -13,47 +16,60 @@ import { cn } from '@/lib/utils';
 
 export { OTHER_SLOT };
 
-/** An option's items as the user's plan names them, comma-separated. */
-function OptionItems({ option }: { option: RubricOption }) {
-  return (
-    <span className="block text-xs text-muted-foreground">
-      <InlineNames names={option.items} />
-    </span>
-  );
+/** The option's energy when every item states one; otherwise nothing is claimed. */
+export function optionKcal(option: RubricOption): number | null {
+  let sum = 0;
+  for (const item of option.items) {
+    const kcal = item.nutrition?.values.ENERGY_KCAL;
+    if (kcal === null || kcal === undefined) return null;
+    sum += kcal;
+  }
+  return option.items.length > 0 ? Math.round(sum) : null;
 }
 
-/** One option row: label, items, "Last time" when it was the last pick; nothing preselected. */
+/**
+ * The options of a slot as a list surface (D2a): one 44 px row per option —
+ * "Option n" in the display face, its items as the plan names them, the
+ * energy when known, "Last time" on the last pick. Radio semantics; nothing
+ * is preselected (product spec § 7).
+ */
 export function OptionList({
   slot,
   selectedOptionId,
   lastUsedOptionId,
   onPick,
-  name,
+  testId,
+  className,
 }: {
   slot: RubricSlot;
   selectedOptionId: string | null;
   lastUsedOptionId: string | null;
   onPick: (optionId: string) => void;
-  name?: string;
+  testId?: string;
+  className?: string;
 }) {
   return (
-    <div role="radiogroup" aria-label={t('meal.compose.chooseOption')} className="space-y-1.5">
+    <Surface
+      variant="list"
+      role="radiogroup"
+      aria-label={t('meal.compose.chooseOption')}
+      data-testid={testId}
+      className={className}
+    >
       {sortedOptions(slot).map((option, index) => {
         const selected = option.id === selectedOptionId;
+        const kcal = optionKcal(option);
         return (
           <button
             key={option.id}
             type="button"
             role="radio"
             aria-checked={selected}
-            name={name}
             data-testid={`option-${slot.id}-${index + 1}`}
             onClick={() => onPick(option.id)}
             className={cn(
-              'flex min-h-11 w-full items-center gap-3 rounded-md border px-3 py-2 text-start transition-colors',
-              selected
-                ? 'border-primary bg-primary/10'
-                : 'border-border bg-card hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+              'flex min-h-14 w-full items-center gap-3 px-3 py-2 text-start transition-colors first:rounded-t-xl last:rounded-b-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+              selected ? 'bg-tint-2' : 'hover:bg-tint-1 active:bg-tint-3',
             )}
           >
             <span
@@ -67,25 +83,38 @@ export function OptionList({
             </span>
             <span className="min-w-0 flex-1">
               <span className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-medium">{t('plan.option.n', { n: index + 1 })}</span>
+                <span className="font-display text-sm font-semibold">
+                  {t('plan.option.n', { n: index + 1 })}
+                </span>
                 {option.id === lastUsedOptionId ? (
                   <Badge variant="secondary">{t('meal.compose.lastTime')}</Badge>
                 ) : null}
               </span>
-              <OptionItems option={option} />
+              <span className="block text-xs text-muted-foreground">
+                <InlineNames names={option.items} />
+              </span>
             </span>
+            {kcal !== null ? (
+              <span
+                className="shrink-0 font-display text-sm tabular-nums text-muted-foreground"
+                dir="ltr"
+              >
+                {formatNumber(kcal)} {t('meal.nutrient.unit.kcal')}
+              </span>
+            ) : null}
           </button>
         );
       })}
-    </div>
+    </Surface>
   );
 }
 
 /**
- * "Today's planned meals" row (compose step): one chip per slot in plan
- * order. A single-option slot logs on tap; a multi-option slot expands its
- * options beneath the row, the last-used one marked "Last time". A slot
- * already recorded today carries a check (O D14) and stays selectable.
+ * "Today's planned meals" (compose step, text-first layout): one pill per
+ * slot in plan order with its status glyph — recorded slots carry the check
+ * (O D14) and stay selectable. A single-option slot logs on tap; a
+ * multi-option slot expands its options beneath the row, the last-used one
+ * marked "Last time".
  */
 export function PlannedSlotsRow({
   slots,
@@ -105,7 +134,7 @@ export function PlannedSlotsRow({
   const [expanded, setExpanded] = useState<string | null>(initialExpandedSlotId);
   const open = slots.find((s) => s.id === expanded) ?? null;
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
         {slots.map((slot) => {
           const options = sortedOptions(slot);
@@ -128,39 +157,23 @@ export function PlannedSlotsRow({
                 if (next) onExpand(slot.id);
               }}
               className={cn(
-                'flex min-h-11 shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-start',
-                isOpen ? 'border-primary bg-primary/10' : 'border-border bg-card hover:bg-accent',
+                'flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full border ps-3 pe-3 py-2 text-start transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                isOpen ? 'border-primary bg-tint-2' : 'border-border bg-card hover:bg-tint-1',
               )}
             >
-              <span className="flex flex-col">
-                <span className="flex items-center gap-1.5">
-                  <NameLabel
-                    originalName={slot.originalName}
-                    englishLabel={slot.englishLabel}
-                    size="sm"
-                  />
-                  {recorded ? (
-                    <span
-                      className="grid size-4 shrink-0 place-content-center rounded-full bg-primary/15 text-primary"
-                      data-testid="slot-recorded"
-                    >
-                      <Check className="size-3" aria-hidden="true" />
-                      <span className="sr-only">{t('meal.compose.slotRecorded')}</span>
-                    </span>
-                  ) : null}
-                </span>
-                {multi ? (
-                  <span className="text-xs text-muted-foreground">
-                    {tp('meal.compose.optionCount', options.length)}
-                  </span>
-                ) : options[0] ? (
-                  <OptionItems option={options[0]} />
-                ) : null}
+              <span data-testid={recorded ? 'slot-recorded' : undefined} className="flex">
+                <StatusGlyph status={recorded ? 'RECORDED' : 'NOT_RECORDED'} size="sm" />
               </span>
+              <NameLabel originalName={slot.originalName} englishLabel={slot.englishLabel} />
+              {multi ? (
+                <span className="text-xs text-muted-foreground">
+                  {tp('meal.compose.optionCount', options.length)}
+                </span>
+              ) : null}
               {multi ? (
                 <ChevronDown
                   className={cn(
-                    'size-4 shrink-0 text-muted-foreground transition-transform',
+                    'size-4 shrink-0 text-muted-foreground transition-transform duration-200',
                     isOpen && 'rotate-180',
                   )}
                   aria-hidden="true"
@@ -171,24 +184,22 @@ export function PlannedSlotsRow({
         })}
       </div>
       {open ? (
-        <div className="rounded-xl border border-border bg-card p-3" data-testid="slot-options">
-          <p className="mb-2 text-sm font-medium">{t('meal.compose.chooseOption')}</p>
-          <OptionList
-            slot={open}
-            selectedOptionId={null}
-            lastUsedOptionId={lastUsed[open.id] ?? null}
-            onPick={(optionId) => onPick(open.id, optionId)}
-          />
-        </div>
+        <OptionList
+          slot={open}
+          selectedOptionId={null}
+          lastUsedOptionId={lastUsed[open.id] ?? null}
+          onPick={(optionId) => onPick(open.id, optionId)}
+          testId="slot-options"
+        />
       ) : null}
     </div>
   );
 }
 
 /**
- * Slot picker for "More details", the review summary and "Change plan link":
- * the day's plan slots plus "Other · in addition to your plan"; a multi-option
- * slot then lists its options.
+ * Slot picker for "More details" and the review's "Change": the day's plan
+ * slots plus "Extra · in addition to your plan"; a multi-option slot then
+ * lists its options.
  */
 export function SlotSelect({
   slots,
@@ -197,6 +208,7 @@ export function SlotSelect({
   lastUsed,
   onChange,
   idPrefix,
+  trailing,
 }: {
   slots: RubricSlot[];
   /** null = not chosen yet, OTHER_SLOT = explicitly "Other". */
@@ -205,17 +217,22 @@ export function SlotSelect({
   lastUsed: Record<string, string | null>;
   onChange: (slotId: string | null, optionId: string | null) => void;
   idPrefix: string;
+  /** One control beside the label (the review's Change action). */
+  trailing?: ReactNode;
 }) {
   const selected = slots.find((s) => s.id === slotId) ?? null;
   const showOptions = selected !== null && selected.options.length > 1;
   return (
     <div className="space-y-2">
-      <Label htmlFor={`${idPrefix}-slot`}>{t('meal.compose.slot')}</Label>
+      <div className="flex min-h-11 items-center justify-between gap-2">
+        <Label htmlFor={`${idPrefix}-slot`}>{t('meal.compose.slot')}</Label>
+        {trailing}
+      </div>
       <div className="relative">
         <select
           id={`${idPrefix}-slot`}
           data-testid="slot-select"
-          className="h-11 w-full appearance-none rounded-md border border-input bg-transparent px-3 pe-9 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm"
+          className="h-11 w-full appearance-none rounded-md border border-input bg-transparent px-3 pe-9 text-base shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm"
           value={slotId ?? ''}
           onChange={(event) => {
             const value = event.target.value;

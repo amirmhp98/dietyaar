@@ -48,15 +48,24 @@ test('answering a portion question refines in place: totals change, the answered
   await analyseText(page, 'نان سنگک ASK');
   const questions = page.getByTestId('meal-questions');
   await expect(questions).toBeVisible();
-  await questions.getByRole('radio', { name: '2 slices' }).click();
+  // The question is the way to answer: the row stays compact rather than opening its editor.
+  await expect(page.getByTestId('item-editor')).toHaveCount(0);
+  const answer = questions.getByRole('radio', { name: '2 slices' });
+  await answer.click();
+  await expect(answer).toHaveAttribute('aria-checked', 'true');
 
   // The refine runs inline: no blocking screen, the review stays on screen.
   await expect(page.getByTestId('analyzing')).toHaveCount(0);
   await expect(page.getByTestId('meal-review')).toBeVisible();
   await expect(page.getByTestId('meal-totals')).toContainText('200', { timeout: 30_000 });
-  await expect(page.getByTestId('item-quantity').first()).toHaveValue('2');
+  // The chosen count is the row's amount (B2), and the editor confirms it.
+  const first = page.getByTestId('meal-item-1');
+  await expect(first).toContainText(t('unit.slice.other', { amount: '2' }));
+  await first.getByRole('button', { name: /^Edit / }).click();
+  await expect(first.getByTestId('item-quantity')).toHaveValue('2');
   await expect(page.getByTestId('meal-questions')).toHaveCount(0);
   await expect(page.getByTestId('what-changed')).toBeVisible();
+  await expect(page.getByTestId('refining')).toHaveCount(0);
 });
 
 test('a renamed item survives Re-estimate', async ({ page }) => {

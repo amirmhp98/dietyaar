@@ -57,7 +57,10 @@ export function ComposerModal({
         {children}
       </div>
       {footer ? (
-        <div className="shrink-0 border-t border-border bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+        <div
+          className="max-h-[70dvh] shrink-0 overflow-y-auto border-t border-border bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3"
+          data-testid="composer-footer"
+        >
           {footer}
         </div>
       ) : null}
@@ -72,7 +75,7 @@ export function ComposerModal({
           data-testid={testId}
         >
           <DialogHeader className="shrink-0 px-4 pb-2 pt-5 text-start">
-            {heading(<DialogTitle>{title}</DialogTitle>)}
+            {heading(<DialogTitle className="font-display">{title}</DialogTitle>)}
             <DialogDescription className={cn(!description && 'sr-only')}>
               {description ?? title}
             </DialogDescription>
@@ -91,7 +94,7 @@ export function ComposerModal({
         data-testid={testId}
       >
         <SheetHeader className="shrink-0 px-4 pb-2 pt-5 text-start">
-          {heading(<SheetTitle>{title}</SheetTitle>)}
+          {heading(<SheetTitle className="font-display">{title}</SheetTitle>)}
           <SheetDescription className={cn(!description && 'sr-only')}>
             {description ?? title}
           </SheetDescription>

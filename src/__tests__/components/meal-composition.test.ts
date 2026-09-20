@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   OTHER_SLOT,
+  composeLayout,
   defaultLinkAfterAnalysis,
   seedManualItem,
   timeMissing,
@@ -121,5 +122,42 @@ describe('seedManualItem (B7)', () => {
   it('caps the name at 120 characters and seeds nothing for an empty box', () => {
     expect(seedManualItem('x'.repeat(300))?.originalName).toHaveLength(120);
     expect(seedManualItem('   ')).toBeNull();
+  });
+});
+
+describe('composeLayout (D2a)', () => {
+  const lunch = { options: [{ id: 'a' }, { id: 'b' }] };
+  const single = { options: [{ id: 'a' }] };
+
+  it('opened from a slot row: the option list first, then the text box, Recent only when non-empty', () => {
+    expect(composeLayout({ openedSlot: lunch, recentCount: 2 })).toEqual([
+      'options',
+      'input',
+      'recent',
+    ]);
+    expect(composeLayout({ openedSlot: lunch, recentCount: 0 })).toEqual(['options', 'input']);
+    expect(composeLayout({ openedSlot: lunch, recentCount: null })).toEqual(['options', 'input']);
+    expect(composeLayout({ openedSlot: single, recentCount: 0 })).toEqual(['options', 'input']);
+  });
+
+  it('opened from the button or a History day: the text box first, planned chips, Recent while loading or non-empty', () => {
+    expect(composeLayout({ openedSlot: null, recentCount: null })).toEqual([
+      'input',
+      'planned',
+      'recent',
+    ]);
+    expect(composeLayout({ openedSlot: null, recentCount: 3 })).toEqual([
+      'input',
+      'planned',
+      'recent',
+    ]);
+    expect(composeLayout({ openedSlot: null, recentCount: 0 })).toEqual(['input', 'planned']);
+  });
+
+  it('a slot without options falls back to the text-first layout', () => {
+    expect(composeLayout({ openedSlot: { options: [] }, recentCount: 0 })).toEqual([
+      'input',
+      'planned',
+    ]);
   });
 });

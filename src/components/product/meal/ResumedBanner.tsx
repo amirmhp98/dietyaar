@@ -2,6 +2,7 @@
 
 import { RotateCcw } from 'lucide-react';
 import { Button } from '@/components/UiComponents';
+import { Surface } from '@/components/product/Surface';
 import { t } from '@/lib/t';
 
 /** "Start over": icon + one word, the same control in the review header and the resumed banner. */
@@ -37,13 +38,15 @@ export function ResumedBanner({
   disabled?: boolean;
 }) {
   return (
-    <div
-      className="flex items-center justify-between gap-2 rounded-xl bg-muted/60 ps-3 pe-1 py-1 text-sm text-muted-foreground"
+    <Surface
+      variant="note"
+      padding="none"
+      className="flex items-center justify-between gap-2 ps-3 pe-1 py-1 text-sm text-muted-foreground"
       role="status"
       data-testid="resumed-banner"
     >
       <span>{t('meal.compose.resumed')}</span>
       <StartOverButton onClick={onStartOver} disabled={disabled} />
-    </div>
+    </Surface>
   );
 }

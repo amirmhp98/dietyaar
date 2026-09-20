@@ -19,8 +19,19 @@ import { acknowledgeAiNoticeAction } from '@/actions/profile.actions';
 import { Button, toast } from '@/components/UiComponents';
 import { useAuth } from '@/components/layout/AuthProvider';
 import { AiNoticeSheet } from '@/components/product/AiNoticeSheet';
-import { MealComposer, type AnalysisStatus } from '@/components/product/MealComposer';
-import { MealReview, type ReviewSyncStatus } from '@/components/product/MealReview';
+import { IconAction } from '@/components/product/IconAction';
+import {
+  MealComposer,
+  MealComposerFooter,
+  canCheckMeal,
+  type AnalysisStatus,
+} from '@/components/product/MealComposer';
+import {
+  MealReview,
+  MealReviewFooter,
+  type MealReviewProps,
+  type ReviewSyncStatus,
+} from '@/components/product/MealReview';
 import { type ComposerRequest, useComposerRequests } from '@/components/product/composer-bus';
 import { ComposerModal } from '@/components/product/meal/ComposerModal';
 import type { StagedPhoto } from '@/components/product/meal/PhotoPicker';
@@ -1161,6 +1172,52 @@ export function MealComposerIsland({ photoEnabled }: { photoEnabled: boolean }) 
         ? t('meal.compose.lateNight.title')
         : t('meal.compose.title');
 
+  // The review body and its pinned footer share these (D2c).
+  const reviewState = comp?.step === 'review' ? comp.state : null;
+  const reviewPropsFor = (state: MealDraftState, current: Composition): MealReviewProps => ({
+    mode: 'draft',
+    state,
+    onChange: patchReview,
+    onAnswered: scheduleRefine,
+    match: current.match,
+    slots: slotsForDate ?? [],
+    lastUsed,
+    otherChosen: current.slotChoice === OTHER_SLOT,
+    extraBecauseRecordedSlotId: current.extraSlotId,
+    photos: current.photos,
+    sync,
+    online,
+    conflict,
+    saving,
+    error: saveError,
+    refineError,
+    canReestimate,
+    onReestimate: () => void runRefine(),
+    onSave: save,
+    onReload: reload,
+    dateSummary,
+    today,
+    timeUnknown: current.timeUnknown,
+    onTimeUnknownChange: (timeUnknown) => setComp((prev) => ({ ...prev, timeUnknown })),
+    resumed: current.resumed,
+    onStartOver: () => void startOver(),
+    footer: 'external',
+  });
+  const analyzing = analysis === 'running' || analysis === 'slow';
+  const footer =
+    comp && reviewState ? (
+      <MealReviewFooter {...reviewPropsFor(reviewState, comp)} />
+    ) : comp && comp.step === 'compose' && !analyzing ? (
+      <MealComposerFooter
+        dateSummary={dateSummary}
+        canAnalyze={canCheckMeal({ text: comp.text, photos: comp.photos, busy, photoBusy })}
+        busy={busy}
+        photoBusy={photoBusy}
+        onAnalyze={requestAnalysis}
+        onManual={goManual}
+      />
+    ) : undefined;
+
   return (
     <>
       {lastSavedId ? <span data-testid="meal-saved" data-meal-id={lastSavedId} hidden /> : null}
@@ -1171,18 +1228,14 @@ export function MealComposerIsland({ photoEnabled }: { photoEnabled: boolean }) 
         description={comp?.step === 'late-night' ? t('meal.compose.lateNight.body') : undefined}
         leading={
           comp?.step === 'review' ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="-ms-2 size-9 shrink-0"
-              aria-label={t('meal.review.back')}
+            <IconAction
+              label={t('meal.review.back')}
+              icon={ArrowLeft}
+              className="-ms-3 rtl:-scale-x-100"
               onClick={() => void goBack()}
               disabled={saving}
               data-testid="review-back"
-            >
-              <ArrowLeft className="size-5 rtl:-scale-x-100" aria-hidden="true" />
-            </Button>
+            />
           ) : undefined
         }
         actions={
@@ -1190,6 +1243,7 @@ export function MealComposerIsland({ photoEnabled }: { photoEnabled: boolean }) 
             <StartOverButton onClick={() => void startOver()} disabled={saving} />
           ) : undefined
         }
+        footer={footer}
         testId="meal-composer"
       >
         {!comp ? null : comp.step === 'late-night' ? (
@@ -1211,35 +1265,8 @@ export function MealComposerIsland({ photoEnabled }: { photoEnabled: boolean }) 
               {t('meal.compose.lateNight.today')}
             </Button>
           </div>
-        ) : comp.step === 'review' && comp.state ? (
-          <MealReview
-            mode="draft"
-            state={comp.state}
-            onChange={patchReview}
-            onAnswered={scheduleRefine}
-            match={comp.match}
-            slots={slotsForDate ?? []}
-            lastUsed={lastUsed}
-            otherChosen={comp.slotChoice === OTHER_SLOT}
-            extraBecauseRecordedSlotId={comp.extraSlotId}
-            photos={comp.photos}
-            sync={sync}
-            online={online}
-            conflict={conflict}
-            saving={saving}
-            error={saveError}
-            refineError={refineError}
-            canReestimate={canReestimate}
-            onReestimate={() => void runRefine()}
-            onSave={save}
-            onReload={reload}
-            dateSummary={dateSummary}
-            today={today}
-            timeUnknown={comp.timeUnknown}
-            onTimeUnknownChange={(timeUnknown) => setComp((prev) => ({ ...prev, timeUnknown }))}
-            resumed={comp.resumed}
-            onStartOver={() => void startOver()}
-          />
+        ) : reviewState ? (
+          <MealReview {...reviewPropsFor(reviewState, comp)} />
         ) : (
           <MealComposer
             text={comp.text}
@@ -1257,7 +1284,7 @@ export function MealComposerIsland({ photoEnabled }: { photoEnabled: boolean }) 
             recordedSlotIds={recordedSlotIds}
             onExpandSlot={loadLastUsed}
             onPickPlanned={pickPlanned}
-            initialExpandedSlotId={comp.expandSlotId}
+            openedSlotId={comp.expandSlotId}
             slotChoice={comp.slotChoice}
             optionId={comp.optionId}
             onSlotChange={(slotChoice, optionId) =>
@@ -1289,13 +1316,11 @@ export function MealComposerIsland({ photoEnabled }: { photoEnabled: boolean }) 
             onStartOver={() => void startOver()}
             notes={comp.notes}
             onNotesChange={(notes) => setComp((prev) => ({ ...prev, notes }))}
-            dateSummary={dateSummary}
             backdatedLabel={backdatedLabel}
             moreOpen={moreOpen}
             onMoreOpenChange={setMoreOpen}
             analysis={analysis}
             analysisError={analysisError}
-            onAnalyze={requestAnalysis}
             onManual={goManual}
             onRetry={requestAnalysis}
             busy={busy}

@@ -135,6 +135,9 @@ test('a future time on today is refused with the message and the draft stays on 
   await expect(page.getByRole('heading', { name: t('meal.review.title') })).toBeVisible({
     timeout: 30_000,
   });
+  // Today with a time entered: the details stay folded until asked for (D2c).
+  await expect(page.locator('#review-time')).toHaveCount(0);
+  await page.getByTestId('review-more-details').click();
   await expect(page.locator('#review-time')).toHaveValue('23:59');
   await expect(page.getByTestId('meal-items').getByRole('listitem')).toHaveCount(1);
 
