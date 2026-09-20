@@ -119,6 +119,22 @@ lives in `lib/rubric` (matching, portions, timing, score, nutrition, facts, seve
   or its own knowledge and editable on review (a −/+ stepper and a "grams each" field for
   counts). Portions compare through grams when both sides convert, by count when they share
   the unit, otherwise "Not evaluated".
+- The composer is intent-aware (decision 025, D2): opened from a slot row it leads with that
+  slot's option list ("Option n", items, kcal, "Last time"; nothing preselected), then
+  "Something else?" with the text box and photo actions, then Recent meals when there are any;
+  opened from the Log meal button or a History day it leads with the text box, then the day's
+  planned slots as pills with their status glyph, then Recent. "Check this meal" (outline)
+  and "Enter manually" sit in a pinned footer with the date/time summary. The review is one
+  compact row per item (amount · name · kcal · chevron) that expands into its editor
+  (quantity stepper or field, unit, unknown, grams each, name, preparation, alternatives,
+  label values, remove); badges appear only for Assumed, Label values, Needs a new estimate
+  and Check this value; questions are one note surface with pill choices; the totals strip
+  carries "What changed" and Sources; date, time, "I don't remember the time" and notes sit
+  under "More details" (open by itself when the day is backdated or a time is still needed).
+  The pinned footer holds the slot sentence with its glyph and the Change action, the option
+  chooser when one is owed, the date/time summary, the reason Save is held back, and Save meal
+  (the sheet's one filled action). A row whose quantity is unknown opens on its editor unless
+  a question already asks for it.
 - The composer has a Back arrow from the review to the compose step (no re-analysis when the
   input is unchanged) and a Start over action that discards the server draft and its staged
   photos; a resumed draft says "Continuing where you left off". Unticking "I don't remember

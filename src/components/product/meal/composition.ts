@@ -72,3 +72,29 @@ export function defaultLinkAfterAnalysis(input: {
   }
   return { slotChoice: input.suggestedSlotId, extraSlotId: null };
 }
+
+/** The blocks of the compose step, in the order they render. */
+export type ComposeBlock = 'options' | 'input' | 'planned' | 'recent';
+
+/**
+ * Intent-aware compose (improvement plan D2a): opened from a slot row, the
+ * decision the user came to make — which option — is the first block, the
+ * text box and photos follow as "Something else?", and Recent meals only
+ * when there are any. Opened from the floating button or a History day the
+ * text box leads, then the day's planned slots as chips, then Recent (its
+ * skeleton while loading). A slot with no options has nothing to list.
+ */
+export function composeLayout(input: {
+  /** The slot the sheet opened for, resolved against the day's slots; null from the button. */
+  openedSlot: { options: readonly unknown[] } | null;
+  /** null while the recent meals are loading. */
+  recentCount: number | null;
+}): ComposeBlock[] {
+  const { openedSlot, recentCount } = input;
+  if (openedSlot && openedSlot.options.length > 0) {
+    return recentCount ? ['options', 'input', 'recent'] : ['options', 'input'];
+  }
+  return recentCount === null || recentCount > 0
+    ? ['input', 'planned', 'recent']
+    : ['input', 'planned'];
+}

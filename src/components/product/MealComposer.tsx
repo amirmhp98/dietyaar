@@ -1,5 +1,7 @@
 'use client';
 
+import type { ReactNode } from 'react';
+import { CalendarDays, History, PencilLine, Sparkles, Sun, Utensils } from 'lucide-react';
 import {
   Button,
   Checkbox,
@@ -10,11 +12,18 @@ import {
   Textarea,
 } from '@/components/UiComponents';
 import { Disclosure } from '@/components/product/Disclosure';
-import { InlineNames } from '@/components/product/InlineName';
+import { InlineName, InlineNames } from '@/components/product/InlineName';
+import { SectionHeader } from '@/components/product/SectionHeader';
+import { Surface } from '@/components/product/Surface';
 import { PhotoPicker, type StagedPhoto } from '@/components/product/meal/PhotoPicker';
 import { ResumedBanner } from '@/components/product/meal/ResumedBanner';
-import { OTHER_SLOT, PlannedSlotsRow, SlotSelect } from '@/components/product/meal/SlotPicker';
-import { timeMissing } from '@/components/product/meal/composition';
+import {
+  OTHER_SLOT,
+  OptionList,
+  PlannedSlotsRow,
+  SlotSelect,
+} from '@/components/product/meal/SlotPicker';
+import { composeLayout, timeMissing } from '@/components/product/meal/composition';
 import { formatNumber } from '@/lib/format';
 import type { RubricSlot } from '@/lib/rubric/types';
 import { t } from '@/lib/t';
@@ -47,8 +56,8 @@ export interface MealComposerProps {
   recordedSlotIds: readonly string[];
   onExpandSlot: (slotId: string) => void;
   onPickPlanned: (slotId: string, optionId: string) => void;
-  /** Slot to show expanded when the composer opened for a multi-option slot. */
-  initialExpandedSlotId: string | null;
+  /** The slot the sheet opened for (a slot row): its options lead the compose step (D2a). */
+  openedSlotId: string | null;
   /** null = not chosen, OTHER_SLOT = explicitly "Other". */
   slotChoice: string | null;
   optionId: string | null;
@@ -66,23 +75,36 @@ export interface MealComposerProps {
   onStartOver: () => void;
   notes: string;
   onNotesChange: (notes: string) => void;
-  dateSummary: string;
   backdatedLabel: string | null;
   moreOpen: boolean;
   onMoreOpenChange: (open: boolean) => void;
   analysis: AnalysisStatus;
   /** Message for the failed state (product spec § 12 rows). */
   analysisError: string | null;
-  onAnalyze: () => void;
   onManual: () => void;
   onRetry: () => void;
   busy: boolean;
 }
 
+/** Text and photos are ready to check: something to send, nothing in flight. */
+export function canCheckMeal(input: {
+  text: string;
+  photos: readonly unknown[];
+  busy: boolean;
+  photoBusy: boolean;
+}): boolean {
+  return (
+    (input.text.trim().length > 0 || input.photos.length > 0) && !input.busy && !input.photoBusy
+  );
+}
+
 /**
- * Compose step of Log meal (design-scope screen 4): description, photos,
- * Recent meals, the day's planned slots, More details, and the primary
- * actions. Stateless: the island owns every value and calls the actions.
+ * Compose step of Log meal (design-scope screen 4, D2a): opened from a slot
+ * row the slot's options lead, then "Something else?" with the text box and
+ * photos, then Recent when there is any; opened from the button the text
+ * box leads, then the day's planned slots as chips, then Recent. "More
+ * details" (date, time, slot, notes) closes the step. Stateless: the island
+ * owns every value and calls the actions; the footer is `MealComposerFooter`.
  */
 export function MealComposer(props: MealComposerProps) {
   const {
@@ -101,7 +123,7 @@ export function MealComposer(props: MealComposerProps) {
     recordedSlotIds,
     onExpandSlot,
     onPickPlanned,
-    initialExpandedSlotId,
+    openedSlotId,
     slotChoice,
     optionId,
     onSlotChange,
@@ -121,12 +143,14 @@ export function MealComposer(props: MealComposerProps) {
     onMoreOpenChange,
     analysis,
     analysisError,
-    onAnalyze,
     onManual,
     onRetry,
     busy,
   } = props;
-  const canAnalyze = (text.trim().length > 0 || photos.length > 0) && !busy && !photoBusy;
+  const canAnalyze = canCheckMeal({ text, photos, busy, photoBusy });
+  const openedSlot = slots?.find((s) => s.id === openedSlotId) ?? null;
+  const layout = composeLayout({ openedSlot, recentCount: recent === null ? null : recent.length });
+  const optionsFirst = layout[0] === 'options';
 
   if (analysis === 'running' || analysis === 'slow') {
     return (
@@ -138,7 +162,8 @@ export function MealComposer(props: MealComposerProps) {
         {analysis === 'slow' ? (
           <>
             <p className="text-sm text-muted-foreground">{t('meal.compose.analyzingHint')}</p>
-            <Button type="button" variant="outline" className="h-11" onClick={onManual}>
+            <Button type="button" variant="outline" onClick={onManual}>
+              <PencilLine aria-hidden="true" />
               {t('meal.compose.enterManually')}
             </Button>
           </>
@@ -147,18 +172,153 @@ export function MealComposer(props: MealComposerProps) {
     );
   }
 
+  const blocks: Record<(typeof layout)[number], ReactNode> = {
+    options: openedSlot ? (
+      <section aria-labelledby="opened-slot-title" className="space-y-3">
+        <SectionHeader
+          icon={Utensils}
+          title={<InlineName name={openedSlot} />}
+          level={3}
+          id="opened-slot-title"
+        />
+        <OptionList
+          slot={openedSlot}
+          selectedOptionId={null}
+          lastUsedOptionId={lastUsed[openedSlot.id] ?? null}
+          onPick={(id) => onPickPlanned(openedSlot.id, id)}
+          testId="slot-options"
+        />
+      </section>
+    ) : null,
+    input: (
+      <section aria-labelledby="composer-text-title" className="space-y-3">
+        {optionsFirst ? (
+          <SectionHeader
+            icon={PencilLine}
+            title={t('meal.compose.somethingElse')}
+            level={3}
+            id="composer-text-title"
+          />
+        ) : (
+          <h3 id="composer-text-title" className="sr-only">
+            {t('meal.compose.textLabel')}
+          </h3>
+        )}
+        <div>
+          <Label htmlFor="composer-text" className="sr-only">
+            {t('meal.compose.textLabel')}
+          </Label>
+          <Textarea
+            id="composer-text"
+            dir="auto"
+            rows={3}
+            maxLength={MEAL_TEXT_MAX}
+            placeholder={
+              optionsFirst
+                ? t('meal.compose.textPlaceholderElse')
+                : t('meal.compose.textPlaceholder')
+            }
+            value={text}
+            onChange={(event) => onTextChange(event.target.value)}
+            data-testid="composer-text"
+            className="text-base"
+          />
+        </div>
+        {photosEnabled ? (
+          <PhotoPicker
+            photos={photos}
+            busy={photoBusy}
+            onAdd={onAddPhotos}
+            onRemove={onRemovePhoto}
+          />
+        ) : null}
+      </section>
+    ),
+    planned: (
+      <section aria-labelledby="planned-title" className="space-y-3">
+        <SectionHeader
+          icon={Sun}
+          title={
+            localDate === today ? t('meal.compose.plannedToday') : t('meal.compose.plannedTitle')
+          }
+          level={3}
+          id="planned-title"
+        />
+        {slots === null ? (
+          <div className="flex gap-2">
+            <Skeleton className="h-11 w-36 rounded-full" />
+            <Skeleton className="h-11 w-36 rounded-full" />
+          </div>
+        ) : !hasPlan || slots.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t('meal.compose.plannedEmpty')}</p>
+        ) : (
+          <PlannedSlotsRow
+            slots={slots}
+            lastUsed={lastUsed}
+            recordedSlotIds={recordedSlotIds}
+            onExpand={onExpandSlot}
+            onPick={onPickPlanned}
+          />
+        )}
+      </section>
+    ),
+    recent: (
+      <section aria-labelledby="recent-title" className="space-y-3">
+        <SectionHeader
+          icon={History}
+          title={t('meal.compose.recentTitle')}
+          level={3}
+          id="recent-title"
+        />
+        {recent === null ? (
+          <div className="flex gap-2">
+            <Skeleton className="h-11 w-40 rounded-full" />
+            <Skeleton className="h-11 w-32 rounded-full" />
+          </div>
+        ) : (
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" data-testid="recent-meals">
+            {recent.map((meal) => (
+              <button
+                key={meal.id}
+                type="button"
+                onClick={() => onPickRecent(meal.id)}
+                disabled={busy}
+                data-testid="recent-meal"
+                className="flex min-h-11 max-w-64 shrink-0 items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-start transition-colors hover:bg-tint-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <span className="truncate text-sm font-medium">
+                  <InlineNames names={meal.items.slice(0, 3)} />
+                </span>
+                {meal.energyKcal !== null ? (
+                  <span
+                    className="shrink-0 font-display text-xs tabular-nums text-muted-foreground"
+                    dir="ltr"
+                  >
+                    {formatNumber(meal.energyKcal)} {t('meal.nutrient.unit.kcal')}
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+    ),
+  };
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {resumed ? <ResumedBanner onStartOver={onStartOver} disabled={busy} /> : null}
 
       {backdatedLabel ? (
-        <p
-          className="rounded-xl border border-info/40 bg-info/10 px-3 py-2 text-sm font-medium"
-          data-testid="logging-for"
+        <Surface
+          variant="note"
+          padding="sm"
+          className="flex items-center gap-2 text-sm font-medium"
           role="status"
         >
-          {backdatedLabel}
-        </p>
+          <CalendarDays className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <span data-testid="logging-for">{backdatedLabel}</span>
+        </Surface>
       ) : null}
 
       {analysis === 'failed' && analysisError ? (
@@ -172,114 +332,28 @@ export function MealComposer(props: MealComposerProps) {
             <Button
               type="button"
               variant="outline"
-              className="h-10"
+              size="sm"
               onClick={onRetry}
               disabled={!canAnalyze}
             >
               {t('meal.compose.retry')}
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-10"
-              onClick={onManual}
-              disabled={busy}
-            >
+            <Button type="button" variant="ghost" size="sm" onClick={onManual} disabled={busy}>
               {t('meal.compose.enterManually')}
             </Button>
           </div>
         </div>
       ) : null}
 
-      <div className="space-y-1.5">
-        <Label htmlFor="composer-text">{t('meal.compose.textLabel')}</Label>
-        <Textarea
-          id="composer-text"
-          dir="auto"
-          rows={3}
-          maxLength={MEAL_TEXT_MAX}
-          placeholder={t('meal.compose.textPlaceholder')}
-          value={text}
-          onChange={(event) => onTextChange(event.target.value)}
-          data-testid="composer-text"
-          className="text-base"
-        />
-      </div>
-
-      {photosEnabled ? (
-        <PhotoPicker
-          photos={photos}
-          busy={photoBusy}
-          onAdd={onAddPhotos}
-          onRemove={onRemovePhoto}
-        />
-      ) : null}
-
-      <section aria-labelledby="recent-title" className="space-y-2">
-        <h3 id="recent-title" className="text-sm font-semibold">
-          {t('meal.compose.recentTitle')}
-        </h3>
-        {recent === null ? (
-          <div className="flex gap-2">
-            <Skeleton className="h-11 w-40 rounded-xl" />
-            <Skeleton className="h-11 w-32 rounded-xl" />
-          </div>
-        ) : recent.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t('meal.compose.recentEmpty')}</p>
-        ) : (
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" data-testid="recent-meals">
-            {recent.map((meal) => (
-              <button
-                key={meal.id}
-                type="button"
-                onClick={() => onPickRecent(meal.id)}
-                disabled={busy}
-                data-testid="recent-meal"
-                className="flex min-h-11 max-w-64 shrink-0 flex-col items-start rounded-xl border border-border bg-card px-3 py-2 text-start hover:bg-accent"
-              >
-                <span className="max-w-full text-sm font-medium">
-                  <InlineNames names={meal.items.slice(0, 3)} />
-                </span>
-                {meal.energyKcal !== null ? (
-                  <span className="text-xs text-muted-foreground" dir="ltr">
-                    {formatNumber(meal.energyKcal)} {t('meal.nutrient.unit.kcal')}
-                  </span>
-                ) : null}
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section aria-labelledby="planned-title" className="space-y-2">
-        <h3 id="planned-title" className="text-sm font-semibold">
-          {localDate === today ? t('meal.compose.plannedToday') : t('meal.compose.plannedTitle')}
-        </h3>
-        {slots === null ? (
-          <div className="flex gap-2">
-            <Skeleton className="h-14 w-36 rounded-xl" />
-            <Skeleton className="h-14 w-36 rounded-xl" />
-          </div>
-        ) : !hasPlan || slots.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t('meal.compose.plannedEmpty')}</p>
-        ) : (
-          <PlannedSlotsRow
-            slots={slots}
-            lastUsed={lastUsed}
-            recordedSlotIds={recordedSlotIds}
-            initialExpandedSlotId={initialExpandedSlotId}
-            onExpand={onExpandSlot}
-            onPick={onPickPlanned}
-          />
-        )}
-      </section>
+      {layout.map((block) => (
+        <div key={block}>{blocks[block]}</div>
+      ))}
 
       <Disclosure
         label={t('meal.compose.moreDetails')}
         open={moreOpen}
         onOpenChange={onMoreOpenChange}
         testId="more-details"
-        className="rounded-xl border border-border bg-card px-3 py-1"
       >
         <div className="space-y-4 pt-2">
           <div className="flex flex-wrap items-end gap-3">
@@ -357,30 +431,62 @@ export function MealComposer(props: MealComposerProps) {
           </div>
         </div>
       </Disclosure>
+    </div>
+  );
+}
 
-      <div className="space-y-2">
-        <p className="text-sm text-muted-foreground" data-testid="date-summary">
-          {props.dateSummary}
-        </p>
+/**
+ * The compose step's pinned footer: the date/time summary, "Check this
+ * meal" (outline — the sheet's one filled primary is Save meal on the
+ * review) and "Enter manually".
+ */
+export function MealComposerFooter({
+  dateSummary,
+  canAnalyze,
+  busy,
+  photoBusy,
+  onAnalyze,
+  onManual,
+}: {
+  dateSummary: string;
+  canAnalyze: boolean;
+  busy: boolean;
+  photoBusy: boolean;
+  onAnalyze: () => void;
+  onManual: () => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <p
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground"
+        data-testid="date-summary"
+      >
+        <CalendarDays className="size-4 shrink-0" aria-hidden="true" />
+        {dateSummary}
+      </p>
+      {/* Secondary at the start, the affirmative action at the end (platform convention). */}
+      <div className="flex gap-2">
         <Button
           type="button"
-          className="h-11 w-full"
-          onClick={onAnalyze}
-          disabled={!canAnalyze}
-          data-testid="analyze"
-        >
-          {busy ? <Spinner className="size-4" /> : null}
-          {t('meal.compose.analyze')}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="h-11 w-full"
+          variant="ghost"
+          className="shrink-0"
           onClick={onManual}
           disabled={busy || photoBusy}
           data-testid="enter-manually"
         >
+          <PencilLine aria-hidden="true" />
           {t('meal.compose.enterManually')}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="flex-1"
+          onClick={onAnalyze}
+          disabled={!canAnalyze}
+          data-testid="analyze"
+        >
+          {busy ? <Spinner /> : <Sparkles aria-hidden="true" />}
+          {t('meal.compose.analyze')}
         </Button>
       </div>
     </div>
