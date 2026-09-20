@@ -2,11 +2,13 @@
 
 import { useId } from 'react';
 import { Checkbox } from '@/components/UiComponents';
+import { Surface } from '@/components/product/Surface';
 import { t } from '@/lib/t';
 
 /**
- * Two-state day completeness checkbox, checked by default (product spec § 8).
- * The helper line changes on a past day with unrecorded slots.
+ * Two-state day completeness checkbox, checked by default (product spec § 8),
+ * on a note surface at the end of the day. The helper line changes on a past
+ * day with unrecorded slots.
  */
 export function CompletenessCheckbox({
   checked,
@@ -21,7 +23,7 @@ export function CompletenessCheckbox({
 }) {
   const id = useId();
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <Surface variant="note">
       <div className="flex items-start gap-3">
         <Checkbox
           id={id}
@@ -38,6 +40,6 @@ export function CompletenessCheckbox({
           <p className="text-xs text-muted-foreground">{helper ?? t('day.completeness.helper')}</p>
         </div>
       </div>
-    </div>
+    </Surface>
   );
 }

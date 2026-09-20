@@ -6,7 +6,7 @@ import { ScoreCard } from '@/components/product/ScoreCard';
 import { WhyThisScore } from '@/components/product/WhyThisScore';
 import { computeDayView } from '@/lib/rubric/day-view';
 import type { DayScore } from '@/lib/rubric/types';
-import { t } from '@/lib/t';
+import { t, tp } from '@/lib/t';
 
 const notEnough: DayScore = {
   dayScore: null,
@@ -28,23 +28,41 @@ const scored: DayScore = {
 };
 
 describe('ScoreCard', () => {
-  it('reads "In progress" on today and names the date on a past day', () => {
+  it('is the hero surface with the band glyph, the numeral and the coverage line', () => {
+    const html = renderToStaticMarkup(<ScoreCard score={scored} ongoing />);
+    expect(html).toContain('data-surface="hero"');
+    expect(html).toContain('data-testid="glyph-band-MOSTLY"');
+    expect(html).toMatch(/data-testid="score-number"[^>]*>78</);
+    expect(html).toMatch(/data-testid="score-band"[^>]*>Mostly followed</);
+    expect(html).toContain(tp('score.coverage', 2, { total: 5 }));
+    expect(html).toContain(tp('score.skipped', 1));
+    // The numeral is the only 40 px, weight-700 text; nothing else is filled emerald.
+    expect(html).toContain('text-numeral');
+    expect(html).not.toContain('bg-primary');
+  });
+
+  it('reads "In progress" on today only; a past day leaves the eyebrow to the section header', () => {
     expect(renderToStaticMarkup(<ScoreCard score={scored} ongoing />)).toContain(
       t('score.inProgress'),
     );
-    const past = renderToStaticMarkup(
-      <ScoreCard score={scored} ongoing={false} dateLabel="Sep 18" />,
+    expect(renderToStaticMarkup(<ScoreCard score={scored} ongoing={false} />)).not.toContain(
+      t('score.inProgress'),
     );
-    expect(past).toContain(t('score.titleDate', { date: 'Sep 18' }));
-    expect(past).not.toContain(t('score.title'));
-    // Without a date the generic title stays (the components gallery).
-    expect(renderToStaticMarkup(<ScoreCard score={scored} ongoing={false} />)).toContain(
-      t('score.title'),
-    );
+  });
+
+  it('carries a neutral "N of M recorded" progress bar', () => {
+    const html = renderToStaticMarkup(<ScoreCard score={scored} ongoing />);
+    expect(html).toMatch(/role="progressbar"[^>]*aria-valuenow="40"/);
+    expect(html).toContain(`aria-label="${tp('day.recordedMeals', 2, { prescribed: 5 })}"`);
+    expect(html).toContain('width:40%');
+    // Nothing recorded: the bar sits at zero rather than disappearing.
+    const empty = renderToStaticMarkup(<ScoreCard score={notEnough} ongoing />);
+    expect(empty).toMatch(/role="progressbar"[^>]*aria-valuenow="0"/);
   });
 
   it('explains what unlocks the number while there is not enough information', () => {
     const html = renderToStaticMarkup(<ScoreCard score={notEnough} ongoing={false} />);
+    expect(html).toContain('data-testid="glyph-band-IN_PROGRESS"');
     expect(html).toContain(t('score.notEnough'));
     expect(html).toContain(t('score.notEnoughHint'));
     expect(html).not.toContain('data-testid="score-coverage"');
@@ -53,6 +71,20 @@ describe('ScoreCard', () => {
     const withScore = renderToStaticMarkup(<ScoreCard score={scored} ongoing={false} />);
     expect(withScore).not.toContain(t('score.notEnoughHint'));
     expect(withScore).toContain('data-testid="score-number"');
+  });
+
+  it('shows the band word alone with one scored meal', () => {
+    const one: DayScore = {
+      ...scored,
+      showNumber: false,
+      band: 'DIFFERENT',
+      coverage: { ...scored.coverage, recorded: 1, scored: 1, skipped: 0, notRecorded: 4 },
+    };
+    const html = renderToStaticMarkup(<ScoreCard score={one} ongoing />);
+    expect(html).not.toContain('data-testid="score-number"');
+    expect(html).toContain('data-testid="glyph-band-DIFFERENT"');
+    expect(html).toMatch(/data-testid="score-band"[^>]*>Different from your plan</);
+    expect(html).toContain(tp('score.coverage', 1, { total: 5 }));
   });
 });
 

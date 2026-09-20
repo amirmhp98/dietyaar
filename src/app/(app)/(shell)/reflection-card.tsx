@@ -116,6 +116,7 @@ export function ReflectionCardIsland({
       phase={phase}
       paragraph={card?.paragraph ?? null}
       stale={card?.stale ?? false}
+      isStatic={card?.isStatic ?? false}
       acknowledged={acknowledged}
       expanded={expanded}
       onToggleExpanded={setExpanded}

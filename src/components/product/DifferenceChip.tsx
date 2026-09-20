@@ -25,8 +25,9 @@ const ICONS: Record<DifferenceKind, typeof ArrowUp> = {
 };
 
 /**
- * Difference chip: one neutral, descriptive observation. Never colour-only;
- * the icon and text carry the meaning (product spec § 8, § 12).
+ * Difference chip: one neutral, descriptive observation as a pill (design.md
+ * "Product UI" › Shape). Never colour-only; the icon and text carry the
+ * meaning (product spec § 8, § 12).
  */
 export function DifferenceChip({
   kind,
@@ -41,7 +42,7 @@ export function DifferenceChip({
   return (
     <span
       className={cn(
-        'inline-flex max-w-full items-center gap-1.5 rounded-md border border-border bg-muted px-2 py-1 text-xs text-foreground',
+        'inline-flex max-w-full items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-1 text-xs text-foreground',
         className,
       )}
     >
