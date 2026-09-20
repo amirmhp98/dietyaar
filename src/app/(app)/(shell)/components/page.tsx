@@ -1,6 +1,7 @@
 'use client';
 
 import { ProductGallery } from './product-gallery';
+import { ProductUiGallery } from './product-ui-gallery';
 
 import { useState, useRef } from 'react';
 import {
@@ -159,6 +160,7 @@ import {
   Mail,
   Phone,
   Cpu,
+  Utensils,
 } from 'lucide-react';
 
 // ─── Mock Data ───────────────────────────────────────────────────────────────
@@ -227,6 +229,7 @@ const LUCIDE_ICONS = [
 ];
 
 const SECTIONS = [
+  { id: 'product', label: 'Product UI', icon: Utensils },
   { id: 'tokens', label: 'توکن‌های طراحی', icon: Palette },
   { id: 'typography', label: 'تایپوگرافی', icon: Type },
   { id: 'buttons', label: 'دکمه‌ها', icon: Square },
@@ -245,7 +248,6 @@ const SECTIONS = [
 function ShowcaseSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-3">
-      <ProductGallery />
       <h3 className="text-sm font-semibold text-muted-foreground border-b border-border/40 pb-2">
         {title}
       </h3>
@@ -309,6 +311,16 @@ export default function ComponentsPage() {
             <p className="text-muted-foreground mt-1 text-sm">
               تمامی کامپوننت‌ها، آیکون‌ها و عناصر UI پروژه در یک صفحه تعاملی
             </p>
+          </div>
+
+          {/* ════════════════════════════════ PRODUCT ════════════════════════════════ */}
+          <div
+            ref={(el) => {
+              sectionRefs.current['product'] = el;
+            }}
+          >
+            <ProductUiGallery />
+            <ProductGallery />
           </div>
 
           {/* ════════════════════════════════ TOKENS ════════════════════════════════ */}
@@ -482,8 +494,11 @@ export default function ComponentsPage() {
                 <Button size="sm">کوچک</Button>
                 <Button size="default">معمولی</Button>
                 <Button size="lg">بزرگ</Button>
-                <Button size="icon">
-                  <Search className="w-4 h-4" />
+                <Button size="icon" aria-label="جستجو">
+                  <Search />
+                </Button>
+                <Button size="icon-sm" aria-label="جستجو">
+                  <Search />
                 </Button>
               </div>
             </ShowcaseSection>

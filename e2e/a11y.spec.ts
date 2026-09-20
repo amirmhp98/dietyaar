@@ -6,7 +6,9 @@ import { createOnboardedUser } from './helpers/onboard';
 
 /**
  * Accessibility gate (tech spec § 15): axe on Today, the composer, the meal
- * review and Settings, in both themes; zero serious or critical violations.
+ * review, Settings and the "Product UI" block of the components gallery
+ * (decision 025: the tint surfaces and glyphs), in both themes; zero serious
+ * or critical violations.
  */
 test.use({ storageState: { cookies: [], origins: [] } });
 test.describe.configure({ timeout: 120_000 });
@@ -15,7 +17,7 @@ test.afterAll(async () => {
   await disconnectDb();
 });
 
-async function expectNoSeriousViolations(page: Page, label: string) {
+async function expectNoSeriousViolations(page: Page, label: string, within?: string) {
   // Sheets and dialogs fade in; axe must see the settled colours.
   await page.evaluate(() =>
     Promise.all(
@@ -25,9 +27,14 @@ async function expectNoSeriousViolations(page: Page, label: string) {
         .map((animation) => animation.finished.catch(() => undefined)),
     ),
   );
-  const results = await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'])
-    .analyze();
+  const builder = new AxeBuilder({ page }).withTags([
+    'wcag2a',
+    'wcag2aa',
+    'wcag21a',
+    'wcag21aa',
+    'best-practice',
+  ]);
+  const results = await (within ? builder.include(within) : builder).analyze();
   const serious = results.violations.filter(
     (v) => v.impact === 'serious' || v.impact === 'critical',
   );
@@ -69,5 +76,15 @@ for (const theme of ['light', 'dark'] as const) {
     await page.goto('/settings');
     await expect(page.getByTestId('profile-summary')).toBeVisible();
     await expectNoSeriousViolations(page, `settings/${theme}`);
+
+    // The Product UI primitives (decision 025) before the screens adopt them:
+    // tint surfaces, glyphs and icon actions must pass in both themes.
+    await page.goto('/components');
+    await expect(page.getByTestId('product-ui-gallery')).toBeVisible();
+    await expectNoSeriousViolations(
+      page,
+      `product-ui/${theme}`,
+      '[data-testid="product-ui-gallery"]',
+    );
   });
 }

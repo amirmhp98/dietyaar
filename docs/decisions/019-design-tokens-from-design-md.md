@@ -1,5 +1,9 @@
 # 019 — Visual language: design.md tokens on the local shadcn kit
 
+_Amended by [025](025-consumer-visual-language.md): the tokens stay; `design.md` "Product UI" now
+governs what they express on app screens (surfaces, glyphs, icon-first actions, Manrope, 10 px /
+16 px radii, pills)._
+
 **Decision.** The component system is the boilerplate's locally owned shadcn kit (decision 004);
 `design.md` supplies tokens only. The mapping onto `src/app/globals.css`: primary from
 `{colors.primary}` `#3ecf8e` with near-black `on-primary` text (contrast checked ≥ 4.5:1), the

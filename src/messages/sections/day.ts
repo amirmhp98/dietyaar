@@ -184,4 +184,17 @@ export const day = {
   'history.openDay': 'Open {date}',
   'history.day.backToHistory': 'Back to History',
   'history.day.notFoundTitle': 'No such day',
+
+  // ── Status and band glyphs: screen-reader names (design.md "Product UI", decision 025) ──
+  'glyph.status.notRecorded': 'Not recorded',
+  'glyph.status.recorded': 'Recorded',
+  'glyph.status.partly': 'Partly matches your plan',
+  'glyph.status.different': 'Different food',
+  'glyph.status.skipped': 'Skipped',
+  'glyph.status.needsReview': 'Needs review',
+  'glyph.status.upcoming': 'Upcoming',
+  'glyph.band.closely': 'Closely followed',
+  'glyph.band.mostly': 'Mostly followed',
+  'glyph.band.different': 'Different from your plan',
+  'glyph.band.inProgress': 'In progress',
 } as const;
