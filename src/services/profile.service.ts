@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { t } from '@/lib/t';
 import { normalizeInput } from '@/lib/text/normalize';
 import { localDateFor } from '@/lib/time/local-date';
+import { APP_TIME_ZONE } from '@/lib/time/zone';
 import {
   MIN_AGE,
   type AiNoticeKind,
@@ -25,7 +26,6 @@ export interface ProfileView {
   heightCm: number | null;
   weightKg: number | null;
   weightMeasuredAt: string | null;
-  timeZone: string;
   unitSystem: 'METRIC' | 'IMPERIAL';
   weekStart: number;
   appearance: 'SYSTEM' | 'LIGHT' | 'DARK';
@@ -36,15 +36,11 @@ export interface ProfileView {
   aiNoticePlanShownAt: Date | null;
   aiNoticeMealTextShownAt: Date | null;
   aiNoticePhotoShownAt: Date | null;
-  lastSeenDeviceTimeZone: string | null;
-  timeZoneHintDismissedAt: Date | null;
   completedAt: Date | null;
   /** The row's creation, the first onboarding answer: the account's first day for history. */
   createdAt: Date;
 }
 
-/** Until the user confirms a zone (TIME_ZONE step), UTC is the only honest default. */
-export const DEFAULT_TIME_ZONE = 'UTC';
 /** Saturday, until the plan or the user sets it (product spec § 6). */
 export const DEFAULT_WEEK_START = 6;
 
@@ -55,7 +51,6 @@ export function toProfileView(row: Profile): ProfileView {
     heightCm: row.heightCm === null ? null : Number(row.heightCm),
     weightKg: row.weightKg === null ? null : Number(row.weightKg),
     weightMeasuredAt: row.weightMeasuredAt,
-    timeZone: row.timeZone ?? DEFAULT_TIME_ZONE,
     unitSystem: row.unitSystem,
     weekStart: row.weekStart ?? DEFAULT_WEEK_START,
     appearance: row.appearance,
@@ -66,8 +61,6 @@ export function toProfileView(row: Profile): ProfileView {
     aiNoticePlanShownAt: row.aiNoticePlanShownAt,
     aiNoticeMealTextShownAt: row.aiNoticeMealTextShownAt,
     aiNoticePhotoShownAt: row.aiNoticePhotoShownAt,
-    lastSeenDeviceTimeZone: row.lastSeenDeviceTimeZone,
-    timeZoneHintDismissedAt: row.timeZoneHintDismissedAt,
     completedAt: row.completedAt,
     createdAt: row.createdAt,
   };
@@ -98,8 +91,7 @@ const NEXT_STEP: Record<OnboardingInputStep, OnboardingStep> = {
   AGE: 'SEX',
   SEX: 'HEIGHT',
   HEIGHT: 'WEIGHT',
-  WEIGHT: 'TIME_ZONE',
-  TIME_ZONE: 'DISPLAY_NAME',
+  WEIGHT: 'DISPLAY_NAME',
   DISPLAY_NAME: 'PLAN',
 };
 
@@ -108,7 +100,6 @@ const STEP_ORDER: OnboardingStep[] = [
   'SEX',
   'HEIGHT',
   'WEIGHT',
-  'TIME_ZONE',
   'DISPLAY_NAME',
   'PLAN',
   'REVIEW',
@@ -128,7 +119,6 @@ export interface OnboardingState {
     heightCm: number | null;
     weightKg: number | null;
     unitSystem: 'METRIC' | 'IMPERIAL';
-    timeZone: string | null;
     displayName: string | null;
   };
 }
@@ -148,7 +138,6 @@ export async function getOnboardingState(ownerId: string): Promise<OnboardingSta
       heightCm: p?.heightCm === null || p?.heightCm === undefined ? null : Number(p.heightCm),
       weightKg: p?.weightKg === null || p?.weightKg === undefined ? null : Number(p.weightKg),
       unitSystem: p?.unitSystem ?? 'METRIC',
-      timeZone: p?.timeZone ?? null,
       displayName: p?.displayName ?? null,
     },
   };
@@ -192,17 +181,15 @@ export async function saveOnboardingStep<S extends OnboardingInputStep>(
     }
     case 'WEIGHT': {
       const v = values as StepValues['WEIGHT'];
+      // Weight measured "today" in the app zone.
       data = {
         userId: ownerId,
         weightKg: v.weightKg,
         unitSystem: v.unitSystem,
-        weightMeasuredAt: null,
+        weightMeasuredAt: localDateFor(now, APP_TIME_ZONE),
       };
       break;
     }
-    case 'TIME_ZONE':
-      data = { userId: ownerId, timeZone: (values as StepValues['TIME_ZONE']).timeZone };
-      break;
     case 'DISPLAY_NAME':
       data = {
         userId: ownerId,
@@ -223,21 +210,11 @@ export async function saveOnboardingStep<S extends OnboardingInputStep>(
     update: data as Prisma.ProfileUncheckedUpdateInput,
   });
 
-  // Weight measured "today" in the user's zone once the zone is known; else in UTC.
-  if (step === 'WEIGHT' || (step === 'TIME_ZONE' && profile.weightMeasuredAt === null)) {
-    const zone = profile.timeZone ?? DEFAULT_TIME_ZONE;
-    await prisma.profile.update({
-      where: { userId: ownerId },
-      data: { weightMeasuredAt: localDateFor(now, zone) },
-    });
-  }
-
   const required =
     profile.ageYears !== null &&
     profile.sex !== null &&
     profile.heightCm !== null &&
-    profile.weightKg !== null &&
-    profile.timeZone !== null;
+    profile.weightKg !== null;
   const candidate = NEXT_STEP[step];
   const nextStep =
     stepIndex(candidate) > stepIndex(user.onboardingStep) ? candidate : user.onboardingStep;
@@ -296,9 +273,6 @@ export async function updatePreferences(
     where: { userId: ownerId },
     data: {
       ...(input.unitSystem ? { unitSystem: input.unitSystem } : {}),
-      ...(input.timeZone
-        ? { timeZone: input.timeZone, lastSeenDeviceTimeZone: null, timeZoneHintDismissedAt: null }
-        : {}),
       ...(input.weekStart !== undefined ? { weekStart: input.weekStart } : {}),
       ...(input.appearance ? { appearance: input.appearance } : {}),
     },
@@ -320,20 +294,5 @@ export async function acknowledgeAiNotice(
   await prisma.profile.updateMany({
     where: { userId: ownerId, [field]: null },
     data: { [field]: now },
-  });
-}
-
-/** Records the device zone; Today shows the hint until dismissed or applied. */
-export async function reportDeviceTimeZone(ownerId: string, timeZone: string): Promise<void> {
-  await prisma.profile.updateMany({
-    where: { userId: ownerId, NOT: { lastSeenDeviceTimeZone: timeZone } },
-    data: { lastSeenDeviceTimeZone: timeZone, timeZoneHintDismissedAt: null },
-  });
-}
-
-export async function dismissTimeZoneHint(ownerId: string, now = new Date()): Promise<void> {
-  await prisma.profile.updateMany({
-    where: { userId: ownerId },
-    data: { timeZoneHintDismissedAt: now },
   });
 }

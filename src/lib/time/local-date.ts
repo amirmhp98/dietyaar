@@ -2,8 +2,9 @@ import { TZDate } from '@date-fns/tz';
 
 /**
  * Zone-aware calendar helpers. Every function takes the instant and the IANA
- * zone explicitly (decision 009): nothing here reads a default zone.
- * Local dates are ISO strings ("2026-09-17"), local times "HH:mm".
+ * zone explicitly: nothing here reads a default zone, callers pass
+ * `APP_TIME_ZONE` (decision 022) or a day's stored zone. Local dates are ISO
+ * strings ("2026-09-17"), local times "HH:mm".
  */
 
 export type LocalDate = string;
@@ -52,16 +53,6 @@ export function isValidLocalDate(value: string): value is LocalDate {
 
 export function isValidLocalTime(value: string): boolean {
   return TIME_RE.test(value);
-}
-
-/** True when `zone` is an IANA zone this runtime can format with. */
-export function isValidTimeZone(zone: string): boolean {
-  try {
-    new Intl.DateTimeFormat('en', { timeZone: zone });
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 /** The calendar date of `instant` in `zone`, as "YYYY-MM-DD". */

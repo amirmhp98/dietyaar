@@ -7,8 +7,8 @@ import {
 
 describe('onboarding progress', () => {
   it('counts the review screens as steps and reaches 100 % only on the ready screen', () => {
-    expect(ONBOARDING_TOTAL_STEPS).toBe(11);
-    expect(progressPercent(1)).toBeCloseTo(100 / 11);
+    expect(ONBOARDING_TOTAL_STEPS).toBe(10);
+    expect(progressPercent(1)).toBeCloseTo(100 / 10);
     expect(progressPercent(ONBOARDING_STEP.ADD_PLAN)).toBeLessThan(
       progressPercent(ONBOARDING_STEP.MEALS),
     );

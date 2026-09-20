@@ -9,7 +9,6 @@ import { APPEARANCE_COOKIE, appearanceCookieOptions } from '@/lib/theme-cookie';
 import {
   STEP_SCHEMAS,
   aiNoticeKindSchema,
-  deviceTimeZoneSchema,
   onboardingStepSchema,
   updatePreferencesSchema,
   updateProfileSchema,
@@ -79,29 +78,6 @@ export async function acknowledgeAiNoticeAction(kind: unknown): Promise<ActionRe
   if (!parsed.success) return fromZodError(parsed.error);
   try {
     await profiles.acknowledgeAiNotice(user.id, parsed.data);
-    return ok();
-  } catch (error) {
-    return fromError(error);
-  }
-}
-
-export async function reportDeviceTimeZoneAction(input: unknown): Promise<ActionResult> {
-  const user = await requireAuth();
-  const parsed = deviceTimeZoneSchema.safeParse(input);
-  if (!parsed.success) return fromZodError(parsed.error);
-  try {
-    await profiles.reportDeviceTimeZone(user.id, parsed.data.timeZone);
-    return ok();
-  } catch (error) {
-    return fromError(error);
-  }
-}
-
-export async function dismissTimeZoneHintAction(): Promise<ActionResult> {
-  const user = await requireAuth();
-  try {
-    await profiles.dismissTimeZoneHint(user.id);
-    revalidatePath('/today');
     return ok();
   } catch (error) {
     return fromError(error);

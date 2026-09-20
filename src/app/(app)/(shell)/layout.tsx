@@ -6,7 +6,6 @@ import { env } from '@/lib/env';
 import { t } from '@/lib/t';
 import { ReflectionTrigger } from './reflection-trigger';
 import { ShellActions } from './shell-actions';
-import { getProfile } from '@/services/profile.service';
 
 /**
  * Product shell: bottom tabs (top row on md+), top bar with the profile
@@ -15,7 +14,7 @@ import { getProfile } from '@/services/profile.service';
  */
 export default async function ShellLayout({ children }: { children: ReactNode }) {
   const user = await requireAuth();
-  const profile = user.onboardingStep === 'DONE' ? await getProfile(user.id) : null;
+  const onboarded = user.onboardingStep === 'DONE';
   const photoEnabled = env.PHOTO_LOGGING_ENABLED;
   return (
     <>
@@ -34,10 +33,10 @@ export default async function ShellLayout({ children }: { children: ReactNode })
           {children}
         </main>
         <BottomNav />
-        {profile ? (
+        {onboarded ? (
           <>
-            <ShellActions timeZone={profile.timeZone} photoEnabled={photoEnabled} />
-            <ReflectionTrigger timeZone={profile.timeZone} />
+            <ShellActions photoEnabled={photoEnabled} />
+            <ReflectionTrigger />
           </>
         ) : null}
       </div>

@@ -3,7 +3,7 @@ import archiver from 'archiver';
 import { requireApiAuth } from '@/lib/auth';
 import { storageConfigured } from '@/lib/env';
 import { logger } from '@/lib/logger';
-import { localDateFor } from '@/lib/time';
+import { APP_TIME_ZONE, localDateFor } from '@/lib/time';
 import { recordEvent } from '@/services/analytics.service';
 import { buildExport } from '@/services/export.service';
 import { createStorage } from '@/services/storage/s3';
@@ -21,9 +21,7 @@ export async function GET(): Promise<Response> {
   const { user } = auth;
   const now = new Date();
   const bundle = await buildExport(user.id, now);
-  const date = bundle.timeZone
-    ? localDateFor(now, bundle.timeZone)
-    : now.toISOString().slice(0, 10);
+  const date = localDateFor(now, APP_TIME_ZONE);
 
   const archive = archiver('zip', { zlib: { level: 6 } });
   archive.on('warning', (error) => logger.warn({ err: error, userId: user.id }, 'export warning'));

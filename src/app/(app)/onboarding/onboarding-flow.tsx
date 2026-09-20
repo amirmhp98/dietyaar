@@ -12,11 +12,6 @@ import {
   Progress,
   RadioGroup,
   RadioGroupItem,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   ToggleGroup,
   ToggleGroupItem,
   toast,
@@ -33,14 +28,7 @@ import type { OnboardingState } from '@/services/profile.service';
 import type { OnboardingStep } from '@prisma/client';
 import { ONBOARDING_TOTAL_STEPS, progressPercent } from './plan/plan-screen';
 
-const STEPS: OnboardingInputStep[] = [
-  'AGE',
-  'SEX',
-  'HEIGHT',
-  'WEIGHT',
-  'TIME_ZONE',
-  'DISPLAY_NAME',
-];
+const STEPS: OnboardingInputStep[] = ['AGE', 'SEX', 'HEIGHT', 'WEIGHT', 'DISPLAY_NAME'];
 type Values = OnboardingState['values'];
 
 function round1(n: number) {
@@ -50,15 +38,6 @@ function round1(n: number) {
 /** Inches keep two decimals so cm → ft/in → cm round-trips exactly. */
 function round2(n: number) {
   return Math.round(n * 100) / 100;
-}
-
-function listTimeZones(): string[] {
-  try {
-    const zones = Intl.supportedValuesOf('timeZone');
-    return zones.includes('UTC') ? zones : ['UTC', ...zones];
-  } catch {
-    return ['UTC'];
-  }
 }
 
 export function OnboardingFlow({
@@ -190,15 +169,6 @@ export function OnboardingFlow({
           onSave={(weightKg, unitSystem) =>
             save('WEIGHT', { weightKg, unitSystem }, { weightKg, unitSystem })
           }
-        />
-      );
-    case 'TIME_ZONE':
-      return (
-        <TimeZoneScreen
-          key="tz"
-          {...common}
-          value={values.timeZone}
-          onSave={(timeZone) => save('TIME_ZONE', { timeZone }, { timeZone })}
         />
       );
     case 'DISPLAY_NAME':
@@ -539,69 +509,6 @@ function WeightScreen({
   );
 }
 
-function TimeZoneScreen({
-  value,
-  onSave,
-  pending,
-  error,
-  onBack,
-}: ScreenProps & { value: string | null; onSave: (zone: string) => void }) {
-  const detected = useMemo(() => {
-    try {
-      return Intl.DateTimeFormat().resolvedOptions().timeZone;
-    } catch {
-      return 'UTC';
-    }
-  }, []);
-  const [zone, setZone] = useState(value ?? detected);
-  const [changing, setChanging] = useState(false);
-  const zones = useMemo(() => listTimeZones(), []);
-
-  return (
-    <Screen current={5} title={t('onboarding.timeZone.title')} onBack={onBack}>
-      <p className="text-base">{t('onboarding.timeZone.detected', { zone })}</p>
-      <p className="text-sm text-muted-foreground">{t('onboarding.timeZone.why')}</p>
-      {changing ? (
-        <FormField label={t('onboarding.timeZone.label')} id="onboarding-time-zone">
-          <Select value={zone} onValueChange={setZone}>
-            <SelectTrigger className="h-11" id="onboarding-time-zone">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {zones.map((z) => (
-                <SelectItem key={z} value={z}>
-                  {z}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FormField>
-      ) : null}
-      <ErrorLine error={error} />
-      <div className="grid gap-3">
-        <Button
-          type="button"
-          className="h-11 w-full"
-          loading={pending}
-          onClick={() => onSave(zone)}
-        >
-          {t('onboarding.timeZone.looksRight')}
-        </Button>
-        {!changing ? (
-          <Button
-            type="button"
-            variant="outline"
-            className="h-11 w-full"
-            onClick={() => setChanging(true)}
-          >
-            {t('onboarding.timeZone.change')}
-          </Button>
-        ) : null}
-      </div>
-    </Screen>
-  );
-}
-
 function NameScreen({
   value,
   onSave,
@@ -611,7 +518,7 @@ function NameScreen({
 }: ScreenProps & { value: string | null; onSave: (name: string | null) => void }) {
   const [name, setName] = useState(value ?? '');
   return (
-    <Screen current={6} title={t('onboarding.name.title')} onBack={onBack}>
+    <Screen current={5} title={t('onboarding.name.title')} onBack={onBack}>
       <form
         className="space-y-5"
         onSubmit={(e) => {

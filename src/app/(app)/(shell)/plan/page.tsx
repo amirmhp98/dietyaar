@@ -10,7 +10,7 @@ import {
 import { requireOnboarded } from '@/lib/auth';
 import { formatDate } from '@/lib/format';
 import { t } from '@/lib/t';
-import { localDateFor, weekdayOf } from '@/lib/time';
+import { APP_TIME_ZONE, localDateFor, weekdayOf } from '@/lib/time';
 import { EVERY_DAY, NOTE_REASONS } from '@/lib/validations/plan';
 import { getPlan, slotsForWeekday, type PlanView } from '@/services/plan.service';
 import { requireProfile } from '@/services/profile.service';
@@ -26,7 +26,7 @@ export default async function PlanPage() {
   const now = new Date();
   const [profile, plan] = await Promise.all([requireProfile(user.id), getPlan(user.id)]);
   const active = isActive(plan);
-  const today = weekdayOf(localDateFor(now, profile.timeZone));
+  const today = weekdayOf(localDateFor(now, APP_TIME_ZONE));
 
   return (
     <div className="space-y-6">
@@ -60,7 +60,7 @@ export default async function PlanPage() {
             {plan.confirmedAt ? (
               <p className="text-xs text-muted-foreground">
                 {t('plan.page.confirmedOn', {
-                  date: formatDate(plan.confirmedAt, { timeZone: profile.timeZone }),
+                  date: formatDate(plan.confirmedAt, { timeZone: APP_TIME_ZONE }),
                 })}
               </p>
             ) : null}

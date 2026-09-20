@@ -20,8 +20,6 @@ export interface ExportBundle {
   messages: Record<string, unknown>[];
   /** Attached uploads; the route writes each as `photos/{uploadId}.jpg`. */
   photos: Array<{ uploadId: string; mealId: string | null; storageKey: string; bytes: number }>;
-  /** The user's zone, for the file name. */
-  timeZone: string | null;
 }
 
 export async function buildExport(ownerId: string, now: Date): Promise<ExportBundle> {
@@ -73,7 +71,6 @@ export async function buildExport(ownerId: string, now: Date): Promise<ExportBun
 
   return {
     exportedAt: now.toISOString(),
-    timeZone: profile?.timeZone ?? null,
     profile: {
       username: user.username,
       accountCreatedAt: user.createdAt,
@@ -84,7 +81,6 @@ export async function buildExport(ownerId: string, now: Date): Promise<ExportBun
             heightCm: num(profile.heightCm),
             weightKg: num(profile.weightKg),
             weightMeasuredAt: profile.weightMeasuredAt,
-            timeZone: profile.timeZone,
             unitSystem: profile.unitSystem,
             weekStart: profile.weekStart,
             displayName: profile.displayName,

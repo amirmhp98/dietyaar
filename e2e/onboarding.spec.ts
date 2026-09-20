@@ -27,7 +27,8 @@ test.describe('onboarding', () => {
 
     await page.getByLabel(t('onboarding.weight.kg')).fill('64');
     await page.getByRole('button', { name: t('onboarding.continue') }).click();
-    await page.getByRole('button', { name: t('onboarding.timeZone.looksRight') }).click();
+    // No time-zone step (decision 022): weight goes straight to the name.
+    await expect(page.getByText(t('onboarding.progress', { current: 5, total: 10 }))).toBeVisible();
     await page.getByLabel(t('onboarding.name.label')).fill('سارا');
     await page.getByRole('button', { name: t('onboarding.continue') }).click();
 

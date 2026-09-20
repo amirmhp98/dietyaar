@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import type { RubricPlanItem, RubricSlot, RubricTarget } from '@/lib/rubric/types';
 import { t } from '@/lib/t';
 import { localDateFor } from '@/lib/time/local-date';
+import { APP_TIME_ZONE } from '@/lib/time/zone';
 import { resolveUnitGrams } from '@/lib/units';
 import { NUTRIENT_KEYS, type NutrientKey, nutritionSchema } from '@/lib/validations/nutrition';
 import {
@@ -23,7 +24,7 @@ import {
 import { estimatePlanBaseline } from '@/services/ai/interpret-plan';
 import type { BaselineItemInput } from '@/services/ai/types';
 import { admitOperation, finishOperation } from '@/services/ai-usage.service';
-import { DEFAULT_TIME_ZONE, DEFAULT_WEEK_START } from '@/services/profile.service';
+import { DEFAULT_WEEK_START } from '@/services/profile.service';
 import { markStaleIfNeeded } from '@/services/reflection.service';
 
 /**
@@ -683,11 +684,7 @@ export async function estimateDraftBaseline(
     { nutrition: DraftItem['nutrition']; unitGrams: number | null }
   >();
   if (pending.length > 0) {
-    const profile = await prisma.profile.findUnique({
-      where: { userId: ownerId },
-      select: { timeZone: true },
-    });
-    const localDate = localDateFor(now, profile?.timeZone ?? DEFAULT_TIME_ZONE);
+    const localDate = localDateFor(now, APP_TIME_ZONE);
     const admission = await admitOperation(ownerId, 'PLAN_BASELINE', localDate);
     if (!admission.ok) {
       throw new ServiceError(
@@ -972,11 +969,7 @@ export async function confirmPlan(
     });
   });
 
-  const profile = await prisma.profile.findUnique({
-    where: { userId: ownerId },
-    select: { timeZone: true },
-  });
-  await markStaleIfNeeded(ownerId, localDateFor(now, profile?.timeZone ?? DEFAULT_TIME_ZONE));
+  await markStaleIfNeeded(ownerId, localDateFor(now, APP_TIME_ZONE));
   return { affectedMeals };
 }
 

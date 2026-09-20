@@ -399,7 +399,6 @@ describe('confirmPlan', () => {
       (args) => Promise.resolve({ id: args.where.id }) as never,
     );
     prismaMock.planOption.create.mockResolvedValue({ id: 'opt-new' } as never);
-    prismaMock.profile.findUnique.mockResolvedValue({ timeZone: 'Asia/Tehran' } as never);
   }
 
   it('rejects a stale draft revision', async () => {
@@ -490,7 +489,6 @@ describe('estimateDraftBaseline', () => {
     prismaMock.plan.findUnique.mockResolvedValue(
       planFactory.build({ draftKind: 'MANUAL', draftJson: draft as never }) as never,
     );
-    prismaMock.profile.findUnique.mockResolvedValue({ timeZone: 'Asia/Tehran' } as never);
     prismaMock.plan.updateMany.mockResolvedValue({ count: 1 });
   }
 

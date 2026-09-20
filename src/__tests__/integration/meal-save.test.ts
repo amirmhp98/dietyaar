@@ -24,7 +24,7 @@ import {
 } from '@/services/meal.service';
 import { markSlotSkipped } from '@/services/day.service';
 
-/** 09:30 in Tehran on 2026-09-17. */
+/** 10:00 in Asia/Dubai on 2026-09-17. */
 const NOW = new Date('2026-09-17T06:00:00Z');
 const REQ = '22222222-2222-4222-8222-222222222222';
 

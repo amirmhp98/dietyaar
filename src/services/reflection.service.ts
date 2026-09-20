@@ -12,6 +12,7 @@ import {
 } from '@/lib/rubric/facts';
 import { t } from '@/lib/t';
 import { addDays, localDateFor, localTimeFor } from '@/lib/time/local-date';
+import { APP_TIME_ZONE } from '@/lib/time/zone';
 import { checkReflection, generateReflection } from '@/services/ai/generate-reflection';
 import type { ReflectionOutput } from '@/services/ai/schemas';
 import type { AiResult, GenerateReflectionInput, ProfileContext } from '@/services/ai/types';
@@ -112,7 +113,7 @@ function profileContextOf(profile: ProfileView): ProfileContext {
 /**
  * Product spec § 11 inputs: yesterday's view (when the user has any meal
  * before `localDate`), today's plan and confirmed meals (only to avoid a wrong
- * next step), the greeting name and the time of day from `now` in the zone.
+ * next step), the greeting name and the time of day from `now` in the app zone.
  */
 async function buildFacts(
   ownerId: string,
@@ -120,7 +121,6 @@ async function buildFacts(
   now: Date,
   owner: Owner,
 ): Promise<FactsBundle> {
-  const zone = owner.profile.timeZone;
   const [today, earlierMeal] = await Promise.all([
     getDayView(ownerId, localDate, now),
     prisma.meal.findFirst({
@@ -133,7 +133,7 @@ async function buildFacts(
   const profile = profileContextOf(owner.profile);
   const context: ReflectionContext = {
     greetingName: greetingNameFor(owner.profile, { username: owner.username }),
-    timeOfDay: timeOfDayFor(now, zone),
+    timeOfDay: timeOfDayFor(now, APP_TIME_ZONE),
     hasPlan: isPlanActive(today.plan),
     isFirstDay,
     profile,
@@ -151,7 +151,7 @@ function contextFromSnapshot(facts: ReflectionFact[], owner: Owner, now: Date): 
   const plan = facts.find((f) => f.id === 'today:plan');
   return {
     greetingName: greetingNameFor(owner.profile, { username: owner.username }),
-    timeOfDay: timeOfDayFor(now, owner.profile.timeZone),
+    timeOfDay: timeOfDayFor(now, APP_TIME_ZONE),
     hasPlan: plan !== undefined && plan.signature !== 'NO_PLAN',
     isFirstDay: !facts.some((f) => f.id === 'coverage' || f.id === 'completeness'),
   };
@@ -466,7 +466,7 @@ export async function markStaleIfNeeded(
 ): Promise<void> {
   try {
     const owner = await loadOwner(ownerId);
-    const today = localDateFor(now, owner.profile.timeZone);
+    const today = localDateFor(now, APP_TIME_ZONE);
     const candidates = [...new Set([addDays(affectedDate, 1), today])];
     const rows = await prisma.morningMessage.findMany({
       where: { userId: ownerId, localDate: { in: candidates }, status: 'READY', stale: false },

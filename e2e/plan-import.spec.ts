@@ -33,7 +33,7 @@ test.beforeEach(async ({ page }) => {
 
 test('J1: paste a Persian plan, review 8a–8c, confirm, ready, today', async ({ page }) => {
   await createOnboardedUser(page, { prefix: 'imp' });
-  await expect(page.getByText(t('onboarding.progress', { current: 7, total: 11 }))).toBeVisible();
+  await expect(page.getByText(t('onboarding.progress', { current: 6, total: 10 }))).toBeVisible();
   await startImport(page, PERSIAN_PLAN);
 
   await expect(page.getByRole('heading', { name: t('plan.review.mealsTitle') })).toBeVisible({

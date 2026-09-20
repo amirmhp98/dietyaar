@@ -2,12 +2,13 @@ import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { localDateFor, addDays } from '../../src/lib/time/local-date';
+import { APP_TIME_ZONE } from '../../src/lib/time/zone';
 
 /**
  * Direct database helpers for the Today / History / reflection specs: insert a
  * day with meals and items for a user and local date without going through
- * the composer, read the profile zone, set completeness. Uses DATABASE_URL
- * from .env — the same database the dev server uses.
+ * the composer, set completeness. Days are counted in the app zone (decision
+ * 022). Uses DATABASE_URL from .env — the same database the dev server uses.
  */
 const prisma = new PrismaClient();
 
@@ -31,22 +32,12 @@ export interface SeedMeal {
 }
 
 async function userByName(username: string) {
-  return prisma.user.findUniqueOrThrow({
-    where: { usernameLower: username.toLowerCase() },
-    include: { profile: true },
-  });
+  return prisma.user.findUniqueOrThrow({ where: { usernameLower: username.toLowerCase() } });
 }
 
-/** The user's profile zone (Asia/Tehran for users onboarded by the Playwright config). */
-export async function profileZone(username: string): Promise<string> {
-  const user = await userByName(username);
-  return user.profile?.timeZone ?? 'UTC';
-}
-
-/** Today in the user's zone, offset by `days` (negative = past). */
-export async function localDateOf(username: string, days = 0): Promise<string> {
-  const zone = await profileZone(username);
-  return addDays(localDateFor(new Date(), zone), days);
+/** Today in the app zone, offset by `days` (negative = past). */
+export function localDateOf(days = 0): string {
+  return addDays(localDateFor(new Date(), APP_TIME_ZONE), days);
 }
 
 function nutrition(kcal: number | null | undefined) {
@@ -70,17 +61,16 @@ function nutrition(kcal: number | null | undefined) {
   };
 }
 
-/** Insert one meal (creating the DayRecord in the user's zone when missing). Returns the meal id. */
+/** Insert one meal (creating the DayRecord in the app zone when missing). Returns the meal id. */
 export async function insertMeal(
   username: string,
   localDate: string,
   meal: SeedMeal,
 ): Promise<string> {
   const user = await userByName(username);
-  const zone = user.profile?.timeZone ?? 'UTC';
   const day = await prisma.dayRecord.upsert({
     where: { userId_localDate: { userId: user.id, localDate } },
-    create: { userId: user.id, localDate, timeZone: zone },
+    create: { userId: user.id, localDate, timeZone: APP_TIME_ZONE },
     update: {},
   });
   const created = await prisma.meal.create({
@@ -119,10 +109,9 @@ export async function renameMealItems(mealId: string, originalName: string, engl
 
 export async function setDayComplete(username: string, localDate: string, complete: boolean) {
   const user = await userByName(username);
-  const zone = user.profile?.timeZone ?? 'UTC';
   await prisma.dayRecord.upsert({
     where: { userId_localDate: { userId: user.id, localDate } },
-    create: { userId: user.id, localDate, timeZone: zone, logComplete: complete },
+    create: { userId: user.id, localDate, timeZone: APP_TIME_ZONE, logComplete: complete },
     update: { logComplete: complete },
   });
 }
@@ -130,10 +119,9 @@ export async function setDayComplete(username: string, localDate: string, comple
 /** Mark slots skipped for a day directly (to build complete past days quickly). */
 export async function skipSlots(username: string, localDate: string, planSlotIds: string[]) {
   const user = await userByName(username);
-  const zone = user.profile?.timeZone ?? 'UTC';
   const day = await prisma.dayRecord.upsert({
     where: { userId_localDate: { userId: user.id, localDate } },
-    create: { userId: user.id, localDate, timeZone: zone },
+    create: { userId: user.id, localDate, timeZone: APP_TIME_ZONE },
     update: {},
   });
   await prisma.daySkippedSlot.createMany({

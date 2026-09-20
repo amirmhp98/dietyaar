@@ -40,7 +40,6 @@ export default async function SettingsPage() {
       <Section id="preferences" title={t('settings.preferences.title')}>
         <PreferencesSection
           unitSystem={profile.unitSystem}
-          timeZone={profile.timeZone}
           weekStart={profile.weekStart}
           appearance={profile.appearance}
         />

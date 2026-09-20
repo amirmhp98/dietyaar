@@ -36,7 +36,6 @@ describe('saveOnboardingStep', () => {
         sex: null,
         heightCm: null,
         weightKg: null,
-        timeZone: null,
         completedAt: null,
       }),
     );
@@ -74,7 +73,7 @@ describe('saveOnboardingStep', () => {
     expect(result).toEqual({ nextStep: 'WEIGHT' });
   });
 
-  it('sets completedAt only at the display-name step when the five required fields exist', async () => {
+  it('sets completedAt only at the display-name step when the four required fields exist', async () => {
     prismaMock.user.findUnique.mockResolvedValue({
       ...userFactory.build({ onboardingStep: 'DISPLAY_NAME' }),
       profile: { id: 'p' },
@@ -97,24 +96,24 @@ describe('saveOnboardingStep', () => {
     });
   });
 
-  it('stamps the weight measurement date in the profile zone once the zone is known', async () => {
+  it('stamps the weight measurement date in the app zone and moves on to the name', async () => {
     prismaMock.user.findUnique.mockResolvedValue({
-      ...userFactory.build({ onboardingStep: 'TIME_ZONE' }),
+      ...userFactory.build({ onboardingStep: 'WEIGHT' }),
       profile: { id: 'p' },
     } as never);
-    prismaMock.profile.upsert.mockResolvedValue(
-      profileFactory.build({ timeZone: 'Asia/Tehran', weightMeasuredAt: null, completedAt: null }),
-    );
+    prismaMock.profile.upsert.mockResolvedValue(profileFactory.build({ completedAt: null }));
     prismaMock.$transaction.mockResolvedValue([]);
-    await saveOnboardingStep(
+    // 20:30Z is already the 17th in Asia/Dubai (UTC+4).
+    const result = await saveOnboardingStep(
       'u1',
-      'TIME_ZONE',
-      { timeZone: 'Asia/Tehran' },
-      new Date('2026-09-16T21:00:00Z'),
+      'WEIGHT',
+      { weightKg: 64, unitSystem: 'METRIC' },
+      new Date('2026-09-16T20:30:00Z'),
     );
-    expect(prismaMock.profile.update).toHaveBeenCalledWith({
-      where: { userId: 'u1' },
-      data: { weightMeasuredAt: '2026-09-17' },
+    expect(result).toEqual({ nextStep: 'DISPLAY_NAME' });
+    expect(prismaMock.profile.upsert.mock.calls[0]?.[0].update).toMatchObject({
+      weightKg: 64,
+      weightMeasuredAt: '2026-09-17',
     });
   });
 });
@@ -146,15 +145,14 @@ describe('read model', () => {
       ageYears: 31,
       heightCm: null,
       weightKg: 64,
-      timeZone: 'Asia/Tehran',
     });
   });
 
   it('greeting falls back to the username; profile view converts decimals and defaults', () => {
     expect(greetingNameFor({ displayName: ' ' }, { username: 'sara' })).toBe('sara');
     expect(greetingNameFor({ displayName: 'سارا' }, { username: 'sara' })).toBe('سارا');
-    const view = toProfileView(profileFactory.build({ timeZone: null, weekStart: null }));
-    expect(view).toMatchObject({ heightCm: 168, weightKg: 64, timeZone: 'UTC', weekStart: 6 });
+    const view = toProfileView(profileFactory.build({ weekStart: null }));
+    expect(view).toMatchObject({ heightCm: 168, weightKg: 64, weekStart: 6 });
   });
 });
 
@@ -179,15 +177,13 @@ describe('settings', () => {
     });
   });
 
-  it('updatePreferences writes only the given fields and clears the zone hint on a zone change', async () => {
+  it('updatePreferences writes only the given fields', async () => {
     prismaMock.profile.findUnique.mockResolvedValue(profileFactory.build());
     prismaMock.profile.update.mockResolvedValue(profileFactory.build({ appearance: 'DARK' }));
-    const view = await updatePreferences('u1', { appearance: 'DARK', timeZone: 'Europe/Berlin' });
+    const view = await updatePreferences('u1', { appearance: 'DARK', weekStart: 0 });
     expect(prismaMock.profile.update.mock.calls[0]?.[0].data).toEqual({
       appearance: 'DARK',
-      timeZone: 'Europe/Berlin',
-      lastSeenDeviceTimeZone: null,
-      timeZoneHintDismissedAt: null,
+      weekStart: 0,
     });
     expect(view.appearance).toBe('DARK');
   });

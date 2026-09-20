@@ -24,7 +24,6 @@ enum OnboardingStep {
   SEX
   HEIGHT
   WEIGHT
-  TIME_ZONE
   DISPLAY_NAME
   PLAN
   REVIEW
@@ -233,9 +232,8 @@ model Profile {
   sex                     Sex?
   heightCm                Decimal?    @db.Decimal(10, 2)
   weightKg                Decimal?    @db.Decimal(10, 2)
-  /// ISO date in the user's zone.
+  /// ISO date in the app zone (decision 022).
   weightMeasuredAt        String?     @db.VarChar(10)
-  timeZone                String?
   unitSystem              UnitSystem  @default(METRIC)
   /// 0 = Sunday … 6 = Saturday. Seeded from the plan at confirm, then user-owned.
   weekStart               Int?
@@ -249,8 +247,6 @@ model Profile {
   aiNoticePlanShownAt     DateTime?   @db.Timestamptz(3)
   aiNoticeMealTextShownAt DateTime?   @db.Timestamptz(3)
   aiNoticePhotoShownAt    DateTime?   @db.Timestamptz(3)
-  lastSeenDeviceTimeZone  String?
-  timeZoneHintDismissedAt DateTime?   @db.Timestamptz(3)
   completedAt             DateTime?   @db.Timestamptz(3)
   createdAt               DateTime    @default(now()) @db.Timestamptz(3)
   updatedAt               DateTime    @updatedAt @db.Timestamptz(3)
@@ -425,7 +421,7 @@ model DayRecord {
   userId      String
   /// ISO date "YYYY-MM-DD" in `timeZone`.
   localDate   String   @db.VarChar(10)
-  /// The user's zone when the row was created; historical days keep it.
+  /// The zone the day was computed in (the app zone, decision 022); historical days keep it.
   timeZone    String
   logComplete Boolean  @default(true)
   createdAt   DateTime @default(now()) @db.Timestamptz(3)

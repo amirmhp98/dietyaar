@@ -102,15 +102,15 @@ Use three primary destinations: **History**, **Today**, and **My plan**, with To
 
 On mobile, use a compact bottom navigation and a thumb-accessible logging action. On larger screens, preserve the same information hierarchy rather than filling available space with additional reports.
 
-| Surface      | Main purpose                                   | Essential content                                                                  |
-| ------------ | ---------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Onboarding   | Reach a confirmed plan and first useful action | Profile, plan import/review, completion                                            |
-| Today        | Understand today and record food               | Morning paragraph, plan comparison, next planned meal, recorded meals              |
-| Log meal     | Record actual intake                           | Description/photo/recent/plan entry; review; save                                  |
-| Meal details | Understand or correct a saved entry            | Foods, portions, nutrition, estimate sources, time, edit/delete                    |
-| My plan      | Read and maintain the plan                     | Schedule, goals, notes, source, edit/replace                                       |
-| History      | Review a previous day or a short pattern       | Date selector, daily detail, seven-day summary                                     |
-| Settings     | Manage personal preferences and data           | Profile, display name, units, time zone, week start, appearance, password, privacy |
+| Surface      | Main purpose                                   | Essential content                                                       |
+| ------------ | ---------------------------------------------- | ----------------------------------------------------------------------- |
+| Onboarding   | Reach a confirmed plan and first useful action | Profile, plan import/review, completion                                 |
+| Today        | Understand today and record food               | Morning paragraph, plan comparison, next planned meal, recorded meals   |
+| Log meal     | Record actual intake                           | Description/photo/recent/plan entry; review; save                       |
+| Meal details | Understand or correct a saved entry            | Foods, portions, nutrition, estimate sources, time, edit/delete         |
+| My plan      | Read and maintain the plan                     | Schedule, goals, notes, source, edit/replace                            |
+| History      | Review a previous day or a short pattern       | Date selector, daily detail, seven-day summary                          |
+| Settings     | Manage personal preferences and data           | Profile, display name, units, week start, appearance, password, privacy |
 
 No separate report center or chat home screen is required.
 
@@ -119,7 +119,7 @@ No separate report center or chat home screen is required.
 ### Flow
 
 1. **Welcome and account access.** One brief value statement and a clear start action. Create an account with a username and password, or sign in. Username: 3–30 characters, letters, digits, underscore, case-insensitive, unique. Password: at least 8 characters, a show/hide toggle, no forced complexity rules, checked against a common-password list. There is no password recovery in this release: no recovery email, no forgot-password form, no reset link. A forgotten password loses the account and its records, and the sign-up form and Settings each say so in one line. No one-time codes, email verification, or social sign-in. Sessions persist on the device until logout.
-2. **About you.** Require age in years, sex, height, and current weight before completing onboarding. Sex offers two options, female and male. Let users choose measurement units; metric is the default for this audience. Confirm the time zone detected from the device. An optional display name is used in greetings; otherwise the username is used. Explain that this profile provides context for AI estimates and personalized reflections. The four required fields cannot be skipped. Do not ask for exact birth date, address, or a comprehensive medical history. Preserve partially completed steps and allow users to edit these values later. Onboarding asks one thing per screen and nothing optional beyond the display name: an optional plain-language goal and optional dietary restrictions live in Settings, not in onboarding. The goal is shown back on My plan only and is not sent to AI. Restrictions are used only for a neutral reminder in meal review when a recorded ingredient matches.
+2. **About you.** Require age in years, sex, height, and current weight before completing onboarding. Sex offers two options, female and male. Let users choose measurement units; metric is the default for this audience. Days are counted in the app time zone (Asia/Dubai, decision 022); nothing about zones is asked. An optional display name is used in greetings; otherwise the username is used. Explain that this profile provides context for AI estimates and personalized reflections. The four required fields cannot be skipped. Do not ask for exact birth date, address, or a comprehensive medical history. Preserve partially completed steps and allow users to edit these values later. Onboarding asks one thing per screen and nothing optional beyond the display name: an optional plain-language goal and optional dietary restrictions live in Settings, not in onboarding. The goal is shown back on My plan only and is not sent to AI. Restrictions are used only for a neutral reminder in meal review when a recorded ingredient matches.
 3. **Add your plan.** Paste text in any language or enter the plan manually. Briefly explain that AI will prepare pasted text for review and that the app works in English while keeping food names as written. Show a short example in the user's likely language, including one meal with several options. Do not show inactive photo/PDF controls in V1. Before the first import, show the AI-processing notice from section 15 once: one calm sentence that the pasted plan is sent to an AI provider to be read, with **Continue** and **Set up manually**. Text over the 20,000-character limit is kept on screen with a count and a suggestion to paste the plan in parts.
 4. **Review your plan.** Confirm the extracted meals, their options, schedule, portions, and per-meal and daily targets, one section at a time. Show uncertainties and the original source alongside the relevant section. Every other instruction (training-day conditions, food frequency, exclusions, an unsupported schedule such as a rotation longer than seven days) appears once under “Notes from your plan”, verbatim, with a one-line reason; nothing is chosen there. Rules are not evaluated in V1; plan instructions are kept as notes (decision 023). Each review section shows the excerpt of the source text it was extracted from, so the user can compare without leaving the screen. Review must not become a wall of corrections: every unknown gets a labeled default, only calorie-significant unknowns produce a question, a weekday plan is reviewed for one day and then confirmed for the remaining days from a summary, and the user can confirm now and fix anything later from My plan. If the import is still running after 15 seconds, the user can continue to Today. Today then shows one of three import states: “We're still preparing your plan,” “Your plan is ready to review” with **Review now**, or “We couldn't prepare your plan” with **Try again** and **Set up manually**. A failed or timed-out import keeps the pasted text, and the user can log meals meanwhile.
 5. **Ready for today.** Show a short confirmation, today's plan, and “Log your first meal.” Explain briefly that a new reflection will be waiting on each day's first visit; no notification setup or permission request.
@@ -499,7 +499,6 @@ This defines hierarchy, not colors, card styling, or a final visual composition.
 - **First use/no records:** show the plan and “Log your first meal”; no empty charts.
 - **No active plan:** keep logging available and show “Add your plan.”
 - **Plan import pending or failed:** a single banner above the plan block, “We're still preparing your plan,” “Your plan is ready to review” with **Review now**, or “We couldn't prepare your plan” with **Try again** and **Set up manually**.
-- **Device time zone changed:** one dismissible line offering to update the preference; history is never rewritten.
 - **Ongoing day:** display recorded progress; the checked completeness default does not imply that today has ended.
 - **Incomplete log:** display recorded amounts and partial-data context when unchecked.
 - **Past day treated as complete:** display eligible comparisons and keep the checkbox editable.
@@ -568,7 +567,7 @@ On the first authenticated visit of each local calendar day, request that day's 
 
 There is no scheduled morning worker, push permission, reflection or reminder email, delivery-time setting, or external notification in V1; the product sends no email of any kind. “Morning message” names the daily reflection; if the first visit happens in the afternoon or evening, use a time-appropriate greeting and refer to the remaining day. Do not instruct the user to begin with breakfast after it has passed. If no visit occurs, no paragraph needs to be generated for that day; do not create a backlog on return.
 
-Use a user-confirmed IANA time zone and the local date, not the device's UTC date. Keep one canonical message per user/local date, with an input revision and generation timestamp. Reopening Today, refreshing, multiple tabs/devices, or retrying must return the same message rather than create duplicates. At local midnight, the next visit or foreground refresh requests the new date's message; it never interrupts a meal form.
+Use the app time zone (Asia/Dubai, decision 022) and the local date, not the device's UTC date. Keep one canonical message per user/local date, with an input revision and generation timestamp. Reopening Today, refreshing, multiple tabs/devices, or retrying must return the same message rather than create duplicates. At local midnight, the next visit or foreground refresh requests the new date's message; it never interrupts a meal form.
 
 Inputs are captured at request time. A late first visit can include today's confirmed recorded meals solely to avoid an inappropriate next-step suggestion. Yesterday remains the basis of the retrospective paragraph. No catch-up judgments about the user's absence.
 
@@ -690,7 +689,7 @@ User confirmation is a control against obvious errors, not evidence that nutriti
 
 | Record                  | Essential information                                                                                                                                                                       |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Account and preferences | Owner ID, username, password hash, display name, units, time zone, week start, appearance, which AI notices have been shown (plan, meal text, meal photo)                                   |
+| Account and preferences | Owner ID, username, password hash, display name, units, week start, appearance, which AI notices have been shown (plan, meal text, meal photo)                                              |
 | Profile                 | Required age, sex, height, current weight; units, measurement dates; optional goal and explicitly supplied restrictions                                                                     |
 | Plan                    | Source, source language, original text, normalized slots in order with original and English names, options per slot, in-item alternatives, per-meal and daily targets, notes, pending draft |
 | Day                     | Local date, time zone context, completeness boolean (default true; no record of whether it was touched), skipped slots                                                                      |
@@ -703,7 +702,7 @@ User confirmation is a control against obvious errors, not evidence that nutriti
 
 All records and uploads are private to their owner. Server authorization applies to reads, writes, exports, and file access.
 
-Store consumed time separately from created/updated time. A day follows the user's selected local midnight boundary. Preserve an entry's recorded local date/zone so travel does not silently move old meals across days. Detect a changed device time zone and offer a preference update; never rewrite history automatically. Users can explicitly correct the recorded date/time.
+Store consumed time separately from created/updated time. A day follows local midnight in the app time zone (Asia/Dubai, decision 022). Preserve an entry's recorded local date/zone so a later change of the app zone never silently moves old meals across days; history is never rewritten automatically. Users can explicitly correct the recorded date/time.
 
 Use one consistent calculation service for dashboard, history, and morning-message facts. Recalculate affected days after meal/plan changes and invalidate stale cached summaries. Use revision checks to prevent one device from silently overwriting newer edits from another.
 
@@ -769,7 +768,7 @@ Use content-free analytics events such as `plan_confirmed`, `meal_save_succeeded
 - [ ] Option matching (Matched, Partly matched, Different food, cross-slot, added calorie-significant item) behaves as section 8 defines, with fixtures from both reference plans; a meal under a plan slot is always evaluated and a meal under Other never is.
 - [ ] A planned meal with options cannot be saved without a chosen option, and the last-used option is only marked as a suggestion.
 - [ ] The AI-processing notice appears once before each first request kind (plan, meal text, meal photo), each with a manual alternative.
-- [ ] Today shows the import-pending, import-ready, import-failed, and time-zone-changed states as specified, and a restriction reminder appears in meal review when an item matches.
+- [ ] Today shows the import-pending, import-ready, and import-failed states as specified, and a restriction reminder appears in meal review when an item matches.
 - [ ] Persian and Arabic input renders correctly inside English copy across plan, review, Today, History, and the morning paragraph.
 - [ ] Today stays focused, with a persistent logging action and optional detail disclosure.
 - [ ] History explains incomplete-day denominators and plan changes.

@@ -21,14 +21,10 @@ import type {
   RubricTarget,
 } from '@/lib/rubric/types';
 import { addDays, dateRange, localDateFor, weekdayOf } from '@/lib/time/local-date';
+import { APP_TIME_ZONE } from '@/lib/time/zone';
 import { nutritionSchema, type Nutrition } from '@/lib/validations/nutrition';
 import { getActivePlan, slotsForWeekday, type ActivePlan } from '@/services/plan.service';
-import {
-  DEFAULT_TIME_ZONE,
-  DEFAULT_WEEK_START,
-  getProfile,
-  type ProfileView,
-} from '@/services/profile.service';
+import { DEFAULT_WEEK_START, getProfile } from '@/services/profile.service';
 
 /**
  * Day read model (tech spec § 6, decision 013): the comparison is computed on
@@ -61,7 +57,6 @@ export interface DayViewResult {
   meals: MealSummary[];
   /** The zone the day was computed in (the stored one for historical days). */
   zone: string;
-  profileZone: string;
   weekStart: number;
   plan: ActivePlan | null;
 }
@@ -88,7 +83,6 @@ export interface SevenDayResult {
   historyStart: string | null;
   summary: SevenDaySummary;
   planChangedInWindow: boolean;
-  profileZone: string;
 }
 
 // ─── Row → rubric conversion (Decimal → number at the boundary) ────────────
@@ -228,31 +222,14 @@ function targetsFor(
  * started; edits and replacements come later). A first plan reviewed
  * overnight is the one case still labelled a change.
  */
-function planChangedBetween(
-  plan: ActivePlan | null,
-  start: string,
-  end: string,
-  zone: string,
-): boolean {
+function planChangedBetween(plan: ActivePlan | null, start: string, end: string): boolean {
   if (!plan?.confirmedAt) return false;
-  const confirmed = localDateFor(plan.confirmedAt, zone);
+  const confirmed = localDateFor(plan.confirmedAt, APP_TIME_ZONE);
   if (confirmed < start || confirmed > end) return false;
-  return localDateFor(plan.createdAt, zone) !== confirmed;
+  return localDateFor(plan.createdAt, APP_TIME_ZONE) !== confirmed;
 }
 
 // ─── Building one day ───────────────────────────────────────────────────────
-
-interface Settings {
-  zone: string;
-  weekStart: number;
-}
-
-function settingsOf(profile: ProfileView | null): Settings {
-  return {
-    zone: profile?.timeZone ?? DEFAULT_TIME_ZONE,
-    weekStart: profile?.weekStart ?? DEFAULT_WEEK_START,
-  };
-}
 
 interface BuiltDay {
   view: DayView;
@@ -261,17 +238,16 @@ interface BuiltDay {
 
 /**
  * `DayInput` for one date: stored days keep their own zone; a date without a
- * row is computed as empty in the profile zone. `dayPhase` comes from `now`
+ * row is computed as empty in the app zone. `dayPhase` comes from `now`
  * (tech spec § 21.5), so midnight changes the result without any write.
  */
 function buildDay(
   localDate: string,
   row: DayRecordRow | null,
   plan: ActivePlan | null,
-  settings: Settings,
   now: Date,
 ): BuiltDay {
-  const zone = row?.timeZone ?? settings.zone;
+  const zone = row?.timeZone ?? APP_TIME_ZONE;
   const weekday = weekdayOf(localDate);
   const active = isPlanActive(plan) ? plan : null;
   const slots = active ? slotsForWeekday(active, weekday) : [];
@@ -318,12 +294,9 @@ function buildRange(
   end: string,
   rows: Map<string, DayRecordRow>,
   plan: ActivePlan | null,
-  settings: Settings,
   now: Date,
 ): BuiltDay[] {
-  return dateRange(start, end).map((date) =>
-    buildDay(date, rows.get(date) ?? null, plan, settings, now),
-  );
+  return dateRange(start, end).map((date) => buildDay(date, rows.get(date) ?? null, plan, now));
 }
 
 // ─── Public reads ───────────────────────────────────────────────────────────
@@ -342,15 +315,13 @@ export async function getDayView(
     getActivePlan(ownerId),
     getProfile(ownerId),
   ]);
-  const settings = settingsOf(profile);
-  const day = buildDay(localDate, row, plan, settings, now);
+  const day = buildDay(localDate, row, plan, now);
 
   return {
     view: day.view,
     meals: (row?.meals ?? []).map((m) => toMealSummary(m, isPlanActive(plan) ? plan : null)),
     zone: day.zone,
-    profileZone: settings.zone,
-    weekStart: settings.weekStart,
+    weekStart: profile?.weekStart ?? DEFAULT_WEEK_START,
     plan,
   };
 }
@@ -391,14 +362,13 @@ export async function getSevenDayView(
 ): Promise<SevenDayResult> {
   const startDate = addDays(endDate, -6);
   const [plan, profile] = await Promise.all([getActivePlan(ownerId), getProfile(ownerId)]);
-  const settings = settingsOf(profile);
   const active = isPlanActive(plan) ? plan : null;
   const rows = await loadDays(ownerId, startDate, endDate);
-  const built = buildRange(startDate, endDate, rows, plan, settings, now);
+  const built = buildRange(startDate, endDate, rows, plan, now);
 
   const historyStart = historyStartFor(
     startDate,
-    profile ? localDateFor(profile.createdAt, settings.zone) : null,
+    profile ? localDateFor(profile.createdAt, APP_TIME_ZONE) : null,
     [...rows.keys()],
   );
   const rows7 = built
@@ -410,7 +380,6 @@ export async function getSevenDayView(
     rows: rows7,
     historyStart,
     summary: sevenDaySummary(rows7.map((r) => r.view)),
-    planChangedInWindow: planChangedBetween(active, startDate, endDate, settings.zone),
-    profileZone: settings.zone,
+    planChangedInWindow: planChangedBetween(active, startDate, endDate),
   };
 }
