@@ -94,6 +94,7 @@ export function slot(
     englishLabel,
     timeStart: null,
     timeEnd: null,
+    timeAssumed: false,
     options,
     ...extra,
   };
@@ -182,6 +183,7 @@ export function dayInput(slots: RubricSlot[], overrides: Partial<DayInput> = {})
     dayPhase: 'PAST',
     logComplete: true,
     hasRecord: true,
+    nowLocalTime: null,
     planStructure: 'SAME_EVERY_DAY',
     slots,
     allSlots: slots,

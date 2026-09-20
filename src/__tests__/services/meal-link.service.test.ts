@@ -74,6 +74,7 @@ const breakfast: RubricSlot = {
   englishLabel: 'Breakfast',
   timeStart: null,
   timeEnd: null,
+  timeAssumed: false,
   options: [
     {
       id: 'opt-bf',
@@ -92,6 +93,7 @@ const lunch: RubricSlot = {
   englishLabel: 'Lunch',
   timeStart: null,
   timeEnd: null,
+  timeAssumed: false,
   options: [
     { id: 'opt-a', position: 0, label: 'A', items: [planItem('pi-rice', 'rice', 150)] },
     { id: 'opt-b', position: 1, label: 'B', items: [planItem('pi-bread', 'bread', 80)] },
@@ -107,6 +109,7 @@ const fridayDinner: RubricSlot = {
   englishLabel: 'Friday dinner',
   timeStart: null,
   timeEnd: null,
+  timeAssumed: false,
   options: [{ id: 'opt-fd', position: 0, label: null, items: [planItem('pi-fish', 'fish', 150)] }],
 };
 

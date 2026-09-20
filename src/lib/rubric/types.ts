@@ -1,3 +1,4 @@
+import type { SlotWindow, WindowState } from '@/lib/rubric/windows';
 import type { Band } from '@/lib/time/bands';
 import type { Nutrition, NutrientKey } from '@/lib/validations/nutrition';
 
@@ -53,9 +54,11 @@ export interface RubricSlot extends FoodName {
   id: string;
   weekday: number;
   position: number;
-  /** "HH:mm" or null when the plan gives no time. */
+  /** "HH:mm": stated by the plan, or assumed from the name on confirm (`timeAssumed`); null only for a row never assigned one. */
   timeStart: string | null;
   timeEnd: string | null;
+  /** An assumed window drives the Today actions and never enters the timing score. */
+  timeAssumed: boolean;
   options: RubricOption[];
 }
 
@@ -108,6 +111,8 @@ export interface DayInput {
   logComplete: boolean;
   /** True when a DayRecord row exists (a meal, skip or completeness change happened). */
   hasRecord: boolean;
+  /** Wall-clock "HH:mm" in `zone` when `localDate` is today; null for a past day (every window has passed) or a future one (none has opened). */
+  nowLocalTime: string | null;
   planStructure: PlanStructureKey | null;
   /** The plan's slots for this weekday, in plan order. */
   slots: RubricSlot[];
@@ -219,6 +224,10 @@ export interface SlotView {
   score: SlotScore | null;
   /** The slot's own energy range for the row label. */
   energyTarget: RubricTarget | null;
+  /** The slot's time window (stated or assumed) for the row subline. */
+  window: SlotWindow;
+  /** Where the clock stands against the window; decides the row's actions (product spec § 9). */
+  windowState: WindowState;
 }
 
 export type WordingBand = 'CLOSELY' | 'MOSTLY' | 'DIFFERENT' | 'NOT_ENOUGH';

@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { Badge, Button, FormField } from '@/components/UiComponents';
 import { AmountPrefix, GramsEach } from '@/components/product/ItemAmount';
 import { NameLabel } from '@/components/product/NameLabel';
+import { SlotWindowText } from '@/components/product/SlotWindow';
+import type { SlotWindow } from '@/lib/rubric/windows';
 import { t } from '@/lib/t';
 import type { DraftItem, DraftQuestion, DraftSlot } from '@/lib/validations/plan';
 import { QuantityInput, SlotEditor } from './SlotEditor';
@@ -11,12 +13,15 @@ import { SourceExcerpt } from './SourceExcerpt';
 import { UnitSelect } from './UnitSelect';
 
 /**
- * Screen 7a: one slot per screen. Source excerpt, the slot's name, its
- * options as a compact list with amounts and "Assumed" tags, and at most one
- * question for a calorie-significant unknown. "Fix" opens the inline editor.
+ * Screen 7a: one slot per screen. Source excerpt, the slot's name and window
+ * (stated, or the one confirm will assume from the name), its options as a
+ * compact list with amounts and "Assumed" tags, and at most one question for
+ * a calorie-significant unknown. "Fix" opens the inline editor, where the
+ * time fields are the way to replace an assumed window.
  */
 export function SlotReview({
   slot,
+  window,
   question,
   current,
   total,
@@ -26,6 +31,8 @@ export function SlotReview({
   onBack,
 }: {
   slot: DraftSlot;
+  /** The window confirm will write for this slot, from the whole day's names. */
+  window: SlotWindow | null;
   /** The first unanswered question for this slot, if any. */
   question: DraftQuestion | null;
   current: number;
@@ -97,11 +104,14 @@ export function SlotReview({
       </p>
       <div className="space-y-1">
         <NameLabel originalName={slot.originalName} englishLabel={slot.englishLabel} size="lg" />
-        {slot.timeStart ? (
-          <p className="text-sm text-muted-foreground" dir="ltr">
-            {slot.timeEnd
-              ? t('plan.time.range', { start: slot.timeStart, end: slot.timeEnd })
-              : slot.timeStart}
+        {window ? (
+          <p className="text-sm text-muted-foreground">
+            <SlotWindowText window={window} />
+          </p>
+        ) : null}
+        {window?.assumed ? (
+          <p className="text-xs text-muted-foreground" data-testid="window-assumed-hint">
+            {t('plan.time.assumedHint')}
           </p>
         ) : null}
       </div>

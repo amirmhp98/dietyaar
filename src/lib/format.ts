@@ -257,6 +257,26 @@ export function formatTime(date: Nullable<DateInput>, opts: DateFormatOptions = 
   return formatDateWith({ timeStyle: 'short' }, date, opts);
 }
 
+const CLOCK_TIME_RE = /^(\d{2}):(\d{2})$/;
+
+/**
+ * A wall-clock time stored as "HH:mm" (a plan slot's window), shown as a
+ * 24-hour time in the profile's numerals ("15:30" / "۱۵:۳۰"). No instant is
+ * involved, so no zone applies; like `formatLocalDate` it formats in UTC.
+ */
+export function formatClockTime(time: Nullable<string>, opts: FormatOptions = {}): string {
+  const match = time ? CLOCK_TIME_RE.exec(time) : null;
+  if (!match) return '';
+  const [, h, m] = match.map(Number);
+  return formatTime(new Date(Date.UTC(2000, 0, 1, h!, m!)), {
+    ...baseOptions(opts),
+    timeZone: 'UTC',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  });
+}
+
 const SECOND = 1_000;
 const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;

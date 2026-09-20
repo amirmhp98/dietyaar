@@ -125,6 +125,8 @@ export const draftSlotSchema = foodNameSchema.extend({
   position: z.number().int().nonnegative().default(0),
   timeStart: localTime,
   timeEnd: localTime,
+  /** The times were assumed from the name on confirm (product spec § 6); typing a time clears it. */
+  timeAssumed: z.boolean().default(false),
   sourceExcerpt: excerpt,
   options: z.array(draftOptionSchema).min(1).max(12),
   /** Weekday plans: the summary screen asks to apply the same checks to the other days. */

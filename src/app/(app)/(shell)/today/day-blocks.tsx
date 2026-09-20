@@ -74,7 +74,9 @@ export function DayBlocks({
 
   const hasPlan = view.planStructure !== null;
   const targetsOnly = view.planStructure === 'TARGETS_ONLY';
-  const nextSlot = view.slots.find((s) => s.state === 'NOT_RECORDED') ?? null;
+  // The first open or passed unrecorded slot; before any window opens (early morning), the first unrecorded one.
+  const unrecorded = view.slots.filter((s) => s.state === 'NOT_RECORDED');
+  const nextSlot = unrecorded.find((s) => s.windowState !== 'UPCOMING') ?? unrecorded[0] ?? null;
   const allDone = view.slots.length > 0 && nextSlot === null;
   const { coverage } = view.score;
   const gaps = !ongoing && logComplete && view.mealCount > 0 && coverage.notRecorded > 0;

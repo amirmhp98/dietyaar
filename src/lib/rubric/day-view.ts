@@ -9,7 +9,7 @@ import {
 } from '@/lib/rubric/nutrition';
 import { portionResult } from '@/lib/rubric/portion';
 import { scoreDay, scoreSlot } from '@/lib/rubric/score';
-import { orderResult, timeResult, type OrderEntry } from '@/lib/rubric/timing';
+import { orderResult, statedWindow, timeResult, type OrderEntry } from '@/lib/rubric/timing';
 import type {
   Coverage,
   DayInput,
@@ -20,6 +20,15 @@ import type {
   SlotState,
   SlotView,
 } from '@/lib/rubric/types';
+import {
+  assignWindows,
+  DAY_END,
+  DAY_START,
+  windowOf,
+  windowStateAt,
+  type SlotWindow,
+  type WindowState,
+} from '@/lib/rubric/windows';
 import { minutesBetween } from '@/lib/time/bands';
 
 function earliestTime(meals: RubricMeal[]): string | null {
@@ -28,8 +37,16 @@ function earliestTime(meals: RubricMeal[]): string | null {
   return times.reduce((a, b) => (minutesBetween(a, b) > 0 ? a : b));
 }
 
-function timingWindowFor(slot: RubricSlot): { start: string; end: string | null } | null {
-  return slot.timeStart ? { start: slot.timeStart, end: slot.timeEnd } : null;
+/** After `assignWindows` every slot has one; the whole-day fallback is never reached. */
+function windowFor(slot: RubricSlot): SlotWindow {
+  return windowOf(slot) ?? { start: DAY_START, end: DAY_END, assumed: true };
+}
+
+/** Past day: every window has passed; future day: none has opened; today: the clock decides. */
+function windowStateFor(input: DayInput, window: SlotWindow): WindowState {
+  if (input.dayPhase === 'PAST') return 'PASSED';
+  if (input.nowLocalTime === null) return 'UPCOMING';
+  return windowStateAt(window, input.nowLocalTime);
 }
 
 /**
@@ -48,7 +65,9 @@ function referenceOption(view: SlotView): RubricOption | null {
  * identical input → identical view.
  */
 export function computeDayView(input: DayInput): DayView {
-  const { slots, meals, skippedSlotIds, dayPhase, logComplete } = input;
+  const { meals, skippedSlotIds, dayPhase, logComplete } = input;
+  // Rows confirmed before windows existed (or seeded directly) get theirs here, so a row always has one.
+  const slots = assignWindows(input.slots);
   const skipped = new Set(skippedSlotIds);
   const bySlot = new Map<string, RubricMeal[]>();
   const otherMealIds: string[] = [];
@@ -94,6 +113,7 @@ export function computeDayView(input: DayInput): DayView {
     }
     const energyTarget =
       input.targets.find((t) => t.planSlotId === slot.id && t.nutrient === 'ENERGY_KCAL') ?? null;
+    const window = windowFor(slot);
     return {
       slot,
       state,
@@ -108,6 +128,8 @@ export function computeDayView(input: DayInput): DayView {
       recordedEnergyKcal: null,
       score: null,
       energyTarget,
+      window,
+      windowState: windowStateFor(input, window),
     };
   });
 
@@ -123,7 +145,7 @@ export function computeDayView(input: DayInput): DayView {
     const items = linked.flatMap((m) => m.items);
     view.match = matchSlot(items, reference, view.slot, input.allSlots);
     view.portion = portionResult(view.match);
-    const window = timingWindowFor(view.slot);
+    const window = statedWindow(view.slot);
     view.timing = window
       ? timeResult(view.earliestTime, window)
       : orderResult(view.slot, orderEntries);

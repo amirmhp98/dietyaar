@@ -20,7 +20,7 @@ import type {
   RubricMeal,
   RubricTarget,
 } from '@/lib/rubric/types';
-import { addDays, dateRange, localDateFor, weekdayOf } from '@/lib/time/local-date';
+import { addDays, dateRange, localDateFor, localTimeFor, weekdayOf } from '@/lib/time/local-date';
 import { APP_TIME_ZONE } from '@/lib/time/zone';
 import { nutritionSchema, type Nutrition } from '@/lib/validations/nutrition';
 import { getActivePlan, slotsForWeekday, type ActivePlan } from '@/services/plan.service';
@@ -236,8 +236,9 @@ interface BuiltDay {
 
 /**
  * `DayInput` for one date: stored days keep their own zone; a date without a
- * row is computed as empty in the app zone. `dayPhase` comes from `now`
- * (tech spec § 21.5), so midnight changes the result without any write.
+ * row is computed as empty in the app zone. `dayPhase` and the clock the slot
+ * windows are judged against come from `now` (tech spec § 21.5), so midnight
+ * and the passing hours change the result without any write.
  */
 function buildDay(
   localDate: string,
@@ -250,12 +251,14 @@ function buildDay(
   const active = isPlanActive(plan) ? plan : null;
   const slots = active ? slotsForWeekday(active, weekday) : [];
   const slotIds = new Set(slots.map((s) => s.id));
+  const today = localDateFor(now, zone);
   const input: DayInput = {
     localDate,
     zone,
-    dayPhase: localDate >= localDateFor(now, zone) ? 'ONGOING' : 'PAST',
+    dayPhase: localDate >= today ? 'ONGOING' : 'PAST',
     logComplete: row?.logComplete ?? true,
     hasRecord: row !== null,
+    nowLocalTime: localDate === today ? localTimeFor(now, zone) : null,
     planStructure: active?.structure ?? null,
     slots,
     allSlots: active?.slots ?? [],

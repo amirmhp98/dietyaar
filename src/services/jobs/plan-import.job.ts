@@ -124,6 +124,7 @@ export function draftFromImport(output: PlanImportOutput): PlanDraft {
     englishLabel: slot.englishLabel,
     timeStart: slot.timeStart,
     timeEnd: slot.timeEnd,
+    timeAssumed: false,
     sourceExcerpt: slot.sourceExcerpt,
     reviewed: false,
     options: slot.options.map((option, optionIndex) => ({

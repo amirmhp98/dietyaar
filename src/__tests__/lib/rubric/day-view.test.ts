@@ -204,4 +204,42 @@ describe('computeDayView', () => {
     const view = computeDayView(dayInput(slots, { meals: [fullOption(p, 2, 0, '15:00')] }));
     expect(view.slots[2].timing).toMatchObject({ kind: 'TIME', band: 'NOTICEABLE', minutes: 120 });
   });
+
+  it('an assumed window never yields a TIME result or a timing band: the order rule stays', () => {
+    const p = buildMenuPlan();
+    const slots = p.slots.map((s) =>
+      s.id === p.lunch.id ? { ...s, timeStart: '12:00', timeEnd: '13:00', timeAssumed: true } : s,
+    );
+    // Lunch alone at 17:00, four hours after its assumed window: no reference, nothing scored.
+    const alone = computeDayView(dayInput(slots, { meals: [fullOption(p, 2, 0, '17:00')] }));
+    expect(alone.slots[2].timing).toMatchObject({
+      kind: 'ORDER',
+      band: null,
+      notEvaluatedReason: 'NO_ORDER_REFERENCE',
+    });
+    expect(alone.slots[2].score?.excluded).toContain('TIMING');
+    // With breakfast before it, the order rule reads "in plan order"; the window is display only.
+    const inOrder = computeDayView(
+      dayInput(slots, { meals: [fullOption(p, 0, 0, '08:00'), fullOption(p, 2, 0, '17:00')] }),
+    );
+    expect(inOrder.slots[2].timing).toMatchObject({ kind: 'ORDER', band: 'SMALL', minutes: null });
+    // An assumed window is recomputed from the name on read (the table's lunch window).
+    expect(inOrder.slots[2].window).toEqual({ start: '12:00', end: '15:30', assumed: true });
+    // Slots the fixture left without times get an assumed window on the view.
+    expect(inOrder.slots[0].window).toEqual({ start: '06:00', end: '10:30', assumed: true });
+    expect(inOrder.slots.every((s) => s.timing === null || s.timing.kind !== 'TIME')).toBe(true);
+  });
+
+  it('window state follows the clock on today, and is PASSED on a past day, UPCOMING on a future one', () => {
+    const p = buildMenuPlan();
+    const states = (nowLocalTime: string | null, dayPhase: 'ONGOING' | 'PAST' = 'ONGOING') =>
+      computeDayView(dayInput(p.slots, { dayPhase, nowLocalTime })).slots.map((s) => s.windowState);
+    // Breakfast 06:00–10:30 · first snack 10:00–12:30 · lunch 12:00–15:30 · second snack 15:00–18:30 · dinner 18:30–23:00.
+    expect(states('05:30')).toEqual(['UPCOMING', 'UPCOMING', 'UPCOMING', 'UPCOMING', 'UPCOMING']);
+    expect(states('08:00')).toEqual(['OPEN', 'UPCOMING', 'UPCOMING', 'UPCOMING', 'UPCOMING']);
+    expect(states('12:15')).toEqual(['PASSED', 'OPEN', 'OPEN', 'UPCOMING', 'UPCOMING']);
+    expect(states('16:00')).toEqual(['PASSED', 'PASSED', 'PASSED', 'OPEN', 'UPCOMING']);
+    expect(states(null, 'PAST')).toEqual(['PASSED', 'PASSED', 'PASSED', 'PASSED', 'PASSED']);
+    expect(states(null)).toEqual(['UPCOMING', 'UPCOMING', 'UPCOMING', 'UPCOMING', 'UPCOMING']);
+  });
 });

@@ -1,27 +1,29 @@
 import { Badge } from '@/components/UiComponents';
 import { AmountPrefix, GramsEach } from '@/components/product/ItemAmount';
 import { NameLabel } from '@/components/product/NameLabel';
+import { SlotWindowText } from '@/components/product/SlotWindow';
 import { formatNumber } from '@/lib/format';
 import { sortedOptions } from '@/lib/rubric/options';
 import type { RubricPlanItem, RubricSlot, RubricTarget } from '@/lib/rubric/types';
+import { windowOf } from '@/lib/rubric/windows';
 import { t, tp } from '@/lib/t';
 
 /**
- * Read-only slot card for My plan (design-scope screen 6): name, time, the
- * per-meal energy range, and the options with their items. The Today page
- * has its own interactive row; this one never links or logs.
+ * Read-only slot card for My plan (design-scope screen 6): name, window
+ * ("≈" when assumed from the name), the per-meal energy range, and the
+ * options with their items. The Today page has its own interactive row; this
+ * one never links or logs.
  */
 export function PlanSlotSummary({ slot, range }: { slot: RubricSlot; range: RubricTarget | null }) {
+  const window = windowOf(slot);
   return (
     <li className="space-y-3 rounded-xl border border-border bg-card p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-0.5">
           <NameLabel originalName={slot.originalName} englishLabel={slot.englishLabel} />
-          {slot.timeStart ? (
-            <p className="text-xs text-muted-foreground" dir="ltr">
-              {slot.timeEnd
-                ? t('plan.time.range', { start: slot.timeStart, end: slot.timeEnd })
-                : slot.timeStart}
+          {window ? (
+            <p className="text-xs text-muted-foreground">
+              <SlotWindowText window={window} />
             </p>
           ) : null}
         </div>

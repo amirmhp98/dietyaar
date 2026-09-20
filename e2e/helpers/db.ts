@@ -279,6 +279,19 @@ export async function seedMenuPlan(username: string): Promise<SeededPlan> {
   };
 }
 
+/** States a slot's window as if the plan gave it (`timeAssumed: false`), or clears it. */
+export async function setSlotTimes(
+  slotId: string,
+  times: { timeStart: string; timeEnd: string } | null,
+): Promise<void> {
+  await prisma.planSlot.update({
+    where: { id: slotId },
+    data: times
+      ? { timeStart: times.timeStart, timeEnd: times.timeEnd, timeAssumed: false }
+      : { timeStart: null, timeEnd: null, timeAssumed: false },
+  });
+}
+
 export async function disconnectDb() {
   await prisma.$disconnect();
 }

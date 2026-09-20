@@ -6,6 +6,7 @@ export * from './match-slot';
 export * from './portion';
 export * from './energy';
 export * from './timing';
+export * from './windows';
 export * from './score';
 export * from './nutrition';
 export * from './restrictions';

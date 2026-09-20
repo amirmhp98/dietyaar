@@ -3,7 +3,7 @@ import { computeDayView } from '@/lib/rubric/day-view';
 import { energyResult } from '@/lib/rubric/energy';
 import { matchSlot } from '@/lib/rubric/match-slot';
 import { portionBand, portionResult } from '@/lib/rubric/portion';
-import { orderResult, timeResult } from '@/lib/rubric/timing';
+import { orderResult, statedWindow, timeResult } from '@/lib/rubric/timing';
 import { dayInput, eaten, fi, meal, range } from '@/__tests__/fixtures/plans/builders';
 import { buildMenuPlan } from '@/__tests__/fixtures/plans/menu-plan';
 import { buildWeekdayPlan } from '@/__tests__/fixtures/plans/weekday-plan';
@@ -73,6 +73,19 @@ describe('thresholds table (inclusive boundaries)', () => {
       band: null,
       notEvaluatedReason: 'TIME_UNKNOWN',
     });
+  });
+
+  it('only a stated window reaches timeResult; an assumed one leaves the order rule in force', () => {
+    expect(statedWindow({ timeStart: '12:00', timeEnd: '13:00', timeAssumed: false })).toEqual({
+      start: '12:00',
+      end: '13:00',
+    });
+    expect(statedWindow({ timeStart: '12:00', timeEnd: null, timeAssumed: false })).toEqual({
+      start: '12:00',
+      end: null,
+    });
+    expect(statedWindow({ timeStart: '12:00', timeEnd: '15:30', timeAssumed: true })).toBeNull();
+    expect(statedWindow({ timeStart: null, timeEnd: null, timeAssumed: false })).toBeNull();
   });
 
   it('time wraps at midnight: 00:30 is 210 min after a 21:00 slot, and a window may cross midnight', () => {

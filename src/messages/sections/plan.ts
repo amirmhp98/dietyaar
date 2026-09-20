@@ -59,6 +59,9 @@ export const plan = {
   'plan.item.noQuantity': 'No amount',
   'plan.item.alternatives': 'or {names}',
   'plan.time.range': '{start}–{end}',
+  'plan.time.assumedRange': '≈ {start}–{end}',
+  'plan.time.assumedHint':
+    'Assumed from the meal name — edit the times if your plan says otherwise.',
   'plan.unit.none': 'No unit',
   'plan.unit.other': 'Other unit',
   'plan.unit.otherLabel': 'Unit (as written)',

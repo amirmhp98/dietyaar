@@ -650,6 +650,7 @@ function TimesScreen({
         ...s,
         timeStart: times[s.key]?.start || null,
         timeEnd: times[s.key]?.end || null,
+        timeAssumed: false,
       })),
     );
   return (

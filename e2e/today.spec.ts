@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { t, tp } from '../src/lib/t';
-import { disconnectDb, seedMenuPlan, type SeededPlan } from './helpers/db';
+import { disconnectDb, seedMenuPlan, setSlotTimes, type SeededPlan } from './helpers/db';
 import { disconnectMealsDb, insertMeal, localDateOf } from './helpers/meals-db';
 import { createOnboardedUser } from './helpers/onboard';
 
@@ -28,6 +28,8 @@ test.describe('Today', () => {
     await expect(page.getByTestId('log-first-meal')).toBeVisible();
 
     const plan: SeededPlan = await seedMenuPlan(username);
+    // The second snack's window is stated as the whole day so it is open, and skippable, whenever this runs.
+    await setSlotTimes(plan.slots[3].id, { timeStart: '00:00', timeEnd: '23:59' });
     await page.reload();
 
     const rows = page.getByTestId('plan-slot-row');
@@ -37,12 +39,20 @@ test.describe('Today', () => {
     }
     await expect(rows.nth(0)).not.toContainText('Breakfast');
     await expect(page.getByTestId('score-band')).toHaveText(t('score.notEnough'));
+    // Breakfast is the first open or passed slot, or the first slot before any window opens.
     await expect(rows.nth(0).getByTestId('log-this-meal')).toBeVisible();
-    await expect(rows.nth(2)).toContainText(t('slot.options', { count: 4 }));
-    await expect(rows.nth(2)).toContainText('650–720 kcal');
+    // Sublines: the window (assumed from the name, so "≈"), the option count, the energy range.
+    await expect(rows.nth(0)).toContainText(
+      t('plan.time.assumedRange', { start: '06:00', end: '10:30' }),
+    );
+    await expect(rows.nth(2)).toContainText(
+      `${t('plan.time.assumedRange', { start: '12:00', end: '15:30' })} · ${t('slot.options', { count: 4 })} · 650–720 kcal`,
+    );
+    await expect(rows.nth(3)).toContainText(t('plan.time.range', { start: '00:00', end: '23:59' }));
 
     // Mark the second snack skipped: the row says so; the score is untouched.
     const secondSnack = rows.filter({ hasText: 'میان‌وعده دوم' });
+    await expect(secondSnack).toHaveAttribute('data-window-state', 'OPEN');
     await secondSnack.getByTestId('mark-skipped').click();
     await expect(secondSnack.getByTestId('slot-status')).toHaveText(t('slot.state.skipped'));
     await expect(page.getByTestId('score-band')).toHaveText(t('score.notEnough'));

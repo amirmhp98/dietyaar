@@ -204,7 +204,7 @@ The model has 15 tables. Nothing is cached; comparisons are computed on read (se
 
 One row per user. The active plan is the slot, option, item, target, and note rows below. A pending import, a manual setup in progress, or an edit in progress lives entirely in `draftJson` (the same shape the import job returns) until the user confirms; confirming applies the draft to the rows in one transaction and clears `draftJson`. The user can log meals against the active rows while a draft is pending. Deleting the plan deletes the rows and sets `status = NONE`.
 
-**PlanSlot**: `planId`, `weekday` int not null (`0`–`6`, or `7` for same-every-day and targets-only, so the unique key never contains a null), `position` int, `originalName`, `englishLabel`, `timeStart`, `timeEnd` time nullable, `sourceExcerpt`. Unique `(planId, weekday, position)`.
+**PlanSlot**: `planId`, `weekday` int not null (`0`–`6`, or `7` for same-every-day and targets-only, so the unique key never contains a null), `position` int, `originalName`, `englishLabel`, `timeStart`, `timeEnd` time nullable, `timeAssumed` boolean default false (the window was assumed from the name on confirm by `lib/rubric/windows.ts`; shown on Today and My plan, editable through the slot's time fields, never read by the timing rubric), `sourceExcerpt`. Unique `(planId, weekday, position)`.
 
 **PlanOption**: `planSlotId`, `position`, `label` nullable. A single-meal slot has exactly one option; the UI hides the concept when the count is 1.
 
