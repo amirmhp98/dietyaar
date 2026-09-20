@@ -8,12 +8,12 @@ import * as plans from '@/services/plan.service';
 import { setOnboardingStep } from '@/services/profile.service';
 
 /**
- * Onboarding plan screens (design-scope screens 7b and 9) and the confirm
+ * Onboarding plan screens (design-scope screens 6b and 8) and the confirm
  * line of the review flow. Kept apart from plan.actions.ts so the plan
  * contract stays as the backend wave left it.
  */
 
-/** Screen 7b "Continue to Today": onboarding ends while the import keeps running. */
+/** Screen 6b "Continue to Today": onboarding ends while the import keeps running. */
 export async function continueToTodayAction(): Promise<void> {
   const user = await requireAuth();
   if (user.onboardingStep !== 'DONE') await setOnboardingStep(user.id, 'DONE');
@@ -21,7 +21,7 @@ export async function continueToTodayAction(): Promise<void> {
   redirect('/today');
 }
 
-/** Screen 9 "Ready": both buttons finish onboarding; the client picks the destination. */
+/** Screen 8 "Ready": both buttons finish onboarding; the client picks the destination. */
 export async function finishOnboardingAction(): Promise<ActionResult> {
   const user = await requireAuth();
   try {

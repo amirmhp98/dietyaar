@@ -28,7 +28,7 @@ export function progressPercent(step: number, substep?: Substep): number {
 }
 
 /**
- * Screen chrome for the plan screens (7, 7b, 8a–8c, 9, manual wizard): the
+ * Screen chrome for the plan screens (6, 6b, 7a–7c, 8, manual wizard): the
  * onboarding progress row when `step` is given, a Back control, one title.
  * Inside the shell (My plan flows) the same chrome renders without progress.
  */

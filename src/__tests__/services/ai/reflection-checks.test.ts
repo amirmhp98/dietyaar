@@ -25,7 +25,7 @@ const facts: ReflectionFact[] = [
   {
     id: 'today:next',
     kind: 'TODAY_NEXT',
-    text: 'The next unrecorded slot today is قبل تمرین (pre-workout).',
+    text: 'The next unrecorded slot today is قبل تمرین.',
     signature: 'slot-1',
   },
   {
@@ -39,7 +39,7 @@ const facts: ReflectionFact[] = [
 const words = (n: number) => Array.from({ length: n }, () => 'calm').join(' ');
 
 const good = {
-  paragraph: `Good morning, sara84. You recorded 2 of 5 prescribed meals yesterday, so this reflection covers those meals rather than your whole day. ${words(30)} Your next slot today is قبل تمرین (pre-workout); when you are ready, log it from your plan and adjust the portions to what you actually eat. One meal at a time is a comfortable pace.`,
+  paragraph: `Good morning, sara84. You recorded 2 of 5 prescribed meals yesterday, so this reflection covers those meals rather than your whole day. ${words(30)} Your next slot today is قبل تمرین; when you are ready, log it from your plan and adjust the portions to what you actually eat. One meal at a time is a comfortable pace.`,
   usedFactIds: ['ctx:name', 'coverage', 'today:next'],
 };
 
@@ -100,7 +100,7 @@ describe('checkReflection', () => {
     ).toBe('UNSUPPORTED_NUMBER');
   });
 
-  it('rejects banned words in prose but allows quoted plan labels', () => {
+  it('rejects banned words in prose, parenthesised or not', () => {
     for (const phrase of [
       'no cheating today',
       'some exercise helps',
@@ -109,6 +109,7 @@ describe('checkReflection', () => {
       'while fasting',
       'that is good food',
       'avoid bad foods',
+      'rest first (after training)',
     ]) {
       expect(
         checkReflection({ paragraph: `${words(45)} ${phrase}.`, usedFactIds: [] }, facts),
@@ -116,17 +117,44 @@ describe('checkReflection', () => {
       ).toBe('BANNED_WORD');
     }
     expect(
-      checkReflection(
-        {
-          paragraph: `${words(45)} your قبل تمرین (pre-workout) comes next.`,
-          usedFactIds: ['today:next'],
-        },
-        facts,
-      ),
-    ).toBeNull();
-    expect(
       checkReflection({ paragraph: `${words(45)} breakfast fast.`, usedFactIds: [] }, facts),
     ).toBeNull();
+  });
+
+  it('allows a banned word that is part of a name the facts quote', () => {
+    const shake: ReflectionFact = {
+      id: 'today:next',
+      kind: 'TODAY_NEXT',
+      text: 'The next unrecorded slot today is Post-workout shake.',
+      signature: 'slot-2',
+    };
+    const named = facts.map((f) => (f.id === 'today:next' ? shake : f));
+    expect(
+      checkReflection(
+        {
+          paragraph: `${words(45)} your Post-workout shake comes next.`,
+          usedFactIds: ['today:next'],
+        },
+        named,
+      ),
+    ).toBeNull();
+    // Only the quoted word is the plan's own; the rest of the list stays banned.
+    expect(
+      checkReflection(
+        {
+          paragraph: `${words(45)} your Post-workout shake comes next, after training.`,
+          usedFactIds: ['today:next'],
+        },
+        named,
+      ),
+    ).toBe('BANNED_WORD');
+    // The same name in the base facts is Persian, so the English word has no cover.
+    expect(
+      checkReflection(
+        { paragraph: `${words(45)} your Post-workout shake comes next.`, usedFactIds: [] },
+        facts,
+      ),
+    ).toBe('BANNED_WORD');
   });
 });
 

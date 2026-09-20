@@ -16,7 +16,7 @@ import { QuantityInput } from './SlotEditor';
 import { newKey, nutrientLabel, nutrientUnit } from './helpers';
 
 /**
- * Editable daily-target rows (8b "Fix" and the manual wizard): nutrient,
+ * Editable daily-target rows (7b "Fix" and the manual wizard): nutrient,
  * kind, and the one or two values the kind needs. Editing an estimated
  * target makes it explicit — the user's figure wins from then on.
  */

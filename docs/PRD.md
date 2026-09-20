@@ -40,8 +40,10 @@ every stored day carries the zone it was computed in (tech spec § 9, decision 0
 text is accepted in any language and stored verbatim; a normalised parsing copy is produced by
 `lib/text/normalize.ts`. Food and slot names are shown as the user wrote them (`NameLabel`,
 `InlineName`); the English label the AI produces stays in the data for matching, restrictions and
-prompts and is never rendered. Plan options are shown as "Option 1 / Option 2 …" from their position
-in the slot; the pasted heading (`PlanOption.label`) is provenance only.
+prompts and is never rendered or edited: a slot or food named by hand is its own label. An amount
+typed on a plan item with no unit chosen is in grams. Plan options are shown as "Option 1 /
+Option 2 …" from their position in the slot; the pasted heading (`PlanOption.label`) is provenance
+only.
 
 ## Modules & routes
 

@@ -112,7 +112,6 @@ export interface MealView {
   planSlotId: string | null;
   planOptionId: string | null;
   planSlot: { originalName: string; englishLabel: string } | null;
-  planOptionLabel: string | null;
   linkConfirmedByUser: boolean;
   items: MealFoodItemView[];
   uploads: Array<{ id: string; position: number | null; width: number; height: number }>;
@@ -143,7 +142,6 @@ const MEAL_INCLUDE = {
   uploads: { where: { status: 'ATTACHED' }, orderBy: { position: 'asc' } },
   day: true,
   planSlot: { select: { originalName: true, englishLabel: true } },
-  planOption: { select: { label: true } },
 } satisfies Prisma.MealInclude;
 
 type MealRow = Prisma.MealGetPayload<{ include: typeof MEAL_INCLUDE }>;
@@ -253,7 +251,6 @@ function toMealView(row: MealRow): MealView {
     planSlotId: row.planSlotId,
     planOptionId: row.planOptionId,
     planSlot: row.planSlot,
-    planOptionLabel: row.planOption?.label ?? null,
     linkConfirmedByUser: row.linkConfirmedByUser,
     items: row.items.map(rowToItemView),
     uploads: row.uploads.map((u) => ({

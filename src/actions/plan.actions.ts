@@ -123,7 +123,7 @@ export async function startPlanEditAction(): Promise<ActionResult<PlanDraft>> {
   }
 }
 
-/** Manual and edit drafts: estimates missing or changed items before screen 8b. */
+/** Manual and edit drafts: estimates missing or changed items before screen 7b. */
 export async function estimateDraftBaselineAction(
   input: unknown,
 ): Promise<ActionResult<PlanDraft>> {

@@ -42,7 +42,6 @@ export interface MealSummary {
   planOptionId: string | null;
   /** The linked slot's names, or null for "Other". */
   slot: FoodName | null;
-  optionLabel: string | null;
   optionPosition: number | null;
   /** The first items, for the row label. */
   itemNames: FoodName[];
@@ -172,7 +171,6 @@ function toMealSummary(row: MealRow, plan: ActivePlan | null): MealSummary {
     planSlotId: row.planSlotId,
     planOptionId: row.planOptionId,
     slot: slot ? { originalName: slot.originalName, englishLabel: slot.englishLabel } : null,
-    optionLabel: option?.label ?? null,
     optionPosition: option?.position ?? null,
     itemNames: meal.items
       .slice(0, 3)

@@ -11,7 +11,7 @@ import { ReadyScreen } from './ready-screen';
 export const dynamic = 'force-dynamic';
 
 /**
- * Onboarding screens 7–9 (design-scope screen 2): which one renders follows
+ * Onboarding screens 6–8 (design-scope screen 2): which one renders follows
  * the plan's draft state, so a refresh or a return lands where the user left.
  */
 export default async function OnboardingPlanPage() {

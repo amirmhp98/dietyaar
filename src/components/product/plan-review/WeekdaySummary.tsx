@@ -7,7 +7,7 @@ import type { DraftSlot } from '@/lib/validations/plan';
 import { weekdayName } from './helpers';
 
 /**
- * Weekday plans (screen 8a): after one day is reviewed in full, the other
+ * Weekday plans (screen 7a): after one day is reviewed in full, the other
  * six days are listed compactly and confirmed together, so review never
  * becomes a wall of corrections (product spec § 5).
  */

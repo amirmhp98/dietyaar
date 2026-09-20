@@ -26,7 +26,7 @@ const POLL_MS = 3_000;
 const SLOW_AFTER_MS = 15_000;
 
 /**
- * Screen 7 "Add your plan" and 7b "Preparing your plan" (design-scope
+ * Screen 6 "Add your plan" and 6b "Preparing your plan" (design-scope
  * screen 2, product spec § 5). The pasted text is mirrored in
  * sessionStorage so a failed import keeps it on screen; the AI notice shows
  * once before the first import.
@@ -136,7 +136,7 @@ export function AddPlanFlow({
     router.push(routes.manual);
   }
 
-  // ── 7b: preparing ──────────────────────────────────────────
+  // ── 6b: preparing ──────────────────────────────────────────
   const onReady = useCallback(() => {
     mirror('');
     if (mode === 'onboarding') router.refresh();

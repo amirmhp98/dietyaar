@@ -18,7 +18,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 async function reviewToConfirm(page: Page) {
-  // 8a (if any slots) → 8b → 8c → Confirm.
+  // 7a (if any slots) → 7b → 7c → Confirm.
   const targetsHeading = page.getByRole('heading', { name: t('plan.review.targetsTitle') });
   while (!(await targetsHeading.isVisible())) {
     await page.getByRole('button', { name: t('plan.review.looksRight') }).click();
@@ -89,10 +89,10 @@ test('same-every-day manual plan: My plan, edit, delete', async ({ page }) => {
   await page.getByLabel(t('plan.manual.slotName', { n: 2 })).fill('Lunch');
   await page.getByRole('button', { name: t('plan.manual.continue') }).click();
 
-  // Items for each slot, one screen per slot.
-  for (const [slotName, name, label, qty] of [
-    ['صبحانه', 'نان سنگک', 'Sangak bread', '80'],
-    ['Lunch', 'برنج', 'Rice', '۱۵۰'],
+  // Items for each slot, one screen per slot. The amount is typed with no unit: it is in grams.
+  for (const [slotName, name, qty] of [
+    ['صبحانه', 'نان سنگک', '80'],
+    ['Lunch', 'برنج', '۱۵۰'],
   ]) {
     // Wait for this slot's own screen: the previous one stays mounted while its save is in flight.
     await expect(
@@ -101,7 +101,6 @@ test('same-every-day manual plan: My plan, edit, delete', async ({ page }) => {
       }),
     ).toBeVisible();
     await page.getByLabel(t('plan.review.itemName')).fill(name);
-    await page.getByLabel(t('plan.review.itemEnglish')).fill(label);
     await page.getByLabel(t('plan.review.quantity')).fill(qty);
     await page.getByRole('button', { name: t('plan.manual.continue') }).click();
   }
@@ -125,11 +124,12 @@ test('same-every-day manual plan: My plan, edit, delete', async ({ page }) => {
   await expect(
     page.getByText(t('plan.page.source', { note: 'nutrition specialist' })),
   ).toBeVisible();
-  // My plan shows the names as typed; the English labels stay data (decision 10).
+  // My plan shows the names as typed (decision 10); a unitless amount was saved in grams.
   await expect(page.getByText('نان سنگک')).toBeVisible();
   await expect(page.getByText('برنج')).toBeVisible();
-  await expect(page.getByText('Sangak bread')).toHaveCount(0);
-  await expect(page.getByRole('listitem').filter({ hasText: 'برنج' }).last()).toContainText('150');
+  await expect(page.getByRole('listitem').filter({ hasText: 'برنج' }).last()).toContainText(
+    '150 g',
+  );
 
   // Edit → review → confirm: no meals are linked, so the affected line is omitted.
   await page.getByTestId('plan-edit').click();

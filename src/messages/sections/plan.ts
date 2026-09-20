@@ -66,7 +66,7 @@ export const plan = {
   'plan.sourceExcerpt': 'From your plan text',
   'plan.sourceExcerpt.none': 'No matching text was found for this part.',
 
-  // ── Screen 7: Add your plan ────────────────────────────────
+  // ── Screen 6: Add your plan ────────────────────────────────
   'plan.add.title': 'Add your plan',
   'plan.add.intro':
     'Paste your plan in any language. AI will prepare it for you to review. The app works in English and keeps food names as you wrote them.',
@@ -92,7 +92,7 @@ export const plan = {
   'plan.add.replaceHint':
     'Your current plan stays in place until you confirm the new one. Past days will then be compared against it.',
 
-  // ── Screen 7b: Preparing ───────────────────────────────────
+  // ── Screen 6b: Preparing ───────────────────────────────────
   'plan.preparing.title': 'Preparing your plan',
   'plan.preparing.body':
     'Reading your plan and keeping food names as written. This usually takes under a minute.',
@@ -100,7 +100,7 @@ export const plan = {
   'plan.preparing.continueToToday': 'Continue to Today',
   'plan.preparing.cancel': 'Cancel import',
 
-  // ── Review flow (8a–8c) ────────────────────────────────────
+  // ── Review flow (7a–7c) ────────────────────────────────────
   'plan.review.title': 'Review your plan',
   'plan.review.mealsTitle': 'Review: your meals',
   'plan.review.targetsTitle': 'Review: your targets',
@@ -116,9 +116,7 @@ export const plan = {
   'plan.review.conflictReloaded': 'Your draft changed elsewhere. The latest version is shown.',
   'plan.review.noSlots': 'This plan has no meals, only daily targets.',
   'plan.review.slotName': 'Meal name',
-  'plan.review.slotEnglish': 'English label',
   'plan.review.itemName': 'Food (as written)',
-  'plan.review.itemEnglish': 'English label',
   'plan.review.quantity': 'Amount',
   'plan.review.unit': 'Unit',
   'plan.review.addItem': 'Add a food',
@@ -160,7 +158,7 @@ export const plan = {
   'plan.review.discard': 'Discard changes',
   'plan.review.noDraft': 'There is nothing to review right now.',
 
-  // ── Screen 9: Ready ────────────────────────────────────────
+  // ── Screen 8: Ready ────────────────────────────────────────
   'plan.ready.title': 'Your plan is ready',
   'plan.ready.today': "Today's plan",
   'plan.ready.reflection':

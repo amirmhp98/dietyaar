@@ -25,7 +25,7 @@ type Screen =
   { kind: 'slot'; key: string } | { kind: 'summary' } | { kind: 'targets' } | { kind: 'notes' };
 
 /**
- * Screens 8a–8c for import, manual and edit drafts. Owns the draft and its
+ * Screens 7a–7c for import, manual and edit drafts. Owns the draft and its
  * revision, autosaves every screen through `updatePlanDraftAction`, reloads
  * on CONFLICT, and confirms. Product components only get data + callbacks.
  */
@@ -114,7 +114,7 @@ export function PlanReviewFlow({
     }
   }
 
-  // ── 8b: estimate on entry when needed ──────────────────────
+  // ── 7b: estimate on entry when needed ──────────────────────
   const estimateRan = useRef(false);
   const runEstimate = useCallback(
     async (from: PlanDraft) => {
@@ -139,7 +139,7 @@ export function PlanReviewFlow({
       queueMicrotask(() => void runEstimate(draft));
   }, [screen.kind, draft, runEstimate]);
 
-  // ── 8c: the affected-meals line ────────────────────────────
+  // ── 7c: the affected-meals line ────────────────────────────
   useEffect(() => {
     if (screen.kind !== 'notes' || affected !== null) return;
     void countAffectedMealsAction().then((result) => {

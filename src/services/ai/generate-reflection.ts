@@ -18,17 +18,20 @@ import type { AiResult, GenerateReflectionInput } from '@/services/ai/types';
 export type ReflectionRejection =
   'UNKNOWN_FACT' | 'WORD_COUNT' | 'UNSUPPORTED_NUMBER' | 'BANNED_WORD';
 
-const BANNED = /\b(?:cheat\w*|exercis\w*|training|workouts?|fasting|good foods?|bad foods?)\b/i;
+const BANNED = /\b(?:cheat\w*|exercis\w*|training|workouts?|fasting|good foods?|bad foods?)\b/gi;
 const NUMBER = /\d+(?:[.,]\d+)*/g;
 const NAME_FACT = /^The user's name is (.+)\.$/;
 
 const numbersIn = (text: string): string[] =>
   Array.from(text.matchAll(NUMBER), (m) => m[0].replace(/,/g, ''));
+const bannedIn = (text: string): string[] =>
+  Array.from(text.matchAll(BANNED), (m) => m[0].toLowerCase());
 
 /**
  * Output checks beyond the schema (product spec § 11, § 13): every used fact
  * id exists, 40–110 words, every number appears in a used fact, none of the
- * banned words. Returns the reason the paragraph is rejected, or null.
+ * banned words outside a name the facts quote. Returns the reason the
+ * paragraph is rejected, or null.
  */
 export function checkReflection(
   output: ReflectionOutput,
@@ -51,12 +54,11 @@ export function checkReflection(
   );
   if (numbersIn(scanned).some((n) => !supported.has(n))) return 'UNSUPPORTED_NUMBER';
 
-  // English labels quoted from a fact, e.g. "(pre-workout)", are the plan's own words.
-  const factText = facts.map((f) => f.text).join('\n');
-  const prose = output.paragraph.replace(/\(([^()]*)\)/g, (whole, inner: string) =>
-    factText.includes(`(${inner})`) ? '' : whole,
-  );
-  if (BANNED.test(prose)) return 'BANNED_WORD';
+  // The fact templates use none of the banned words, so one found in the facts
+  // is part of a name the user wrote (e.g. "Post-workout shake"), which the
+  // model is told to quote as written. Every other banned word is rejected.
+  const quotedWords = new Set(facts.flatMap((f) => bannedIn(f.text)));
+  if (bannedIn(output.paragraph).some((word) => !quotedWords.has(word))) return 'BANNED_WORD';
   return null;
 }
 
