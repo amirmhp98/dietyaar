@@ -42,7 +42,6 @@ export function WeekdaySummary({
                     originalName={slot.originalName}
                     englishLabel={slot.englishLabel}
                     size="sm"
-                    inline
                   />
                   <span className="shrink-0 text-xs text-muted-foreground">
                     {tp('plan.option.count', slot.options.length)}

@@ -7,7 +7,7 @@ import { createOnboardedUser } from './helpers/onboard';
  * J5 — replaced meal (product spec § 7 option rule as rewritten by B3): a
  * burger sandwich linked to Lunch overlaps none of the lunch options, so no
  * option is owed, Save is enabled, and Today's lunch row reads "A different
- * food was recorded" with no "Option:" line.
+ * food was recorded" with no "Option n" line.
  */
 test.use({ storageState: { cookies: [], origins: [] } });
 test.describe.configure({ timeout: 90_000 });
@@ -62,8 +62,8 @@ test('J5: a burger under Lunch saves without an option and shows as a different 
   await expect(page.getByText(t('meal.saved')).first()).toBeVisible();
   await expect(page.getByTestId('meal-composer')).toBeHidden();
 
-  const lunchRow = page.getByTestId('plan-slot-row').filter({ hasText: lunch.englishLabel });
+  const lunchRow = page.getByTestId('plan-slot-row').filter({ hasText: lunch.originalName });
   await expect(lunchRow.getByTestId('slot-status')).toHaveText(t('slot.match.different'));
-  await expect(lunchRow).not.toContainText(t('slot.option.picked', { label: '' }).trim());
+  await expect(lunchRow).not.toContainText(/Option \d/);
   await expect(page.getByTestId('meal-row')).toHaveCount(1);
 });

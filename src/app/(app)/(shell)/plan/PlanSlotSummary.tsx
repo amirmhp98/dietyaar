@@ -2,6 +2,7 @@ import { Badge } from '@/components/UiComponents';
 import { AmountPrefix, GramsEach } from '@/components/product/ItemAmount';
 import { NameLabel } from '@/components/product/NameLabel';
 import { formatNumber } from '@/lib/format';
+import { sortedOptions } from '@/lib/rubric/options';
 import type { RubricPlanItem, RubricSlot, RubricTarget } from '@/lib/rubric/types';
 import { t, tp } from '@/lib/t';
 
@@ -40,18 +41,14 @@ export function PlanSlotSummary({ slot, range }: { slot: RubricSlot; range: Rubr
         </div>
       </div>
       <ol className="space-y-2">
-        {slot.options.map((option, index) => (
+        {sortedOptions(slot).map((option, index) => (
           <li
             key={option.id}
             className={slot.options.length > 1 ? 'border-t border-border pt-2' : ''}
           >
             {slot.options.length > 1 ? (
               <p className="mb-1 text-xs font-medium text-muted-foreground">
-                {option.label ? (
-                  <bdi>{option.label}</bdi>
-                ) : (
-                  t('plan.option.label', { n: index + 1 })
-                )}
+                {t('plan.option.n', { n: index + 1 })}
               </p>
             ) : null}
             <ul className="space-y-1">

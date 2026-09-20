@@ -8,6 +8,7 @@ import { Disclosure } from '@/components/product/Disclosure';
 import { fillNames, InlineName, InlineNames } from '@/components/product/InlineName';
 import { NameLabel } from '@/components/product/NameLabel';
 import { formatNumber } from '@/lib/format';
+import { optionNumber } from '@/lib/rubric/options';
 import type { EnergyResult, RubricTarget, SlotView } from '@/lib/rubric/types';
 import { t } from '@/lib/t';
 import { portionAmount } from '@/lib/units';
@@ -38,7 +39,7 @@ export function PlanSlotRow({
 }) {
   const { state, match } = slot;
   const subline = [optionLine(slot), energyRangeLine(slot.energyTarget)].filter(
-    (part): part is ReactNode => part !== null,
+    (part): part is string => part !== null,
   );
 
   return (
@@ -52,11 +53,7 @@ export function PlanSlotRow({
     >
       <div className="flex min-h-11 items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <NameLabel
-            originalName={slot.slot.originalName}
-            englishLabel={slot.slot.englishLabel}
-            inline
-          />
+          <NameLabel originalName={slot.slot.originalName} englishLabel={slot.slot.englishLabel} />
           {subline.length > 0 ? (
             <p className="mt-0.5 text-xs text-muted-foreground">
               {subline.map((part, index) => (
@@ -161,14 +158,12 @@ export function PlanSlotRow({
 
 // ─── Labels ────────────────────────────────────────────────────────────────
 
-/** The picked option's label is user text: isolated so digits and dots around it never flip. */
-function optionLine(slot: SlotView): ReactNode | null {
+/** The picked option by its place in the plan ("Option 2"), or the count still to choose from. */
+function optionLine(slot: SlotView): string | null {
   if (slot.state === 'RECORDED' || slot.state === 'NEEDS_REVIEW') {
     // A meal saved under the slot without an option (a different food) names none.
-    if (!slot.option?.label) return null;
-    return fillNames(t('slot.option.picked', { label: '{label}' }), {
-      label: <bdi>{slot.option.label}</bdi>,
-    });
+    const n = optionNumber(slot.slot, slot.option?.id);
+    return n === null || slot.slot.options.length <= 1 ? null : t('plan.option.n', { n });
   }
   const count = slot.slot.options.length;
   return count > 1 ? t('slot.options', { count }) : null;

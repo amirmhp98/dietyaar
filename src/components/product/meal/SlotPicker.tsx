@@ -3,24 +3,23 @@
 import { useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { Badge, Label } from '@/components/UiComponents';
+import { InlineNames, nameText } from '@/components/product/InlineName';
 import { NameLabel } from '@/components/product/NameLabel';
 import { OTHER_SLOT } from '@/components/product/meal/composition';
+import { sortedOptions } from '@/lib/rubric/options';
 import type { RubricOption, RubricSlot } from '@/lib/rubric/types';
 import { t, tp } from '@/lib/t';
 import { cn } from '@/lib/utils';
 
 export { OTHER_SLOT };
 
-export function optionLabel(option: RubricOption, index: number): string {
-  return option.label?.trim() || t('meal.compose.option', { number: index + 1 });
-}
-
-function optionItems(option: RubricOption): string {
-  return option.items.map((i) => i.englishLabel).join(', ');
-}
-
-function sortedOptions(slot: RubricSlot): RubricOption[] {
-  return [...slot.options].sort((a, b) => a.position - b.position);
+/** An option's items as the user's plan names them, comma-separated. */
+function OptionItems({ option }: { option: RubricOption }) {
+  return (
+    <span className="block text-xs text-muted-foreground">
+      <InlineNames names={option.items} />
+    </span>
+  );
 }
 
 /** One option row: label, items, "Last time" when it was the last pick; nothing preselected. */
@@ -68,14 +67,12 @@ export function OptionList({
             </span>
             <span className="min-w-0 flex-1">
               <span className="flex flex-wrap items-center gap-2">
-                <bdi className="text-sm font-medium">{optionLabel(option, index)}</bdi>
+                <span className="text-sm font-medium">{t('plan.option.n', { n: index + 1 })}</span>
                 {option.id === lastUsedOptionId ? (
                   <Badge variant="secondary">{t('meal.compose.lastTime')}</Badge>
                 ) : null}
               </span>
-              <span className="block text-xs text-muted-foreground" dir="ltr">
-                {optionItems(option)}
-              </span>
+              <OptionItems option={option} />
             </span>
           </button>
         );
@@ -141,7 +138,6 @@ export function PlannedSlotsRow({
                     originalName={slot.originalName}
                     englishLabel={slot.englishLabel}
                     size="sm"
-                    className="items-start"
                   />
                   {recorded ? (
                     <span
@@ -153,11 +149,13 @@ export function PlannedSlotsRow({
                     </span>
                   ) : null}
                 </span>
-                <span className="text-xs text-muted-foreground">
-                  {multi
-                    ? tp('meal.compose.optionCount', options.length)
-                    : optionItems(options[0] ?? { id: '', position: 0, label: null, items: [] })}
-                </span>
+                {multi ? (
+                  <span className="text-xs text-muted-foreground">
+                    {tp('meal.compose.optionCount', options.length)}
+                  </span>
+                ) : options[0] ? (
+                  <OptionItems option={options[0]} />
+                ) : null}
               </span>
               {multi ? (
                 <ChevronDown
@@ -233,9 +231,7 @@ export function SlotSelect({
           <option value="">{t('meal.compose.slotNone')}</option>
           {slots.map((slot) => (
             <option key={slot.id} value={slot.id}>
-              {slot.originalName.trim() === slot.englishLabel.trim()
-                ? slot.englishLabel
-                : `${slot.originalName} · ${slot.englishLabel}`}
+              {nameText(slot)}
             </option>
           ))}
           <option value={OTHER_SLOT}>{t('meal.compose.slotOther')}</option>

@@ -10,8 +10,8 @@ import { sessionCookieOptions } from '@/lib/session-cookie';
 import { t } from '@/lib/t';
 
 describe('navigation', () => {
-  it('has the three primary tabs and hides admin tools from plain users', () => {
-    expect(PRIMARY_TABS.map((i) => i.href)).toEqual(['/today', '/history', '/plan']);
+  it('has the three primary tabs with Today in the middle and hides admin tools from plain users', () => {
+    expect(PRIMARY_TABS.map((i) => i.href)).toEqual(['/history', '/today', '/plan']);
     expect(visibleAdminItems({ role: 'USER' })).toEqual([]);
     expect(visibleAdminItems({ role: 'ADMIN' }).map((i) => i.href)).toContain('/admin/users');
   });

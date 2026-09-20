@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Pencil, RefreshCw, Trash2 } from 'lucide-react';
@@ -26,14 +26,16 @@ import {
 } from '@/components/UiComponents';
 import { DifferenceChip, type DifferenceKind } from '@/components/product/DifferenceChip';
 import { Disclosure } from '@/components/product/Disclosure';
+import { InlineName, InlineNames, fillNames } from '@/components/product/InlineName';
 import { MealReview } from '@/components/product/MealReview';
 import { AmountPrefix, GramsEach } from '@/components/product/ItemAmount';
 import { NameLabel } from '@/components/product/NameLabel';
 import { useComposerOpener } from '@/components/product/composer-bus';
 import { valuesLine } from '@/components/product/meal/ItemRow';
-import { OTHER_SLOT, SlotSelect, optionLabel } from '@/components/product/meal/SlotPicker';
+import { OTHER_SLOT, SlotSelect } from '@/components/product/meal/SlotPicker';
 import { NUTRIENT_UNITS, portionValues, sumTotals } from '@/components/product/meal/totals';
 import { formatDate, formatNumber, formatTime } from '@/lib/format';
+import { optionNumber } from '@/lib/rubric/options';
 import type { RubricSlot, SlotView } from '@/lib/rubric/types';
 import { t } from '@/lib/t';
 import { instantFor } from '@/lib/time';
@@ -86,38 +88,39 @@ function toDraftState(meal: MealView): MealDraftState {
   };
 }
 
-function mealName(meal: MealView): string {
-  return meal.items.length > 0
-    ? meal.items.map((i) => i.englishLabel).join(', ')
-    : t('meal.details.title');
+/** The meal's items as the user wrote them: the page title and the delete confirmation. */
+function MealName({ meal }: { meal: MealView }) {
+  return meal.items.length > 0 ? <InlineNames names={meal.items} /> : t('meal.details.title');
 }
 
-/** Differences from the slot comparison (design-scope screen 5). */
-function differences(slotView: SlotView | null): Array<{ kind: DifferenceKind; text: string }> {
+/** Differences from the slot comparison (design-scope screen 5); names quoted as the user wrote them. */
+function differences(slotView: SlotView | null): Array<{ kind: DifferenceKind; text: ReactNode }> {
   if (!slotView) return [];
-  const out: Array<{ kind: DifferenceKind; text: string }> = [];
+  const out: Array<{ kind: DifferenceKind; text: ReactNode }> = [];
   const match = slotView.match;
   if (match) {
     if (match.reason === 'CROSS_SLOT' && match.crossSlot) {
       out.push({
         kind: 'CROSS_SLOT',
-        text: t('meal.details.diff.crossSlot', {
-          slot: match.crossSlot.englishLabel.toLowerCase(),
+        text: fillNames(t('meal.details.diff.crossSlot', { slot: '{slot}' }), {
+          slot: <InlineName name={match.crossSlot} />,
         }),
       });
     }
     if (match.missing.length > 0) {
       out.push({
         kind: 'MISSING',
-        text: t('meal.details.diff.missing', {
-          names: match.missing.map((m) => m.englishLabel).join(', '),
+        text: fillNames(t('meal.details.diff.missing', { names: '{names}' }), {
+          names: <InlineNames names={match.missing} />,
         }),
       });
     }
     if (match.added.length > 0) {
       out.push({
         kind: 'ADDED',
-        text: t('meal.review.added', { names: match.added.map((a) => a.englishLabel).join(', ') }),
+        text: fillNames(t('meal.review.added', { names: '{names}' }), {
+          names: <InlineNames names={match.added} />,
+        }),
       });
     }
     if (match.status === 'DIFFERENT_FOOD' && !match.reason) {
@@ -127,15 +130,15 @@ function differences(slotView: SlotView | null): Array<{ kind: DifferenceKind; t
   for (const p of slotView.portion?.items ?? []) {
     if (p.band === 'SMALL') continue;
     const params = {
-      item: p.item.englishLabel,
+      item: '{item}',
       actual: portionAmount(p.actual, p.unit),
       planned: portionAmount(p.planned, p.unit),
     };
-    out.push(
-      p.ratio > 0
-        ? { kind: 'PORTION_MORE', text: t('meal.details.diff.portionMore', params) }
-        : { kind: 'PORTION_LESS', text: t('meal.details.diff.portionLess', params) },
-    );
+    const key = p.ratio > 0 ? 'meal.details.diff.portionMore' : 'meal.details.diff.portionLess';
+    out.push({
+      kind: p.ratio > 0 ? 'PORTION_MORE' : 'PORTION_LESS',
+      text: fillNames(t(key, params), { item: <InlineName name={p.item} /> }),
+    });
   }
   const timing = slotView.timing;
   if (
@@ -156,13 +159,16 @@ function differences(slotView: SlotView | null): Array<{ kind: DifferenceKind; t
   if (timing?.kind === 'ORDER' && timing.outOfOrderWith) {
     out.push({
       kind: 'ORDER',
-      text: t('meal.details.diff.order', {
-        direction:
-          timing.outOfOrderWith.direction === 'BEFORE'
-            ? t('meal.details.diff.before')
-            : t('meal.details.diff.after'),
-        slot: timing.outOfOrderWith.slot.englishLabel,
-      }),
+      text: fillNames(
+        t('meal.details.diff.order', {
+          direction:
+            timing.outOfOrderWith.direction === 'BEFORE'
+              ? t('meal.details.diff.before')
+              : t('meal.details.diff.after'),
+          slot: '{slot}',
+        }),
+        { slot: <InlineName name={timing.outOfOrderWith.slot} /> },
+      ),
     });
   }
   return out;
@@ -200,14 +206,8 @@ export function MealDetails({
 
   const totals = useMemo(() => sumTotals(meal.items), [meal.items]);
   const slot = slots.find((s) => s.id === meal.planSlotId) ?? null;
-  const option = slot?.options.find((o) => o.id === meal.planOptionId) ?? null;
-  const optionIndex = slot
-    ? [...slot.options]
-        .sort((a, b) => a.position - b.position)
-        .findIndex((o) => o.id === option?.id)
-    : -1;
+  const optionN = slot ? optionNumber(slot, meal.planOptionId) : null;
   const diffs = useMemo(() => differences(slotView), [slotView]);
-  const name = mealName(meal);
   const dateLabel = formatDate(instantFor(meal.localDate, '12:00', timeZone), { timeZone });
   const timeLabel = meal.consumedLocalTime
     ? formatTime(instantFor(meal.localDate, meal.consumedLocalTime, timeZone), { timeZone })
@@ -354,16 +354,7 @@ export function MealDetails({
 
       <header className="space-y-1">
         <h1 className="text-xl font-semibold" data-testid="meal-title">
-          {meal.items[0] ? (
-            <NameLabel
-              originalName={meal.items[0].originalName}
-              englishLabel={name}
-              size="lg"
-              inline
-            />
-          ) : (
-            t('meal.details.title')
-          )}
+          <MealName meal={meal} />
         </h1>
         <p className="text-sm text-muted-foreground" data-testid="meal-time">
           {dateLabel} · {timeLabel}
@@ -395,13 +386,10 @@ export function MealDetails({
             <NameLabel
               originalName={slot.originalName}
               englishLabel={slot.englishLabel}
-              inline
               size="sm"
             />
-            {option ? (
-              <Badge variant="secondary">
-                <bdi>{optionLabel(option, optionIndex)}</bdi>
-              </Badge>
+            {optionN !== null && slot.options.length > 1 ? (
+              <Badge variant="secondary">{t('plan.option.n', { n: optionN })}</Badge>
             ) : null}
           </div>
         ) : (
@@ -476,11 +464,7 @@ export function MealDetails({
                     quantity={item.quantityUnknown ? null : item.quantity}
                     unit={item.unit}
                   />
-                  <NameLabel
-                    originalName={item.originalName}
-                    englishLabel={item.englishLabel}
-                    className="items-start"
-                  />
+                  <NameLabel originalName={item.originalName} englishLabel={item.englishLabel} />
                 </div>
                 {item.quantityUnknown || item.quantity === null ? (
                   <span className="text-sm text-muted-foreground">
@@ -551,7 +535,6 @@ export function MealDetails({
                 <NameLabel
                   originalName={item.originalName}
                   englishLabel={item.englishLabel}
-                  inline
                   size="sm"
                 />
                 <span className="text-muted-foreground">
@@ -661,8 +644,8 @@ export function MealDetails({
             <AlertDialogHeader>
               <AlertDialogTitle>{t('meal.details.deleteTitle')}</AlertDialogTitle>
               <AlertDialogDescription>
-                <span className="block font-medium text-foreground" dir="ltr">
-                  {name}
+                <span className="block font-medium text-foreground">
+                  <MealName meal={meal} />
                 </span>
                 {t('meal.details.deleteBody')}
               </AlertDialogDescription>

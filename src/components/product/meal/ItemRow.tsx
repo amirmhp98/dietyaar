@@ -169,11 +169,7 @@ export function ItemRow({
               unit={item.unit}
               className="text-base"
             />
-            <NameLabel
-              originalName={displayName}
-              englishLabel={item.englishLabel}
-              className="items-start"
-            />
+            <NameLabel originalName={displayName} />
           </div>
           {item.preparation ? (
             <p className="text-xs text-muted-foreground">
@@ -394,19 +390,6 @@ export function ItemRow({
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor={`${id}-label`} className="text-xs">
-              {t('meal.review.englishLabel')}
-            </Label>
-            <Input
-              id={`${id}-label`}
-              dir="ltr"
-              className="h-11"
-              value={item.englishLabel}
-              maxLength={200}
-              onChange={(event) => patch({ englishLabel: event.target.value })}
-            />
-          </div>
-          <div className="space-y-1">
             <Label htmlFor={`${id}-prep`} className="text-xs">
               {t('meal.review.preparation')}
             </Label>
@@ -447,7 +430,6 @@ export function ItemRow({
                       <NameLabel
                         originalName={alt.originalName}
                         englishLabel={alt.englishLabel}
-                        inline
                         size="sm"
                       />
                     </button>

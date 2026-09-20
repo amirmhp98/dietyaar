@@ -5,7 +5,8 @@ import { portionAmount } from '@/lib/units';
  * The structured facts the reflection prompt receives (product spec § 11).
  * Each fact carries a `signature`: the band or status that, when it changes
  * after generation, makes a paragraph that used the fact stale. Text is
- * English; food and slot names are quoted as written with the English label.
+ * English; food and slot names are quoted exactly as the user wrote them, with
+ * no English label (decision 10).
  */
 export interface ReflectionFact {
   id: string;
@@ -40,10 +41,8 @@ export interface ReflectionContext {
   };
 }
 
-export const quoted = (f: FoodName) =>
-  f.originalName.trim() && f.originalName.trim() !== f.englishLabel.trim()
-    ? `${f.originalName} (${f.englishLabel})`
-    : f.englishLabel;
+/** A name as the user wrote it; the English label only stands in when the original is blank. */
+export const quoted = (f: FoodName) => f.originalName.trim() || f.englishLabel.trim();
 
 function slotFacts(view: SlotView): ReflectionFact[] {
   const facts: ReflectionFact[] = [];
