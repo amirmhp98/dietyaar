@@ -6,12 +6,14 @@ import { Button, FormField, Input } from '@/components/UiComponents';
 import { t } from '@/lib/t';
 import type { DraftItem, DraftOption, DraftSlot } from '@/lib/validations/plan';
 import { UnitSelect } from './UnitSelect';
-import { newKey, numberText, parseNumber } from './helpers';
+import { newKey, numberText, parseNumber, renamed, withQuantity } from './helpers';
 
 /**
- * Inline editor for one slot: names, options and their items (name, amount,
- * unit). Used by 8a "Fix" and by the manual wizard. Changing a quantity or a
- * name clears "Assumed" and flags the item for re-estimation on 8b.
+ * Inline editor for one slot: name, options and their items (name, amount,
+ * unit). Used by 7a "Fix" and by the manual wizard. A name typed here is also
+ * the English label (the AI's label survives only edits to other fields);
+ * changing a quantity or a name clears "Assumed" and flags the item for
+ * re-estimation on 7b. A quantity typed without a unit is in grams.
  */
 
 export function newItem(position: number): DraftItem {
@@ -83,26 +85,15 @@ export function SlotEditor({
   return (
     <div className="space-y-5">
       {showNames ? (
-        <div className="grid gap-3">
-          <FormField label={t('plan.review.slotName')} required>
-            <Input
-              dir="auto"
-              className="h-11"
-              value={slot.originalName}
-              maxLength={200}
-              onChange={(e) => onChange({ ...slot, originalName: e.target.value })}
-            />
-          </FormField>
-          <FormField label={t('plan.review.slotEnglish')}>
-            <Input
-              dir="auto"
-              className="h-11"
-              value={slot.englishLabel}
-              maxLength={200}
-              onChange={(e) => onChange({ ...slot, englishLabel: e.target.value })}
-            />
-          </FormField>
-        </div>
+        <FormField label={t('plan.review.slotName')} required>
+          <Input
+            dir="auto"
+            className="h-11"
+            value={slot.originalName}
+            maxLength={200}
+            onChange={(e) => onChange(renamed(slot, e.target.value))}
+          />
+        </FormField>
       ) : null}
       {showTimes ? (
         <div className="grid grid-cols-2 gap-3">
@@ -223,30 +214,15 @@ function ItemEditor({
   return (
     <div className="space-y-3 border-t border-border pt-3 first:border-t-0 first:pt-0">
       <div className="flex items-start gap-2">
-        <div className="min-w-0 flex-1 space-y-3">
-          <FormField label={t('plan.review.itemName')} required>
-            <Input
-              dir="auto"
-              className="h-11"
-              value={item.originalName}
-              maxLength={200}
-              onChange={(e) =>
-                onChange({ ...item, originalName: e.target.value, needsEstimate: true })
-              }
-            />
-          </FormField>
-          <FormField label={t('plan.review.itemEnglish')}>
-            <Input
-              dir="auto"
-              className="h-11"
-              value={item.englishLabel}
-              maxLength={200}
-              onChange={(e) =>
-                onChange({ ...item, englishLabel: e.target.value, needsEstimate: true })
-              }
-            />
-          </FormField>
-        </div>
+        <FormField className="min-w-0 flex-1" label={t('plan.review.itemName')} required>
+          <Input
+            dir="auto"
+            className="h-11"
+            value={item.originalName}
+            maxLength={200}
+            onChange={(e) => onChange({ ...renamed(item, e.target.value), needsEstimate: true })}
+          />
+        </FormField>
         {onRemove ? (
           <Button
             type="button"
@@ -268,9 +244,7 @@ function ItemEditor({
           <QuantityInput
             value={item.quantity}
             onInvalid={setQuantityInvalid}
-            onChange={(quantity) =>
-              onChange({ ...item, quantity, quantityAssumed: false, needsEstimate: true })
-            }
+            onChange={(quantity) => onChange(withQuantity(item, quantity))}
           />
         </FormField>
         <FormField label={t('plan.review.unit')}>

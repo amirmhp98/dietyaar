@@ -31,7 +31,7 @@ test.beforeEach(async ({ page }) => {
   await page.context().clearCookies();
 });
 
-test('J1: paste a Persian plan, review 8a–8c, confirm, ready, today', async ({ page }) => {
+test('J1: paste a Persian plan, review 7a–7c, confirm, ready, today', async ({ page }) => {
   await createOnboardedUser(page, { prefix: 'imp' });
   await expect(page.getByText(t('onboarding.progress', { current: 6, total: 10 }))).toBeVisible();
   await startImport(page, PERSIAN_PLAN);
@@ -59,7 +59,7 @@ test('J1: paste a Persian plan, review 8a–8c, confirm, ready, today', async ({
   await expect(page.getByText(t('plan.target.estimated')).first()).toBeVisible({ timeout: 30_000 });
   await page.getByRole('button', { name: t('plan.review.looksRight') }).click();
 
-  // 8c is read-only (decision 023): the stub's two notes, verbatim, nothing to choose.
+  // 7c is read-only (decision 023): the stub's two notes, verbatim, nothing to choose.
   await expect(page.getByRole('heading', { name: t('plan.review.notesTitle') })).toBeVisible();
   await expect(page.getByTestId('plan-notes').getByRole('listitem')).toHaveCount(2);
   await expect(page.getByText('ماهی دو بار در هفته')).toBeVisible();

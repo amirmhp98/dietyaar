@@ -1,6 +1,6 @@
 /**
  * Manual setup progress stored in `PlanDraft.manualStep` so a refresh resumes
- * the wizard where it stopped. `review` hands over to screens 8a–8c.
+ * the wizard where it stopped. `review` hands over to screens 7a–7c.
  */
 export const MANUAL_STEPS = [
   'day',

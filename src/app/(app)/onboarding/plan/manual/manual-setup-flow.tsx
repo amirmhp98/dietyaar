@@ -22,7 +22,7 @@ import {
   newTarget,
   targetComplete,
 } from '@/components/product/plan-review/TargetFields';
-import { newKey, weekdayName } from '@/components/product/plan-review/helpers';
+import { newKey, renamed, weekdayName } from '@/components/product/plan-review/helpers';
 import {
   Button,
   FormField,
@@ -492,8 +492,8 @@ function SlotsScreen({
       : [newSlot(weekday, 0)],
   );
   const valid = slots.length > 0 && slots.every((s) => s.originalName.trim() !== '');
-  function update(index: number, patch: Partial<DraftSlot>) {
-    setSlots((list) => list.map((s, i) => (i === index ? { ...s, ...patch } : s)));
+  function rename(index: number, originalName: string) {
+    setSlots((list) => list.map((s, i) => (i === index ? renamed(s, originalName) : s)));
   }
   return (
     <PlanScreen
@@ -515,7 +515,7 @@ function SlotsScreen({
                 className="h-11"
                 maxLength={200}
                 value={slot.originalName}
-                onChange={(e) => update(index, { originalName: e.target.value })}
+                onChange={(e) => rename(index, e.target.value)}
               />
             </FormField>
             <Button
@@ -554,14 +554,7 @@ function SlotsScreen({
         loading={saving}
         disabled={!valid}
         onClick={() =>
-          onSave(
-            slots.map((s, i) => ({
-              ...s,
-              position: i,
-              originalName: s.originalName.trim(),
-              englishLabel: s.englishLabel.trim() || s.originalName.trim(),
-            })),
-          )
+          onSave(slots.map((s, i) => ({ ...renamed(s, s.originalName.trim()), position: i })))
         }
       >
         {t('plan.manual.continue')}

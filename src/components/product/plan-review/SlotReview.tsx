@@ -11,7 +11,7 @@ import { SourceExcerpt } from './SourceExcerpt';
 import { UnitSelect } from './UnitSelect';
 
 /**
- * Screen 8a: one slot per screen. Source excerpt, the slot's name, its
+ * Screen 7a: one slot per screen. Source excerpt, the slot's name, its
  * options as a compact list with amounts and "Assumed" tags, and at most one
  * question for a calorie-significant unknown. "Fix" opens the inline editor.
  */

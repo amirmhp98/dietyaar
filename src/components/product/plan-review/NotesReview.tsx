@@ -5,7 +5,7 @@ import { t, tp } from '@/lib/t';
 import type { DraftNote } from '@/lib/validations/plan';
 
 /**
- * Screen 8c: the plan's notes, read-only (decision 023). Every instruction
+ * Screen 7c: the plan's notes, read-only (decision 023). Every instruction
  * that is not a meal, target or schedule is shown verbatim with why it is a
  * note, never evaluated; then Confirm plan with the "N meals affected" line
  * when past meals are linked.

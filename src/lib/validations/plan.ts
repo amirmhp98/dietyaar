@@ -103,7 +103,7 @@ export const draftItemSchema = z.preprocess(
     category: z.enum(FOOD_CATEGORIES).default('OTHER'),
     nutrition: nutritionSchema.nullable().default(null),
     sourceExcerpt: excerpt,
-    /** Set when identity/quantity changed after the last estimate; 8b re-estimates these. */
+    /** Set when identity/quantity changed after the last estimate; 7b re-estimates these. */
     needsEstimate: z.boolean().default(false),
   }),
 );
@@ -166,7 +166,7 @@ export const draftNoteSchema = z.object({
 });
 export type DraftNote = z.infer<typeof draftNoteSchema>;
 
-/** A calorie-significant unknown asked on screen 8a (at most one per screen). */
+/** A calorie-significant unknown asked on screen 7a (at most one per screen). */
 export const draftQuestionSchema = z.object({
   key,
   slotKey: key,
@@ -187,7 +187,7 @@ export const planDraftSchema = z.object({
   targets: z.array(draftTargetSchema).max(200).default([]),
   notes: z.array(draftNoteSchema).max(60).default([]),
   questions: z.array(draftQuestionSchema).max(60).default([]),
-  /** Review progress (8a → 8b → 8c). */
+  /** Review progress (7a → 7b → 7c). */
   reviewed: z
     .object({
       meals: z.boolean().default(false),
@@ -231,7 +231,7 @@ export type DraftSection = (typeof DRAFT_SECTIONS)[number];
  * `updatePlanDraftAction(section, payload, draftRevision)`:
  * - meta: { name?, sourceNote?, sourceLanguage?, structure? }
  * - slots: the whole slots array (manual setup, reorder, remove)
- * - slot: one slot by key (8a "Fix"), replacing it
+ * - slot: one slot by key (7a "Fix"), replacing it
  * - targets / notes / questions: the whole array
  * - reviewed: partial { meals?, targets?, notes? }
  * - manualStep: string | null

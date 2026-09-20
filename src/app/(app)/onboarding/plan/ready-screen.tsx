@@ -16,7 +16,7 @@ export interface ReadySlot {
 }
 
 /**
- * Screen 9 "Ready": today's slots, one line about the daily reflection, and
+ * Screen 8 "Ready": today's slots, one line about the daily reflection, and
  * two ways out. "Log your first meal" lands on Today with `?compose=1`, which
  * the composer island reads to open itself.
  */

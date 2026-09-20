@@ -13,7 +13,7 @@ import { nutrientLabel, targetSourceLabel, targetValueText, weekdayName } from '
 export type EstimateState = 'idle' | 'running' | 'failed';
 
 /**
- * Screen 8b: per-meal ranges and daily targets, each labelled with where it
+ * Screen 7b: per-meal ranges and daily targets, each labelled with where it
  * comes from (explicit / estimated from the plan / sum of the meal ranges).
  * "Fix" makes the values editable; an edited estimate becomes explicit.
  */

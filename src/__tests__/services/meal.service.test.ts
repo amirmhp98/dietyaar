@@ -181,7 +181,6 @@ describe('createDraft', () => {
       uploads: [],
       day: dayRecordFactory.build(),
       planSlot: null,
-      planOption: null,
     } as never);
     const result = await createDraft(
       OWNER,
@@ -750,7 +749,6 @@ describe('saveMeal', () => {
     uploads: [],
     day: dayRecordFactory.build({ userId: OWNER }),
     planSlot: null,
-    planOption: null,
   });
 
   it('returns the existing meal on a retry after the draft is gone (TS-§21.9)', async () => {
@@ -954,7 +952,6 @@ describe('deleteMeal', () => {
       ],
       day: dayRecordFactory.build({ userId: OWNER, localDate: '2026-09-17' }),
       planSlot: null,
-      planOption: null,
     };
     prismaMock.meal.findFirst.mockResolvedValue(row as never);
     prismaMock.meal.deleteMany.mockResolvedValue({ count: 1 });
@@ -981,7 +978,6 @@ describe('setMealLink', () => {
     uploads: [],
     day: dayRecordFactory.build({ userId: OWNER, localDate: '2026-09-17' }),
     planSlot: null,
-    planOption: null,
   });
 
   it('applies the same option rule: a burger links to Lunch without an option, rice needs one', async () => {
