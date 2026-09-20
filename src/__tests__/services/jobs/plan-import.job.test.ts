@@ -133,27 +133,10 @@ const output: PlanImportOutput = {
       sourceExcerpt: null,
     },
   ],
-  rules: [
-    {
-      kind: 'SERVING_COUNT',
-      period: 'WEEK',
-      definition: { food: { originalName: 'ماهی', englishLabel: 'fish', synonyms: [] }, count: 2 },
-      originalText: 'هفته‌ای دو بار ماهی',
-      sourceExcerpt: '',
-      isConflicting: false,
-      unsupportedReason: null,
-    },
-    {
-      kind: 'INSTRUCTION',
-      period: null,
-      definition: {},
-      originalText: 'غذای متنوع بخورید',
-      sourceExcerpt: '',
-      isConflicting: false,
-      unsupportedReason: 'vague',
-    },
+  notes: [
+    { originalText: 'روزهای تمرین یک وعده اضافه', reason: 'TRAINING_CONDITIONAL' },
+    { originalText: 'هفته‌ای دو بار ماهی', reason: 'OTHER' },
   ],
-  notes: [{ originalText: 'روزهای تمرین یک وعده اضافه', reason: 'TRAINING_CONDITIONAL' }],
   uncertainties: [
     { slotIndex: 0, optionIndex: 0, itemIndex: 1, question: 'How much sangak bread?' },
   ],
@@ -187,16 +170,13 @@ describe('draftFromImport', () => {
         answered: false,
       }),
     ]);
-    expect(draft.rules.map((r) => r.tracking)).toEqual(['TRACK', 'NOTE']);
-    expect(draft.notes[0]).toMatchObject({ reason: 'TRAINING_CONDITIONAL' });
-  });
-
-  it('a tracked rule whose definition does not validate becomes a note', () => {
-    const draft = draftFromImport({
-      ...output,
-      rules: [{ ...output.rules[0]!, definition: { count: 'two' } }],
-    });
-    expect(draft.rules[0]?.tracking).toBe('NOTE');
+    // Notes are kept verbatim with a key each; nothing is tracked (decision 023).
+    expect(draft.notes.map((n) => [n.originalText, n.reason])).toEqual([
+      ['روزهای تمرین یک وعده اضافه', 'TRAINING_CONDITIONAL'],
+      ['هفته‌ای دو بار ماهی', 'OTHER'],
+    ]);
+    expect(draft.notes.every((n) => n.key)).toBe(true);
+    expect(draft.reviewed).toEqual({ meals: false, targets: false, notes: false });
   });
 });
 

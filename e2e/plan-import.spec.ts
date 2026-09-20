@@ -59,9 +59,12 @@ test('J1: paste a Persian plan, review 8a–8c, confirm, ready, today', async ({
   await expect(page.getByText(t('plan.target.estimated')).first()).toBeVisible({ timeout: 30_000 });
   await page.getByRole('button', { name: t('plan.review.looksRight') }).click();
 
-  await expect(page.getByRole('heading', { name: t('plan.review.rulesTitle') })).toBeVisible();
-  await expect(page.getByRole('radio', { name: t('plan.review.rule.track') })).toBeChecked();
-  await expect(page.getByText(t('plan.review.notes.title'))).toBeVisible();
+  // 8c is read-only (decision 023): the stub's two notes, verbatim, nothing to choose.
+  await expect(page.getByRole('heading', { name: t('plan.review.notesTitle') })).toBeVisible();
+  await expect(page.getByTestId('plan-notes').getByRole('listitem')).toHaveCount(2);
+  await expect(page.getByText('ماهی دو بار در هفته')).toBeVisible();
+  await expect(page.getByText(t('plan.review.notes.hint'))).toBeVisible();
+  await expect(page.getByRole('radio')).toHaveCount(0);
   await expect(page.getByText(t('plan.review.changeLater'))).toBeVisible();
   // First import: no past meals, so the "N meals affected" line is omitted.
   await expect(page.getByTestId('affected-meals')).toHaveCount(0);

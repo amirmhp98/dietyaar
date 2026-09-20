@@ -8,7 +8,6 @@ import {
   nutritionSubtotals,
 } from '@/lib/rubric/nutrition';
 import { portionResult } from '@/lib/rubric/portion';
-import { ruleObservation, type RuleDay } from '@/lib/rubric/rules';
 import { scoreDay, scoreSlot } from '@/lib/rubric/score';
 import { orderResult, timeResult, type OrderEntry } from '@/lib/rubric/timing';
 import type {
@@ -22,7 +21,6 @@ import type {
   SlotView,
 } from '@/lib/rubric/types';
 import { minutesBetween } from '@/lib/time/bands';
-import { weekdayOf } from '@/lib/time/local-date';
 
 function earliestTime(meals: RubricMeal[]): string | null {
   const times = meals.map((m) => m.consumedLocalTime).filter((t): t is string => t !== null);
@@ -30,20 +28,8 @@ function earliestTime(meals: RubricMeal[]): string | null {
   return times.reduce((a, b) => (minutesBetween(a, b) > 0 ? a : b));
 }
 
-function timingWindowFor(
-  slot: RubricSlot,
-  input: DayInput,
-): { start: string; end: string | null } | null {
-  // A tracked TIMING_WINDOW rule for this slot overrides the slot's own times.
-  for (const rule of input.rules) {
-    if (rule.kind !== 'TIMING_WINDOW' || rule.tracking !== 'TRACK') continue;
-    const def = (rule.definition ?? {}) as Record<string, unknown>;
-    if (def.slotId === slot.id && typeof def.start === 'string') {
-      return { start: def.start, end: typeof def.end === 'string' ? def.end : null };
-    }
-  }
-  if (slot.timeStart) return { start: slot.timeStart, end: slot.timeEnd };
-  return null;
+function timingWindowFor(slot: RubricSlot): { start: string; end: string | null } | null {
+  return slot.timeStart ? { start: slot.timeStart, end: slot.timeEnd } : null;
 }
 
 /**
@@ -137,7 +123,7 @@ export function computeDayView(input: DayInput): DayView {
     const items = linked.flatMap((m) => m.items);
     view.match = matchSlot(items, reference, view.slot, input.allSlots);
     view.portion = portionResult(view.match);
-    const window = timingWindowFor(view.slot, input);
+    const window = timingWindowFor(view.slot);
     view.timing = window
       ? timeResult(view.earliestTime, window)
       : orderResult(view.slot, orderEntries);
@@ -178,23 +164,12 @@ export function computeDayView(input: DayInput): DayView {
   const scores = views.map((v) => v.score?.score).filter((s): s is number => typeof s === 'number');
   const score = scoreDay(scores, meals.length > 0 ? component : null, coverage, completeByDefault);
 
-  // Step 8: tracked rules over this day (weekly periods are assembled by the service).
-  const ruleDay: RuleDay = {
-    localDate: input.localDate,
-    items: allItems,
-    mealItems: meals.map((m) => m.items),
-    logComplete,
-    complete:
-      dayPhase === 'PAST' &&
-      logComplete &&
-      meals.length > 0 &&
-      coverage.notRecorded === 0 &&
-      coverage.needsReview === 0,
-    weekday: weekdayOf(input.localDate),
-  };
-  const rules = input.rules
-    .filter((r) => r.tracking === 'TRACK' && r.period !== 'WEEK')
-    .map((r) => ruleObservation(r, [ruleDay], dayPhase === 'PAST'));
+  const trendEligible =
+    dayPhase === 'PAST' &&
+    logComplete &&
+    meals.length > 0 &&
+    coverage.notRecorded === 0 &&
+    coverage.needsReview === 0;
 
   const timeline = views
     .filter(
@@ -218,8 +193,7 @@ export function computeDayView(input: DayInput): DayView {
     score,
     nutrition,
     dailyEnergy,
-    rules,
-    trendEligible: ruleDay.complete,
+    trendEligible,
     timeline,
   };
 }

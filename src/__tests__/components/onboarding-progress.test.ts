@@ -12,7 +12,7 @@ describe('onboarding progress', () => {
     expect(progressPercent(ONBOARDING_STEP.ADD_PLAN)).toBeLessThan(
       progressPercent(ONBOARDING_STEP.MEALS),
     );
-    expect(progressPercent(ONBOARDING_STEP.RULES)).toBeLessThan(100);
+    expect(progressPercent(ONBOARDING_STEP.NOTES)).toBeLessThan(100);
     expect(progressPercent(ONBOARDING_STEP.READY)).toBe(100);
   });
 

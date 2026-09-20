@@ -32,7 +32,7 @@ export const settings = {
   'settings.preferences.timeZoneHint':
     'Your day starts and ends at local midnight. Past days keep the zone they were recorded in.',
   'settings.preferences.weekStart': 'Week starts on',
-  'settings.preferences.weekStartHint': 'Used for weekly plan rules.',
+  'settings.preferences.weekStartHint': 'Sets the first day of the week in History and My plan.',
   'settings.preferences.appearance': 'Appearance',
   'settings.preferences.appearance.SYSTEM': 'System',
   'settings.preferences.appearance.LIGHT': 'Light',

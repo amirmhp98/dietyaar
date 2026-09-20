@@ -329,26 +329,29 @@ export function MealComposerIsland({
     return null;
   }, [context]);
 
-  const loadDay = useCallback(async (localDate: string) => {
-    setDayInfo((prev) => (prev?.date === localDate ? prev : null));
-    const result = await getDayAction(localDate);
-    if (!result.ok) {
-      setDayInfo({ date: localDate, slots: [], recordedSlotIds: [], hasPlan: false });
-      return [] as RubricSlot[];
-    }
-    const views = result.data.view.slots;
-    const slots = views.map((s) => s.slot);
-    const plan = result.data.plan;
-    setDayInfo({
-      date: localDate,
-      slots,
-      recordedSlotIds: views
-        .filter((s) => s.state === 'RECORDED' || s.state === 'NEEDS_REVIEW')
-        .map((s) => s.slot.id),
-      hasPlan: plan !== null && plan.confirmedAt !== null,
-    });
-    return slots;
-  }, [setDayInfo]);
+  const loadDay = useCallback(
+    async (localDate: string) => {
+      setDayInfo((prev) => (prev?.date === localDate ? prev : null));
+      const result = await getDayAction(localDate);
+      if (!result.ok) {
+        setDayInfo({ date: localDate, slots: [], recordedSlotIds: [], hasPlan: false });
+        return [] as RubricSlot[];
+      }
+      const views = result.data.view.slots;
+      const slots = views.map((s) => s.slot);
+      const plan = result.data.plan;
+      setDayInfo({
+        date: localDate,
+        slots,
+        recordedSlotIds: views
+          .filter((s) => s.state === 'RECORDED' || s.state === 'NEEDS_REVIEW')
+          .map((s) => s.slot.id),
+        hasPlan: plan !== null && plan.confirmedAt !== null,
+      });
+      return slots;
+    },
+    [setDayInfo],
+  );
 
   const loadRecent = useCallback(async () => {
     const result = await getRecentMealsAction();

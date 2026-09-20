@@ -8,7 +8,6 @@ export * from './energy';
 export * from './timing';
 export * from './score';
 export * from './nutrition';
-export * from './rules';
 export * from './restrictions';
 export * from './facts';
 export * from './seven-day';

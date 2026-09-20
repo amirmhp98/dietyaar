@@ -3,20 +3,9 @@ import { computeDayView } from '@/lib/rubric/day-view';
 import { factsHash, isReflectionStale, reflectionFacts, quoted } from '@/lib/rubric/facts';
 import { sameFood } from '@/lib/rubric/names';
 import { restrictionHits } from '@/lib/rubric/restrictions';
-import { ruleObservation, type RuleDay } from '@/lib/rubric/rules';
 import { sevenDaySummary } from '@/lib/rubric/seven-day';
-import type { RubricRule } from '@/lib/rubric/types';
 import { dayInput, eaten, fi, meal, range } from '@/__tests__/fixtures/plans/builders';
 import { buildMenuPlan } from '@/__tests__/fixtures/plans/menu-plan';
-
-const ruleDay = (items: ReturnType<typeof fi>[][], complete = true, weekday = 2): RuleDay => ({
-  localDate: '2026-09-15',
-  items: items.flat(),
-  mealItems: items,
-  logComplete: true,
-  complete,
-  weekday,
-});
 
 describe('sameFood', () => {
   it('normalises spelling and digits, matches alternatives, never a related food', () => {
@@ -42,120 +31,6 @@ describe('sameFood', () => {
         },
       ),
     ).toBe(true);
-  });
-});
-
-describe('ruleObservation', () => {
-  const fish = fi('ماهی', 'fish', 150, 'g', 'MEAT', 250);
-  const chicken = fi('مرغ', 'chicken', 120, 'g', 'MEAT', 200);
-  const serving: RubricRule = {
-    id: 'r1',
-    kind: 'SERVING_COUNT',
-    tracking: 'TRACK',
-    period: 'WEEK',
-    definition: {
-      food: { originalName: 'ماهی', englishLabel: 'fish', synonyms: [] },
-      count: 2,
-      comparator: 'AT_LEAST',
-    },
-    originalText: 'ماهی دو بار در هفته',
-  };
-
-  it('counts one serving per recorded meal, progress then final status', () => {
-    const twoInOneMeal = ruleObservation(serving, [ruleDay([[fish, fish]])], false);
-    expect(twoInOneMeal).toMatchObject({ status: 'PROGRESS', count: 1, required: 2 });
-    const met = ruleObservation(serving, [ruleDay([[fish]]), ruleDay([[fish]])], true);
-    expect(met.status).toBe('MET');
-    expect(ruleObservation(serving, [ruleDay([[fish]]), ruleDay([[chicken]])], true).status).toBe(
-      'NOT_MET',
-    );
-    expect(
-      ruleObservation(serving, [ruleDay([[fish]]), ruleDay([[chicken]], false)], true).status,
-    ).toBe('INCOMPLETE');
-    const atMost = {
-      ...serving,
-      definition: { ...(serving.definition as object), comparator: 'AT_MOST', count: 1 },
-    };
-    expect(ruleObservation(atMost, [ruleDay([[fish], [fish]])], false).status).toBe('NOT_MET');
-    const exact = {
-      ...serving,
-      definition: { ...(serving.definition as object), comparator: 'EXACT', count: 1 },
-    };
-    expect(ruleObservation(exact, [ruleDay([[fish]])], true).status).toBe('MET');
-  });
-
-  it('distinct groups count each group once, from category and confirmed memberships', () => {
-    const rule: RubricRule = {
-      id: 'r2',
-      kind: 'DISTINCT_GROUPS',
-      tracking: 'TRACK',
-      period: 'DAY',
-      definition: { groups: ['FRUIT', 'DAIRY', 'NUTS'], minimum: 2 },
-      originalText: '',
-    };
-    const apple = fi('سیب', 'apple', 1, 'medium_apple', 'FRUIT', 95);
-    const apple2 = fi('سیب', 'apple', 1, 'medium_apple', 'FRUIT', 95);
-    const custom = fi('کشک', 'kashk', 30, 'g', 'OTHER', 60, { ruleGroups: ['DAIRY'] });
-    expect(ruleObservation(rule, [ruleDay([[apple, apple2]])], true)).toMatchObject({
-      status: 'NOT_MET',
-      count: 1,
-      required: 2,
-    });
-    expect(ruleObservation(rule, [ruleDay([[apple, custom]])], true)).toMatchObject({
-      status: 'MET',
-      count: 2,
-    });
-    expect(ruleObservation(rule, [ruleDay([[apple]])], false).status).toBe('PROGRESS');
-  });
-
-  it('named weekday food observes, exclusion flags, instructions stay notes', () => {
-    const named: RubricRule = {
-      id: 'r3',
-      kind: 'NAMED_WEEKDAY_FOOD',
-      tracking: 'TRACK',
-      period: 'WEEK',
-      definition: { weekday: 2, food: { originalName: 'ماهی', englishLabel: 'fish' } },
-      originalText: '',
-    };
-    expect(ruleObservation(named, [ruleDay([[fish]], true, 2)], false).status).toBe('MET');
-    expect(ruleObservation(named, [ruleDay([[chicken]], true, 2)], false).status).toBe('NOT_MET');
-    expect(ruleObservation(named, [ruleDay([[chicken]], false, 2)], true).status).toBe(
-      'INCOMPLETE',
-    );
-    expect(ruleObservation(named, [ruleDay([[chicken]], false, 3)], false).status).toBe('PROGRESS');
-    const exclusion: RubricRule = {
-      id: 'r4',
-      kind: 'EXCLUSION',
-      tracking: 'TRACK',
-      period: 'DAY',
-      definition: { foods: [{ originalName: 'مرغ سوخاری', englishLabel: 'fried chicken' }] },
-      originalText: '',
-    };
-    expect(ruleObservation(exclusion, [ruleDay([[chicken]])], true).status).toBe('MET');
-    expect(
-      ruleObservation(
-        exclusion,
-        [ruleDay([[fi('مرغ سوخاری', 'fried chicken', 1, 'piece', 'MEAT', 300)]])],
-        false,
-      ).status,
-    ).toBe('FLAGGED');
-    expect(ruleObservation(exclusion, [ruleDay([[chicken]], false)], true).status).toBe(
-      'INCOMPLETE',
-    );
-    const note: RubricRule = {
-      id: 'r5',
-      kind: 'INSTRUCTION',
-      tracking: 'TRACK',
-      period: null,
-      definition: {},
-      originalText: '',
-    };
-    expect(ruleObservation(note, [], false).status).toBe('NOTE');
-    expect(ruleObservation({ ...serving, definition: {} }, [], false).status).toBe('NOTE');
-    expect(ruleObservation({ ...named, definition: {} }, [], false).status).toBe('NOTE');
-    expect(
-      ruleObservation({ ...exclusion, kind: 'DISTINCT_GROUPS', definition: {} }, [], false).status,
-    ).toBe('NOTE');
   });
 });
 
@@ -193,16 +68,6 @@ describe('reflection facts and staleness', () => {
         // Every other slot skipped: a fully accounted day, so the energy total is real.
         skippedSlotIds: skipRest ? [p.snack1.id, p.snack2.id, p.dinner.id] : [p.snack1.id],
         targets: [range(300, 400)],
-        rules: [
-          {
-            id: 'r',
-            kind: 'EXCLUSION',
-            tracking: 'TRACK',
-            period: 'DAY',
-            definition: { foods: [] },
-            originalText: '',
-          },
-        ],
       }),
     );
     return { p, yesterday };
