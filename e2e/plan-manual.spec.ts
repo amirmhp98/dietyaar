@@ -129,7 +129,7 @@ test('same-every-day manual plan: My plan, edit, delete', async ({ page }) => {
   await expect(page.getByText('نان سنگک')).toBeVisible();
   await expect(page.getByText('برنج')).toBeVisible();
   await expect(page.getByText('Sangak bread')).toHaveCount(0);
-  await expect(page.getByText(/^150( g)?$/)).toBeVisible();
+  await expect(page.getByRole('listitem').filter({ hasText: 'برنج' }).last()).toContainText('150');
 
   // Edit → review → confirm: no meals are linked, so the affected line is omitted.
   await page.getByTestId('plan-edit').click();

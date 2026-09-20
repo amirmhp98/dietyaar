@@ -506,6 +506,10 @@ function refineAnalysis(userText) {
     } else if (COUNT_UNITS.has(unit) && unitGrams === null && quantity !== null) {
       unitGrams = 50;
     }
+    // An answer the app already turned into a quantity ("2 slices") still gets its estimate here.
+    if (item.answer !== null && item.answer !== undefined && !quantityUnknown && !changes.length) {
+      changes.push(`Estimated ${item.englishLabel} for ${quantity} ${unit ?? 'serving'}`);
+    }
     return {
       originalName: String(item.originalName ?? ''),
       englishLabel: String(item.englishLabel ?? ''),
