@@ -3,7 +3,7 @@ import { t } from '../../src/lib/t';
 import { signUp, uniqueUsername } from './auth';
 
 /**
- * Sign up a fresh user and complete the six profile questions; ends on the
+ * Sign up a fresh user and complete the five profile questions; ends on the
  * plan step. With `skipPlan` it lands on Today with no plan. Returns the
  * username so a spec can seed data for it (see helpers/db.ts).
  */
@@ -20,7 +20,6 @@ export async function createOnboardedUser(
   await page.getByRole('button', { name: t('onboarding.continue') }).click();
   await page.getByLabel(t('onboarding.weight.kg')).fill('64');
   await page.getByRole('button', { name: t('onboarding.continue') }).click();
-  await page.getByRole('button', { name: t('onboarding.timeZone.looksRight') }).click();
   await page.getByRole('button', { name: t('onboarding.skip') }).click();
   await page.waitForURL(/\/onboarding\/plan/);
   if (options.skipPlan) {

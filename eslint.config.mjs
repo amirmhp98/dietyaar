@@ -134,9 +134,10 @@ const eslintConfig = defineConfig([
       },
     ],
   ),
-  // 4. The locale profile's time zone and week start are never product inputs (decision 009).
-  //    calendar.tsx only reads it as the overridable display default of the date picker;
-  //    product pages pass Profile.weekStart explicitly.
+  // 4. The locale profile's time zone and week start are never product inputs (decision 022,
+  //    which keeps this rule from 009): days are counted in APP_TIME_ZONE (`lib/time/zone.ts`)
+  //    and stored days keep DayRecord.timeZone. calendar.tsx only reads the locale as the
+  //    overridable display default of the date picker; product pages pass Profile.weekStart.
   {
     files: ['src/**/*.{ts,tsx}'],
     ignores: ['src/lib/locale.ts', 'src/lib/format.ts', 'src/components/ui/calendar.tsx'],
@@ -147,7 +148,7 @@ const eslintConfig = defineConfig([
           selector:
             "MemberExpression[object.name='locale'][property.name=/^(timeZone|weekStartsOn)$/]",
           message:
-            'Read the time zone and week start from Profile / DayRecord, never from the locale profile (decision 009).',
+            'Read the zone from APP_TIME_ZONE or DayRecord and the week start from Profile, never from the locale profile (decision 022).',
         },
       ],
     },
@@ -162,7 +163,7 @@ const eslintConfig = defineConfig([
           selector:
             "MemberExpression[object.name='locale'][property.name=/^(timeZone|weekStartsOn)$/]",
           message:
-            'Read the time zone and week start from Profile / DayRecord, never from the locale profile (decision 009).',
+            'Read the zone from APP_TIME_ZONE or DayRecord and the week start from Profile, never from the locale profile (decision 022).',
         },
         {
           selector: 'Literal[value=/\\btext-(left|right)\\b/]',

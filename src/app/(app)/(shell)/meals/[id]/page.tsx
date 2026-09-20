@@ -4,9 +4,9 @@ import { requireOnboarded } from '@/lib/auth';
 import { ServiceError } from '@/lib/errors';
 import { photoUrl } from '@/lib/photo-url';
 import { localDateFor } from '@/lib/time/local-date';
+import { APP_TIME_ZONE } from '@/lib/time/zone';
 import { getDayView } from '@/services/day-view.service';
 import { getMeal, type MealView } from '@/services/meal.service';
-import { requireProfile } from '@/services/profile.service';
 import { MealDetails } from './meal-details';
 
 export const dynamic = 'force-dynamic';
@@ -27,8 +27,7 @@ export default async function MealDetailsPage({ params }: { params: Promise<{ id
     throw error;
   }
   const now = new Date();
-  const [profile, day, cookieStore] = await Promise.all([
-    requireProfile(user.id),
+  const [day, cookieStore] = await Promise.all([
     getDayView(user.id, meal.localDate, now),
     cookies(),
   ]);
@@ -41,8 +40,7 @@ export default async function MealDetailsPage({ params }: { params: Promise<{ id
       slotView={slotView}
       slots={day.view.slots.map((s) => s.slot)}
       photos={meal.uploads.map((u) => ({ id: u.id, url: photoUrl(u.id, rawToken) }))}
-      timeZone={profile.timeZone}
-      today={localDateFor(now, profile.timeZone)}
+      today={localDateFor(now, APP_TIME_ZONE)}
     />
   );
 }

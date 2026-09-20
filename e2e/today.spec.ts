@@ -60,7 +60,7 @@ test.describe('Today', () => {
     await expect(page.getByTestId('why-this-score')).toHaveCount(0);
 
     // J5: a sandwich saved under Lunch → "A different food was recorded".
-    const today = await localDateOf(username, 0);
+    const today = localDateOf(0);
     const lunch = plan.slots[2];
     await insertMeal(username, today, {
       time: '13:25',

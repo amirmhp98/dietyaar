@@ -5,8 +5,8 @@ import { ReflectionCard } from '@/components/product/ReflectionCard';
 import { requireOnboarded } from '@/lib/auth';
 import { t } from '@/lib/t';
 import { isValidLocalDate, localDateFor } from '@/lib/time/local-date';
+import { APP_TIME_ZONE } from '@/lib/time/zone';
 import { getDayView } from '@/services/day-view.service';
-import { requireProfile } from '@/services/profile.service';
 import { getMessageForDate } from '@/services/reflection.service';
 import { DayBlocks } from '../../today/day-blocks';
 import { DayHeader } from '../../today/day-header';
@@ -22,9 +22,8 @@ export default async function HistoryDayPage({ params }: { params: Promise<{ dat
   const { date } = await params;
   if (!isValidLocalDate(date)) notFound();
   const user = await requireOnboarded();
-  const profile = await requireProfile(user.id);
   const now = new Date();
-  const today = localDateFor(now, profile.timeZone);
+  const today = localDateFor(now, APP_TIME_ZONE);
   if (date > today) notFound();
   if (date === today) redirect('/today');
 

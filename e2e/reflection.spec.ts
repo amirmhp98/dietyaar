@@ -75,8 +75,8 @@ test.describe('Reflection', () => {
     // Not the first day any more (a meal two days ago), a plan, nothing logged yesterday.
     const plan = await seedMenuPlan(username);
     await backdateAccount(username, 7);
-    const yesterday = await localDateOf(username, -1);
-    const twoDaysAgo = await localDateOf(username, -2);
+    const yesterday = localDateOf(-1);
+    const twoDaysAgo = localDateOf(-2);
     const lunch = plan.slots[2];
     await insertMeal(username, twoDaysAgo, {
       time: '13:00',

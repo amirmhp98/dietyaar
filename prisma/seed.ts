@@ -46,7 +46,6 @@ async function main() {
         heightCm: 178,
         weightKg: 76,
         weightMeasuredAt: new Date().toISOString().slice(0, 10),
-        timeZone: 'Asia/Tehran',
         completedAt: new Date(),
       },
     });
@@ -76,7 +75,6 @@ async function main() {
             heightCm: 168,
             weightKg: 64,
             weightMeasuredAt: new Date().toISOString().slice(0, 10),
-            timeZone: 'Asia/Tehran',
             unitSystem: 'METRIC',
             displayName: 'Demo',
             completedAt: new Date(),

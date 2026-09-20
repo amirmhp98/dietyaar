@@ -1,26 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { prismaMock, resetPrismaMock } from '@/__tests__/helpers/prisma-mock';
-import { dayRecordFactory, mealFactory, profileFactory } from '@/__tests__/factories';
+import { dayRecordFactory, mealFactory } from '@/__tests__/factories';
 
-vi.mock('@/services/profile.service', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/services/profile.service')>()),
-  getProfile: vi.fn(),
-}));
 vi.mock('@/services/reflection.service', () => ({ markStaleIfNeeded: vi.fn() }));
 
-import { getProfile, toProfileView } from '@/services/profile.service';
 import { markStaleIfNeeded } from '@/services/reflection.service';
 import { markSlotSkipped, setDayCompleteness } from '@/services/day.service';
 
 resetPrismaMock();
 
 const OWNER = 'user-1';
-/** 2026-09-17 23:30 in Tehran (19:00Z): the 18th has not started there yet. */
+/** 2026-09-17 23:00 in Asia/Dubai (19:00Z): the 18th has not started there yet. */
 const NOW = new Date('2026-09-17T19:00:00Z');
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(getProfile).mockResolvedValue(toProfileView(profileFactory.build({ userId: OWNER })));
   prismaMock.planSlot.findFirst.mockResolvedValue({ id: 'slot-1' } as never);
 });
 
@@ -34,7 +28,7 @@ describe('markSlotSkipped', () => {
     expect(markStaleIfNeeded).not.toHaveBeenCalled();
   });
 
-  it('creates the day lazily in the profile zone, records the skip once, and marks staleness', async () => {
+  it('creates the day lazily in the app zone, records the skip once, and marks staleness', async () => {
     prismaMock.meal.findFirst.mockResolvedValue(null);
     prismaMock.dayRecord.upsert.mockResolvedValue(dayRecordFactory.build({ id: 'day-9' }));
     prismaMock.daySkippedSlot.createMany.mockResolvedValue({ count: 1 });
@@ -42,7 +36,7 @@ describe('markSlotSkipped', () => {
     expect(prismaMock.dayRecord.upsert.mock.calls[0]?.[0].create).toMatchObject({
       userId: OWNER,
       localDate: '2026-09-17',
-      timeZone: 'Asia/Tehran',
+      timeZone: 'Asia/Dubai',
     });
     expect(prismaMock.daySkippedSlot.createMany).toHaveBeenCalledWith({
       data: [{ dayRecordId: 'day-9', planSlotId: 'slot-1' }],
@@ -67,7 +61,7 @@ describe('markSlotSkipped', () => {
     });
   });
 
-  it('refuses a day that has not started in the profile zone, like meals do', async () => {
+  it('refuses a day that has not started in the app zone, like meals do', async () => {
     await expect(markSlotSkipped(OWNER, '2026-09-18', 'slot-1', true, NOW)).rejects.toMatchObject({
       code: 'FUTURE_TIME',
     });
@@ -92,7 +86,7 @@ describe('setDayCompleteness', () => {
     await setDayCompleteness(OWNER, '2026-09-16', false);
     expect(prismaMock.dayRecord.upsert.mock.calls[0]?.[0]).toMatchObject({
       where: { userId_localDate: { userId: OWNER, localDate: '2026-09-16' } },
-      create: { logComplete: false, timeZone: 'Asia/Tehran' },
+      create: { logComplete: false, timeZone: 'Asia/Dubai' },
       update: { logComplete: false },
     });
     expect(markStaleIfNeeded).toHaveBeenCalledWith(OWNER, '2026-09-16');

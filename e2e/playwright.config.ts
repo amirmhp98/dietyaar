@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 import { DEFAULT_LOCALE, LOCALES } from '../src/lib/locale';
+import { APP_TIME_ZONE } from '../src/lib/time/zone';
 
 /**
  * E2E tests run against a real dev server, a real Postgres and the stub
@@ -9,8 +10,8 @@ import { DEFAULT_LOCALE, LOCALES } from '../src/lib/locale';
  *
  * Projects (tech spec § 15): `auth` (no stored state), `chromium` (Desktop
  * Chrome) and `mobile` (Pixel 7) share the `demo` user's stored session.
- * Specs read their copy through t() and pass timezoneId per test when the
- * product needs a specific zone (the demo profile is Asia/Tehran).
+ * Specs read their copy through t(); the browser runs in the app zone
+ * (decision 022), so fixed clocks are derived from it.
  */
 const profile = LOCALES[DEFAULT_LOCALE];
 const PORT = process.env.PORT ?? '3000';
@@ -29,7 +30,7 @@ export default defineConfig({
     baseURL: BASE_URL,
     trace: 'on-first-retry',
     locale: profile.tag,
-    timezoneId: 'Asia/Tehran',
+    timezoneId: APP_TIME_ZONE,
   },
   projects: [
     { name: 'setup', testMatch: /.*\.setup\.ts/ },

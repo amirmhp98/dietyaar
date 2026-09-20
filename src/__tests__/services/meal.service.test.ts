@@ -60,7 +60,7 @@ import {
 resetPrismaMock();
 
 const OWNER = 'user-1';
-/** 09:30 in Tehran on 2026-09-17 (a Thursday). */
+/** 10:00 in Asia/Dubai on 2026-09-17 (a Thursday). */
 const NOW = new Date('2026-09-17T06:00:00Z');
 const REQ = '11111111-1111-4111-8111-111111111111';
 
@@ -882,7 +882,7 @@ describe('saveMeal', () => {
     expect(meal.droppedPhotos).toBe(0);
     expect(prismaMock.dayRecord.upsert.mock.calls[0]?.[0].create).toMatchObject({
       localDate: '2026-09-17',
-      timeZone: 'Asia/Tehran',
+      timeZone: 'Asia/Dubai',
     });
     expect(prismaMock.daySkippedSlot.deleteMany).toHaveBeenCalledWith({
       where: { dayRecordId: 'day-x', planSlotId: 'slot-breakfast' },

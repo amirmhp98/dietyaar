@@ -13,7 +13,7 @@ them. 001–007 come from the boilerplate; 008 onwards are Dietyaar's (see `tech
 | [006](006-agent-config-in-repo.md)                | Agent configuration and skills are committed                      |
 | [007](007-first-session-defines-the-product.md)   | The first agent session defines the product before building       |
 | [008](008-self-service-signup-no-recovery.md)     | Self-service sign-up with username and password only; no recovery |
-| [009](009-per-user-time-zone.md)                  | Per-user time zone and week start; the locale zone is never read  |
+| [009](009-per-user-time-zone.md)                  | Per-user time zone and week start (superseded by 022)             |
 | [010](010-in-process-scheduler-lease.md)          | In-process scheduler under a heartbeat lease row                  |
 | [011](011-photos-converted-on-device.md)          | Photos converted on the device; server accepts JPEG, PNG, WebP    |
 | [012](012-ai-adapters-persist-nothing.md)         | AI adapters return validated data and persist nothing             |
@@ -26,5 +26,6 @@ them. 001–007 come from the boilerplate; 008 onwards are Dietyaar's (see `tech
 | [019](019-design-tokens-from-design-md.md)        | Visual language: design.md tokens on the local shadcn kit         |
 | [020](020-relation-joins-for-read-models.md)      | Nested reads use Prisma `relationJoins` (one statement per tree)  |
 | [021](021-vercel-staging-cron-route.md)           | Vercel is a staging target; a platform cron drives the jobs       |
+| [022](022-fixed-time-zone.md)                     | One app time zone (Asia/Dubai); the user never sees a zone        |
 | [023](023-rules-deferred.md)                      | Rules are deferred; plan instructions are kept as notes           |
 | [026](026-self-hosted-vps-stack.md)               | Self-hosted VPS: app, Postgres and MinIO on one box               |

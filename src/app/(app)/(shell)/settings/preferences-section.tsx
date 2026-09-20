@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { updatePreferencesAction } from '@/actions/profile.actions';
 import {
   FormField,
@@ -18,20 +18,9 @@ import { setAppearance } from '@/lib/theme';
 
 type Props = {
   unitSystem: 'METRIC' | 'IMPERIAL';
-  timeZone: string;
   weekStart: number;
   appearance: 'SYSTEM' | 'LIGHT' | 'DARK';
 };
-
-function listTimeZones(current: string): string[] {
-  try {
-    const zones = Intl.supportedValuesOf('timeZone');
-    const all = zones.includes('UTC') ? zones : ['UTC', ...zones];
-    return all.includes(current) ? all : [current, ...all];
-  } catch {
-    return [current];
-  }
-}
 
 const WEEKDAY_ORDER = [6, 0, 1, 2, 3, 4, 5];
 
@@ -45,7 +34,6 @@ function weekdayName(day: number): string {
 export function PreferencesSection(props: Props) {
   const [values, setValues] = useState(props);
   const [, startTransition] = useTransition();
-  const zones = useMemo(() => listTimeZones(props.timeZone), [props.timeZone]);
 
   function save(patch: Partial<Props>) {
     const next = { ...values, ...patch };
@@ -98,25 +86,6 @@ export function PreferencesSection(props: Props) {
           <SelectContent>
             <SelectItem value="METRIC">{t('settings.preferences.units.METRIC')}</SelectItem>
             <SelectItem value="IMPERIAL">{t('settings.preferences.units.IMPERIAL')}</SelectItem>
-          </SelectContent>
-        </Select>
-      </FormField>
-
-      <FormField
-        label={t('settings.preferences.timeZone')}
-        helperText={t('settings.preferences.timeZoneHint')}
-        id="pref-time-zone"
-      >
-        <Select value={values.timeZone} onValueChange={(v) => save({ timeZone: v })}>
-          <SelectTrigger className="h-11" id="pref-time-zone">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {zones.map((z) => (
-              <SelectItem key={z} value={z}>
-                {z}
-              </SelectItem>
-            ))}
           </SelectContent>
         </Select>
       </FormField>

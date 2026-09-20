@@ -1,5 +1,8 @@
 # 009 — Per-user time zone and week start; the locale profile's zone is never read
 
+**Superseded by [022](022-fixed-time-zone.md):** every account counts its days in `Asia/Dubai`;
+the lint rule and the pure `lib/time` functions described here stay.
+
 **Decision.** `Profile.timeZone` (IANA) decides what "today" means for a user, and every
 `DayRecord` stores the zone in effect when it was created. `Profile.weekStart` decides the week.
 Nothing outside `lib/locale.ts` and `lib/format.ts` may read `locale.timeZone`; a lint rule

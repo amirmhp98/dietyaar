@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { t } from '@/lib/t';
 import { normalizeDigits } from '@/lib/text/normalize';
-import { isValidLocalDate, isValidTimeZone } from '@/lib/time/local-date';
+import { isValidLocalDate } from '@/lib/time/local-date';
 
 /**
  * Onboarding steps and profile fields (product spec § 5). Numeric fields
@@ -51,14 +51,6 @@ export const weightSchema = z.object({
   unitSystem: unitSystemSchema.default('METRIC'),
 });
 
-export const timeZoneSchema = z.object({
-  timeZone: z
-    .string()
-    .trim()
-    .min(1, t('validation.required'))
-    .refine(isValidTimeZone, t('validation.timeZoneInvalid')),
-});
-
 export const displayNameSchema = z.object({
   displayName: z
     .string()
@@ -68,14 +60,7 @@ export const displayNameSchema = z.object({
     .transform((v) => (v ? v : null)),
 });
 
-export const ONBOARDING_INPUT_STEPS = [
-  'AGE',
-  'SEX',
-  'HEIGHT',
-  'WEIGHT',
-  'TIME_ZONE',
-  'DISPLAY_NAME',
-] as const;
+export const ONBOARDING_INPUT_STEPS = ['AGE', 'SEX', 'HEIGHT', 'WEIGHT', 'DISPLAY_NAME'] as const;
 export type OnboardingInputStep = (typeof ONBOARDING_INPUT_STEPS)[number];
 
 export const onboardingStepSchema = z.enum(ONBOARDING_INPUT_STEPS);
@@ -85,7 +70,6 @@ export const STEP_SCHEMAS = {
   SEX: sexSchema,
   HEIGHT: heightSchema,
   WEIGHT: weightSchema,
-  TIME_ZONE: timeZoneSchema,
   DISPLAY_NAME: displayNameSchema,
 } as const;
 
@@ -94,7 +78,6 @@ export type StepValues = {
   SEX: z.infer<typeof sexSchema>;
   HEIGHT: z.infer<typeof heightSchema>;
   WEIGHT: z.infer<typeof weightSchema>;
-  TIME_ZONE: z.infer<typeof timeZoneSchema>;
   DISPLAY_NAME: z.infer<typeof displayNameSchema>;
 };
 
@@ -120,7 +103,6 @@ export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 /** Settings › Preferences. */
 export const updatePreferencesSchema = z.object({
   unitSystem: unitSystemSchema.optional(),
-  timeZone: timeZoneSchema.shape.timeZone.optional(),
   weekStart: z.number().int().min(0).max(6).optional(),
   appearance: z.enum(['SYSTEM', 'LIGHT', 'DARK']).optional(),
 });
@@ -128,8 +110,6 @@ export type UpdatePreferencesInput = z.infer<typeof updatePreferencesSchema>;
 
 export const aiNoticeKindSchema = z.enum(['PLAN', 'MEAL_TEXT', 'MEAL_PHOTO']);
 export type AiNoticeKind = z.infer<typeof aiNoticeKindSchema>;
-
-export const deviceTimeZoneSchema = z.object({ timeZone: timeZoneSchema.shape.timeZone });
 
 /** Unit conversions for the toggles: display only, storage stays metric. */
 export const CM_PER_INCH = 2.54;

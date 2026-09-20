@@ -7,6 +7,7 @@ import { dayInput, eaten, fi, meal } from '@/__tests__/fixtures/plans/builders';
 import { computeDayView } from '@/lib/rubric/day-view';
 import { reflectionFacts, type ReflectionContext, type ReflectionFact } from '@/lib/rubric/facts';
 import type { DayView } from '@/lib/rubric/types';
+import { APP_TIME_ZONE } from '@/lib/time/zone';
 import { wordCount } from '@/services/ai/schemas';
 import { t } from '@/lib/t';
 
@@ -49,7 +50,7 @@ resetPrismaMock();
 const OWNER = 'user-1';
 const TODAY = '2026-09-17';
 const YESTERDAY = '2026-09-16';
-/** 2026-09-17 08:00 Tehran. */
+/** 2026-09-17 08:30 in Asia/Dubai. */
 const NOW = new Date('2026-09-17T04:30:00Z');
 const BANNED = /\b(cheat|exercise|training|workout|fasting|good food|bad food|confirmed)\b/i;
 
@@ -89,8 +90,7 @@ function dayResult(view: DayView, withPlan = true) {
   return {
     view,
     meals: [],
-    zone: 'Asia/Tehran',
-    profileZone: 'Asia/Tehran',
+    zone: APP_TIME_ZONE,
     weekStart: 6,
     plan: withPlan ? { id: 'plan-1' } : null,
     planChangedInPeriod: false,
@@ -163,9 +163,9 @@ beforeEach(() => {
 
 describe('timeOfDayFor', () => {
   it('splits the day at 12:00 and 18:00 in the zone', () => {
-    expect(timeOfDayFor(new Date('2026-09-17T04:30:00Z'), 'Asia/Tehran')).toBe('MORNING');
-    expect(timeOfDayFor(new Date('2026-09-17T09:00:00Z'), 'Asia/Tehran')).toBe('AFTERNOON');
-    expect(timeOfDayFor(new Date('2026-09-17T15:00:00Z'), 'Asia/Tehran')).toBe('EVENING');
+    expect(timeOfDayFor(new Date('2026-09-17T04:30:00Z'), APP_TIME_ZONE)).toBe('MORNING');
+    expect(timeOfDayFor(new Date('2026-09-17T09:00:00Z'), APP_TIME_ZONE)).toBe('AFTERNOON');
+    expect(timeOfDayFor(new Date('2026-09-17T15:00:00Z'), APP_TIME_ZONE)).toBe('EVENING');
   });
 });
 

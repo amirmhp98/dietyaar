@@ -14,19 +14,13 @@ import { MealComposerIsland } from './meal-composer';
  * The island stays mounted on every route (Meal details reuses it), only
  * the button hides where it would cover the page.
  */
-export function ShellActions({
-  timeZone,
-  photoEnabled,
-}: {
-  timeZone: string;
-  photoEnabled: boolean;
-}) {
+export function ShellActions({ photoEnabled }: { photoEnabled: boolean }) {
   const pathname = usePathname();
   return (
     <>
       {showsLogMealButton(pathname) ? <LogMealButton onClick={() => openComposer()} /> : null}
       <Suspense fallback={null}>
-        <MealComposerIsland timeZone={timeZone} photoEnabled={photoEnabled} />
+        <MealComposerIsland photoEnabled={photoEnabled} />
       </Suspense>
     </>
   );

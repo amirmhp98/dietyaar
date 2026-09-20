@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { requireAuth } from '@/lib/auth';
-import { localDateFor, weekdayOf } from '@/lib/time';
+import { APP_TIME_ZONE, localDateFor, weekdayOf } from '@/lib/time';
 import { getPlan, slotsForWeekday } from '@/services/plan.service';
 import { getOnboardingState, requireProfile, stepIndex } from '@/services/profile.service';
 import { AddPlanFlow, type ImportState } from './add-plan-flow';
@@ -22,7 +22,7 @@ export default async function OnboardingPlanPage() {
   const [profile, plan] = await Promise.all([requireProfile(user.id), getPlan(user.id)]);
 
   if (state.step === 'READY') {
-    const weekday = weekdayOf(localDateFor(new Date(), profile.timeZone));
+    const weekday = weekdayOf(localDateFor(new Date(), APP_TIME_ZONE));
     const slots = plan ? slotsForWeekday(plan, weekday) : [];
     return (
       <Main>

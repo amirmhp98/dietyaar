@@ -2,7 +2,7 @@ import { ServiceError } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
 import { t } from '@/lib/t';
 import { isFutureLocalDateTime } from '@/lib/time/local-date';
-import { DEFAULT_TIME_ZONE, getProfile } from '@/services/profile.service';
+import { APP_TIME_ZONE } from '@/lib/time/zone';
 import { markStaleIfNeeded } from '@/services/reflection.service';
 
 /**
@@ -17,27 +17,20 @@ import { markStaleIfNeeded } from '@/services/reflection.service';
 export async function ensureDayRecord(
   ownerId: string,
   localDate: string,
-  zone: string,
 ): Promise<{ id: string; localDate: string; timeZone: string; logComplete: boolean }> {
   return prisma.dayRecord.upsert({
     where: { userId_localDate: { userId: ownerId, localDate } },
-    create: { userId: ownerId, localDate, timeZone: zone },
+    create: { userId: ownerId, localDate, timeZone: APP_TIME_ZONE },
     update: {},
     select: { id: true, localDate: true, timeZone: true, logComplete: true },
   });
 }
 
-async function ownerZone(ownerId: string): Promise<string> {
-  return (await getProfile(ownerId))?.timeZone ?? DEFAULT_TIME_ZONE;
-}
-
-/** The owner's zone, after refusing a date later than today in it. */
-async function zoneForWrite(ownerId: string, localDate: string, now: Date): Promise<string> {
-  const zone = await ownerZone(ownerId);
-  if (isFutureLocalDateTime(localDate, null, now, zone)) {
+/** Refuses a date later than today in the app zone. */
+function refuseFutureDate(localDate: string, now: Date): void {
+  if (isFutureLocalDateTime(localDate, null, now, APP_TIME_ZONE)) {
     throw new ServiceError(t('day.errors.futureDate'), 'FUTURE_TIME');
   }
-  return zone;
 }
 
 /**
@@ -51,7 +44,7 @@ export async function markSlotSkipped(
   skipped: boolean,
   now = new Date(),
 ): Promise<void> {
-  const zone = await zoneForWrite(ownerId, localDate, now);
+  refuseFutureDate(localDate, now);
   const slot = await prisma.planSlot.findFirst({
     where: { id: planSlotId, plan: { userId: ownerId } },
     select: { id: true },
@@ -64,7 +57,7 @@ export async function markSlotSkipped(
       select: { id: true },
     });
     if (linked) throw new ServiceError(t('meal.errors.slotHasMeal'), 'SLOT_HAS_MEAL');
-    const day = await ensureDayRecord(ownerId, localDate, zone);
+    const day = await ensureDayRecord(ownerId, localDate);
     await prisma.daySkippedSlot.createMany({
       data: [{ dayRecordId: day.id, planSlotId }],
       skipDuplicates: true,
@@ -84,10 +77,10 @@ export async function setDayCompleteness(
   complete: boolean,
   now = new Date(),
 ): Promise<void> {
-  const zone = await zoneForWrite(ownerId, localDate, now);
+  refuseFutureDate(localDate, now);
   await prisma.dayRecord.upsert({
     where: { userId_localDate: { userId: ownerId, localDate } },
-    create: { userId: ownerId, localDate, timeZone: zone, logComplete: complete },
+    create: { userId: ownerId, localDate, timeZone: APP_TIME_ZONE, logComplete: complete },
     update: { logComplete: complete },
   });
   await markStaleIfNeeded(ownerId, localDate);

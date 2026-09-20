@@ -21,6 +21,7 @@ import {
   localTimeFor,
   weekdayOf,
 } from '@/lib/time/local-date';
+import { APP_TIME_ZONE } from '@/lib/time/zone';
 import {
   type CreateMealDraftInput,
   type DraftFoodItem,
@@ -41,7 +42,7 @@ import { admitOperation, finishOperation } from '@/services/ai-usage.service';
 import { toRubricFoodItem } from '@/services/day-view.service';
 import { scaleNutrition } from '@/services/food-data/scale';
 import { type ActivePlan, getActivePlan, slotsForWeekday } from '@/services/plan.service';
-import { DEFAULT_TIME_ZONE, getProfile } from '@/services/profile.service';
+import { getProfile } from '@/services/profile.service';
 import { markStaleIfNeeded } from '@/services/reflection.service';
 import { deleteObjects } from '@/services/storage/s3';
 import { deleteStagedUpload, readStagedImages } from '@/services/upload.service';
@@ -50,7 +51,7 @@ import { deleteStagedUpload, readStagedImages } from '@/services/upload.service'
  * Meal module (tech spec § 5 Meal / MealDraft, § 7 "Meal", § 21.8–10).
  * Drafts are server-held and versioned; `saveMeal` is the confirmation
  * boundary. Every function takes the owner id first and scopes its root
- * query by it. Times are explicit (`now`); zones come from the profile.
+ * query by it. Times are explicit (`now`); days are counted in the app zone.
  */
 
 /** A draft lives 24 h after its last edit; its staged uploads expire with it. */
@@ -173,16 +174,14 @@ function notFound(message = t('errors.notFound')): ServiceError {
   return new ServiceError(message, 'NOT_FOUND');
 }
 
-async function ownerContext(ownerId: string) {
+async function ownerRestrictions(ownerId: string) {
   const profile = await getProfile(ownerId);
-  const zone = profile?.timeZone ?? DEFAULT_TIME_ZONE;
   const originals = profile?.restrictionsOriginal ?? [];
   const normalized = profile?.restrictions ?? [];
-  const restrictions = (originals.length ? originals : normalized).map((original, i) => ({
+  return (originals.length ? originals : normalized).map((original, i) => ({
     original,
     normalized: normalized[i] ?? original,
   }));
-  return { zone, restrictions };
 }
 
 function parseNutrition(value: unknown): Nutrition | null {
@@ -542,8 +541,8 @@ export async function createDraft(
   });
   if (existing) return { draft: toDraftView(existing), meal: null };
 
-  const [{ restrictions }, plan] = await Promise.all([
-    ownerContext(ownerId),
+  const [restrictions, plan] = await Promise.all([
+    ownerRestrictions(ownerId),
     getActivePlan(ownerId),
   ]);
   const { slot, option } = resolveLink(plan, input.localDate, input.planSlotId, input.planOptionId);
@@ -618,8 +617,8 @@ export async function updateDraft(
   if (row.revision !== expectedRevision) throw conflict(row.revision);
   const previous = mealDraftStateSchema.parse(row.state);
 
-  const [{ restrictions }, plan] = await Promise.all([
-    ownerContext(ownerId),
+  const [restrictions, plan] = await Promise.all([
+    ownerRestrictions(ownerId),
     getActivePlan(ownerId),
   ]);
   const merged: MealDraftState = {
@@ -857,15 +856,15 @@ export async function analyzeDraft(
   });
   if (started.count === 0) throw conflict((await loadDraft(ownerId, draftId)).revision);
 
-  const [{ zone, restrictions }, plan] = await Promise.all([
-    ownerContext(ownerId),
+  const [restrictions, plan] = await Promise.all([
+    ownerRestrictions(ownerId),
     getActivePlan(ownerId),
   ]);
   // A refine works from the identified items and the answers: no photo round trip
   // (three S3 reads and image tokens per answered question) and no plan context,
   // since the link is pinned and the model's suggestion is discarded.
   const kind: AiKind = state.uploadIds.length > 0 && !refining ? 'MEAL_PHOTO' : 'MEAL_TEXT';
-  const admission = await admitOperation(ownerId, kind, localDateFor(now, zone));
+  const admission = await admitOperation(ownerId, kind, localDateFor(now, APP_TIME_ZONE));
   if (!admission.ok) {
     await prisma.mealDraft.updateMany({
       where: { id: row.id, analysisRunId: runId },
@@ -1040,8 +1039,8 @@ export async function saveMeal(
   if (row.revision !== expectedRevision) throw conflict(row.revision);
   const state = mealDraftStateSchema.parse(row.state);
 
-  const [{ zone }, plan] = await Promise.all([ownerContext(ownerId), getActivePlan(ownerId)]);
-  if (isFutureLocalDateTime(state.localDate, state.time, now, zone)) {
+  const plan = await getActivePlan(ownerId);
+  if (isFutureLocalDateTime(state.localDate, state.time, now, APP_TIME_ZONE)) {
     throw new ServiceError(t('meal.errors.futureTime'), 'FUTURE_TIME');
   }
   if (state.planSlotId) {
@@ -1072,7 +1071,7 @@ export async function saveMeal(
     mealId = await prisma.$transaction(async (tx) => {
       const day = await tx.dayRecord.upsert({
         where: { userId_localDate: { userId: ownerId, localDate: state.localDate } },
-        create: { userId: ownerId, localDate: state.localDate, timeZone: zone },
+        create: { userId: ownerId, localDate: state.localDate, timeZone: APP_TIME_ZONE },
         update: {},
       });
       if (slot) {
@@ -1139,13 +1138,13 @@ export async function updateMeal(
   const meal = await loadMeal(ownerId, mealId);
   if (meal.revision !== expectedRevision) throw conflict(meal.revision);
 
-  const [{ zone, restrictions }, plan] = await Promise.all([
-    ownerContext(ownerId),
+  const [restrictions, plan] = await Promise.all([
+    ownerRestrictions(ownerId),
     getActivePlan(ownerId),
   ]);
   const localDate = edits.localDate ?? meal.day.localDate;
   const time = edits.time !== undefined ? edits.time : meal.consumedLocalTime;
-  if (isFutureLocalDateTime(localDate, time, now, zone)) {
+  if (isFutureLocalDateTime(localDate, time, now, APP_TIME_ZONE)) {
     throw new ServiceError(t('meal.errors.futureTime'), 'FUTURE_TIME');
   }
   const moved = localDate !== meal.day.localDate;
@@ -1173,7 +1172,7 @@ export async function updateMeal(
     if (moved) {
       const day = await tx.dayRecord.upsert({
         where: { userId_localDate: { userId: ownerId, localDate } },
-        create: { userId: ownerId, localDate, timeZone: zone },
+        create: { userId: ownerId, localDate, timeZone: APP_TIME_ZONE },
         update: {},
       });
       dayRecordId = day.id;
@@ -1284,8 +1283,8 @@ export async function reuseMeal(
   now: Date,
 ): Promise<CreateDraftResult> {
   const source = await loadMeal(ownerId, mealId);
-  const { zone } = await ownerContext(ownerId);
   const sameWeekday = weekdayOf(localDate) === weekdayOf(source.day.localDate);
+  const isToday = localDate === localDateFor(now, APP_TIME_ZONE);
   return createDraft(
     ownerId,
     {
@@ -1294,7 +1293,7 @@ export async function reuseMeal(
       text: null,
       uploadIds: [],
       localDate,
-      time: localDate === localDateFor(now, zone) ? localTimeFor(now, zone) : null,
+      time: isToday ? localTimeFor(now, APP_TIME_ZONE) : null,
       planSlotId: sameWeekday ? source.planSlotId : null,
       planOptionId: sameWeekday ? source.planOptionId : null,
       copiedFromMealId: source.id,
