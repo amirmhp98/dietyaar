@@ -3,7 +3,18 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Pencil, RefreshCw, Trash2 } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  ChevronLeft,
+  Copy,
+  Flame,
+  Link2,
+  Pencil,
+  StickyNote,
+  Trash2,
+  Utensils,
+  X,
+} from 'lucide-react';
 import {
   deleteMealAction,
   removeMealPhotoAction,
@@ -26,17 +37,20 @@ import {
 } from '@/components/UiComponents';
 import { DifferenceChip, type DifferenceKind } from '@/components/product/DifferenceChip';
 import { Disclosure } from '@/components/product/Disclosure';
+import { IconAction } from '@/components/product/IconAction';
 import { InlineName, InlineNames, fillNames } from '@/components/product/InlineName';
 import { MealReview } from '@/components/product/MealReview';
 import { AmountPrefix, GramsEach } from '@/components/product/ItemAmount';
 import { NameLabel } from '@/components/product/NameLabel';
+import { SectionHeader } from '@/components/product/SectionHeader';
+import { StatusGlyph, type StatusGlyphName } from '@/components/product/StatusGlyph';
+import { Surface } from '@/components/product/Surface';
 import { useComposerOpener } from '@/components/product/composer-bus';
-import { valuesLine } from '@/components/product/meal/ItemRow';
 import { OTHER_SLOT, SlotSelect } from '@/components/product/meal/SlotPicker';
 import { NUTRIENT_UNITS, portionValues, sumTotals } from '@/components/product/meal/totals';
 import { formatDate, formatNumber, formatTime } from '@/lib/format';
 import { optionNumber } from '@/lib/rubric/options';
-import type { RubricSlot, SlotView } from '@/lib/rubric/types';
+import type { MatchStatus, RubricSlot, SlotView } from '@/lib/rubric/types';
 import { t } from '@/lib/t';
 import { instantFor } from '@/lib/time';
 import { portionAmount } from '@/lib/units';
@@ -87,6 +101,12 @@ function toDraftState(meal: MealView): MealDraftState {
     lastChanges: [],
   };
 }
+
+const MATCH_GLYPH: Record<MatchStatus, StatusGlyphName> = {
+  MATCHED: 'RECORDED',
+  PARTLY_MATCHED: 'PARTLY',
+  DIFFERENT_FOOD: 'DIFFERENT',
+};
 
 /** The meal's items as the user wrote them: the page title and the delete confirmation. */
 function MealName({ meal }: { meal: MealView }) {
@@ -306,7 +326,7 @@ export function MealDetails({
   if (editing && editState) {
     return (
       <div className="space-y-4" data-testid="meal-edit">
-        <h1 className="text-xl font-semibold">{t('meal.review.title')}</h1>
+        <h2 className="font-display text-xl font-semibold">{t('meal.review.title')}</h2>
         <MealReview
           mode="edit"
           state={editState}
@@ -352,62 +372,138 @@ export function MealDetails({
         {t('meal.details.backToToday')}
       </Link>
 
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold" data-testid="meal-title">
-          <MealName meal={meal} />
-        </h1>
+      {photos.length > 0 ? (
+        <ul className="flex gap-3 overflow-x-auto pe-2 pt-2" data-testid="meal-photos">
+          {photos.map((photo, index) => (
+            <li key={photo.id} className="relative shrink-0">
+              <a href={photo.url} target="_blank" rel="noreferrer" className="block rounded-xl">
+                {/* eslint-disable-next-line @next/next/no-img-element -- account-bound photo URL */}
+                <img
+                  src={photo.url}
+                  alt={t('meal.details.photoAlt', { index: index + 1 })}
+                  className="size-24 rounded-xl border border-border object-cover"
+                />
+              </a>
+              <IconAction
+                label={t('meal.details.removePhoto')}
+                icon={X}
+                size="dense"
+                variant="outline"
+                className="absolute -end-2 -top-2 rounded-full bg-background shadow-1"
+                onClick={() => setPhotoToRemove(photo.id)}
+              />
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      <header className="space-y-2">
+        <div className="flex items-start justify-between gap-3">
+          <h2
+            className="min-w-0 font-display text-xl font-semibold leading-tight"
+            data-testid="meal-title"
+          >
+            <MealName meal={meal} />
+          </h2>
+          <div className="flex shrink-0 items-center gap-1">
+            <IconAction
+              label={t('meal.details.edit')}
+              icon={Pencil}
+              variant="outline"
+              onClick={startEdit}
+              data-testid="edit-meal"
+            />
+            <IconAction
+              label={t('meal.details.reuse')}
+              icon={Copy}
+              onClick={() => openComposer({ reuseMealId: meal.id })}
+              data-testid="reuse-meal"
+            />
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <IconAction
+                  label={t('meal.details.delete')}
+                  icon={Trash2}
+                  className="text-destructive-ink hover:text-destructive-ink"
+                  data-testid="delete-meal"
+                />
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t('meal.details.deleteTitle')}</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    <span className="block font-medium text-foreground">
+                      <MealName meal={meal} />
+                    </span>
+                    {t('meal.details.deleteBody')}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="h-11">{t('meal.details.cancel')}</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="h-11"
+                    onClick={remove}
+                    disabled={pending}
+                    data-testid="confirm-delete"
+                  >
+                    {t('meal.details.deleteConfirm')}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
         <p className="text-sm text-muted-foreground" data-testid="meal-time">
           {dateLabel} · {timeLabel}
         </p>
-      </header>
-
-      <section
-        className="space-y-2 rounded-xl border border-border bg-card p-4"
-        aria-labelledby="link-title"
-      >
         <div className="flex items-center justify-between gap-2">
-          <h2 id="link-title" className="text-sm font-semibold">
-            {t('meal.details.linkedTo')}
-          </h2>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-9"
+          <div className="min-w-0 space-y-1">
+            <div className="flex flex-wrap items-center gap-2 text-sm" data-testid="meal-link">
+              <span className="text-muted-foreground">{t('meal.details.linkedTo')}</span>
+              {slot ? (
+                <>
+                  <NameLabel
+                    originalName={slot.originalName}
+                    englishLabel={slot.englishLabel}
+                    size="sm"
+                  />
+                  {optionN !== null && slot.options.length > 1 ? (
+                    <Badge variant="secondary">{t('plan.option.n', { n: optionN })}</Badge>
+                  ) : null}
+                </>
+              ) : (
+                <span title={t('meal.details.otherHint')}>{t('meal.details.other')}</span>
+              )}
+            </div>
+            {slotView?.match ? (
+              <p
+                className="flex items-center gap-1.5 text-sm text-muted-foreground"
+                data-testid="meal-match"
+              >
+                <StatusGlyph
+                  status={MATCH_GLYPH[slotView.match.status]}
+                  size="sm"
+                  describe={false}
+                />
+                <span>
+                  {t(`meal.review.match.${slotView.match.status}`)}
+                  {slotView.match.reason && slotView.match.reason !== 'CROSS_SLOT'
+                    ? ` · ${t(`meal.review.reason.${slotView.match.reason}`)}`
+                    : ''}
+                </span>
+              </p>
+            ) : null}
+          </div>
+          <IconAction
+            label={t('meal.details.changeLink')}
+            icon={Link2}
             onClick={() => setLinking((v) => !v)}
             aria-expanded={linking}
             data-testid="change-link"
-          >
-            {t('meal.details.changeLink')}
-          </Button>
+          />
         </div>
-        {slot ? (
-          <div className="flex flex-wrap items-center gap-2" data-testid="meal-link">
-            <NameLabel
-              originalName={slot.originalName}
-              englishLabel={slot.englishLabel}
-              size="sm"
-            />
-            {optionN !== null && slot.options.length > 1 ? (
-              <Badge variant="secondary">{t('plan.option.n', { n: optionN })}</Badge>
-            ) : null}
-          </div>
-        ) : (
-          <div data-testid="meal-link">
-            <p className="text-sm">{t('meal.details.other')}</p>
-            <p className="text-xs text-muted-foreground">{t('meal.details.otherHint')}</p>
-          </div>
-        )}
-        {slotView?.match ? (
-          <p className="text-sm text-muted-foreground" data-testid="meal-match">
-            {t(`meal.review.match.${slotView.match.status}`)}
-            {slotView.match.reason && slotView.match.reason !== 'CROSS_SLOT'
-              ? ` · ${t(`meal.review.reason.${slotView.match.reason}`)}`
-              : ''}
-          </p>
-        ) : null}
         {linking ? (
-          <div className="space-y-3 border-t border-border pt-3">
+          <Surface variant="note" className="space-y-3">
             <p className="text-sm text-muted-foreground">
               {t('meal.details.changeLinkHint', { date: dateLabel })}
             </p>
@@ -422,15 +518,16 @@ export function MealDetails({
             <div className="flex gap-2">
               <Button
                 type="button"
-                variant="outline"
-                className="h-11 flex-1"
+                variant="ghost"
+                className="flex-1"
                 onClick={() => setLinking(false)}
               >
                 {t('meal.details.cancel')}
               </Button>
               <Button
                 type="button"
-                className="h-11 flex-1"
+                variant="outline"
+                className="flex-1"
                 onClick={applyLink}
                 disabled={
                   pending ||
@@ -444,155 +541,59 @@ export function MealDetails({
                 {t('meal.details.applyLink')}
               </Button>
             </div>
-          </div>
+          </Surface>
         ) : null}
-      </section>
+      </header>
 
-      <section className="space-y-2" aria-labelledby="items-title">
-        <h2 id="items-title" className="text-sm font-semibold">
-          {t('meal.details.items')}
-        </h2>
-        <ul
-          className="divide-y divide-border rounded-xl border border-border bg-card"
-          data-testid="meal-items"
-        >
-          {meal.items.map((item) => (
-            <li key={item.id} className="space-y-1 p-3">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
-                  <AmountPrefix
-                    quantity={item.quantityUnknown ? null : item.quantity}
-                    unit={item.unit}
-                  />
-                  <NameLabel originalName={item.originalName} englishLabel={item.englishLabel} />
-                </div>
-                {item.quantityUnknown || item.quantity === null ? (
-                  <span className="text-sm text-muted-foreground">
-                    {t('meal.details.quantityUnknown')}
+      <section className="space-y-3" aria-labelledby="items-title">
+        <SectionHeader icon={Utensils} title={t('meal.details.items')} id="items-title" />
+        <Surface variant="list" as="ul" data-testid="meal-items">
+          {meal.items.map((item) => {
+            const kcal = portionValues(item)?.ENERGY_KCAL ?? null;
+            return (
+              <li key={item.id} className="space-y-0.5 px-3 py-2.5">
+                <div className="flex items-baseline justify-between gap-3">
+                  <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-sm">
+                    <AmountPrefix
+                      quantity={item.quantityUnknown ? null : item.quantity}
+                      unit={item.unit}
+                    />
+                    <NameLabel originalName={item.originalName} englishLabel={item.englishLabel} />
+                  </div>
+                  <span className="shrink-0 text-sm tabular-nums text-muted-foreground" dir="ltr">
+                    {kcal === null
+                      ? t('meal.nutrient.unknown')
+                      : t('meals.kcal', {
+                          value: formatNumber(kcal, { maximumFractionDigits: 0 }),
+                        })}
                   </span>
-                ) : (
-                  <GramsEach unit={item.unit} unitGrams={item.unitGrams} />
-                )}
-              </div>
-              {item.preparation ? (
-                <p className="text-xs text-muted-foreground">
-                  <bdi>{item.preparation}</bdi>
+                </div>
+                <p className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
+                  {item.quantityUnknown || item.quantity === null ? (
+                    <span>{t('meal.details.quantityUnknown')}</span>
+                  ) : (
+                    <GramsEach unit={item.unit} unitGrams={item.unitGrams} />
+                  )}
+                  {item.preparation ? <bdi>{item.preparation}</bdi> : null}
                 </p>
-              ) : null}
-              <p className="text-xs text-muted-foreground" dir="ltr">
-                {valuesLine(portionValues(item)) ?? t('meal.review.sourceNone')}
-              </p>
-              {item.restrictionHit ? (
-                <p className="text-sm">
-                  {t('meal.review.restriction', { item: item.restrictionHit })}
-                </p>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section
-        className="rounded-xl border border-border bg-card p-4"
-        aria-labelledby="nutrition-title"
-      >
-        <h2 id="nutrition-title" className="text-sm font-semibold">
-          {t('meal.details.nutrition')}
-        </h2>
-        <dl className="mt-2 grid grid-cols-4 gap-2" data-testid="meal-nutrition">
-          {MAIN_NUTRIENTS.map((key) => (
-            <div key={key}>
-              <dt className="text-xs text-muted-foreground">{t(`meal.nutrient.${key}`)}</dt>
-              <dd className="text-base font-semibold tabular-nums" dir="ltr">
-                {totals.values[key] === null
-                  ? t('meal.nutrient.unknown')
-                  : `${formatNumber(totals.values[key], { maximumFractionDigits: 0 })} ${t(`meal.nutrient.unit.${NUTRIENT_UNITS[key]}`)}`}
-              </dd>
-            </div>
-          ))}
-        </dl>
-        {totals.incomplete ? (
-          <p className="mt-2 text-sm text-muted-foreground">{t('meal.review.unknownValues')}.</p>
-        ) : null}
-        <Disclosure label={t('meal.details.more')} className="mt-2">
-          <dl className="grid grid-cols-2 gap-2">
-            {extraNutrients.map((key) => (
-              <div key={key}>
-                <dt className="text-xs text-muted-foreground">{t(`meal.nutrient.${key}`)}</dt>
-                <dd className="text-sm tabular-nums" dir="ltr">
-                  {totals.values[key] === null
-                    ? t('meal.nutrient.unknown')
-                    : `${formatNumber(totals.values[key], { maximumFractionDigits: 1 })} ${t(`meal.nutrient.unit.${NUTRIENT_UNITS[key]}`)}`}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </Disclosure>
-        <Disclosure label={t('meal.review.sources')}>
-          <ul className="space-y-1 text-sm">
-            {meal.items.map((item) => (
-              <li key={item.id} className="flex flex-wrap items-baseline gap-x-2">
-                <NameLabel
-                  originalName={item.originalName}
-                  englishLabel={item.englishLabel}
-                  size="sm"
-                />
-                <span className="text-muted-foreground">
-                  {item.nutrition
-                    ? `${t(`meal.review.source.${item.nutrition.source}`)}${item.nutrition.sourceRef ? ` · ${item.nutrition.sourceRef}` : ''}`
-                    : t('meal.review.sourceNone')}
-                </span>
+                {item.restrictionHit ? (
+                  <p className="text-sm">
+                    {t('meal.review.restriction', { item: item.restrictionHit })}
+                  </p>
+                ) : null}
               </li>
-            ))}
-          </ul>
-        </Disclosure>
+            );
+          })}
+        </Surface>
       </section>
-
-      {photos.length > 0 ? (
-        <section className="space-y-2" aria-labelledby="photos-title">
-          <h2 id="photos-title" className="text-sm font-semibold">
-            {t('meal.details.photos')}
-          </h2>
-          <div className="flex flex-wrap gap-3" data-testid="meal-photos">
-            {photos.map((photo, index) => (
-              <figure key={photo.id} className="space-y-1">
-                {/* eslint-disable-next-line @next/next/no-img-element -- account-bound photo URL */}
-                <img
-                  src={photo.url}
-                  alt={t('meal.details.photoAlt', { index: index + 1 })}
-                  className="size-32 rounded-md border border-border object-cover"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-9"
-                  onClick={() => setPhotoToRemove(photo.id)}
-                >
-                  {t('meal.details.removePhoto')}
-                </Button>
-              </figure>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {meal.notes ? (
-        <section className="space-y-1" aria-labelledby="notes-title">
-          <h2 id="notes-title" className="text-sm font-semibold">
-            {t('meal.details.notes')}
-          </h2>
-          <p className="text-sm">
-            <bdi>{meal.notes}</bdi>
-          </p>
-        </section>
-      ) : null}
 
       {slotView ? (
-        <section className="space-y-2" aria-labelledby="diff-title">
-          <h2 id="diff-title" className="text-sm font-semibold">
-            {t('meal.details.differences')}
-          </h2>
+        <section className="space-y-3" aria-labelledby="diff-title">
+          <SectionHeader
+            icon={ArrowLeftRight}
+            title={t('meal.details.differences')}
+            id="diff-title"
+          />
           {diffs.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t('meal.details.noDifferences')}</p>
           ) : (
@@ -607,63 +608,73 @@ export function MealDetails({
         </section>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          className="h-11"
-          onClick={startEdit}
-          data-testid="edit-meal"
-        >
-          <Pencil className="size-4" aria-hidden="true" />
-          {t('meal.details.edit')}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="h-11"
-          onClick={() => openComposer({ reuseMealId: meal.id })}
-          data-testid="reuse-meal"
-        >
-          <RefreshCw className="size-4" aria-hidden="true" />
-          {t('meal.details.reuse')}
-        </Button>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button
-              type="button"
-              variant="destructive"
-              className="col-span-2 h-11"
-              data-testid="delete-meal"
-            >
-              <Trash2 className="size-4" aria-hidden="true" />
-              {t('meal.details.delete')}
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{t('meal.details.deleteTitle')}</AlertDialogTitle>
-              <AlertDialogDescription>
-                <span className="block font-medium text-foreground">
-                  <MealName meal={meal} />
-                </span>
-                {t('meal.details.deleteBody')}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel className="h-11">{t('meal.details.cancel')}</AlertDialogCancel>
-              <AlertDialogAction
-                className="h-11"
-                onClick={remove}
-                disabled={pending}
-                data-testid="confirm-delete"
-              >
-                {t('meal.details.deleteConfirm')}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
+      <section className="space-y-3" aria-labelledby="nutrition-title">
+        <SectionHeader icon={Flame} title={t('meal.details.nutrition')} id="nutrition-title" />
+        <Surface variant="list">
+          <dl className="divide-y divide-border" data-testid="meal-nutrition">
+            {MAIN_NUTRIENTS.map((key) => (
+              <div key={key} className="flex min-h-11 items-center justify-between gap-3 px-3 py-2">
+                <dt className="text-sm">{t(`meal.nutrient.${key}`)}</dt>
+                <dd className="text-sm font-medium tabular-nums" dir="ltr">
+                  {totals.values[key] === null
+                    ? t('meal.nutrient.unknown')
+                    : `${formatNumber(totals.values[key], { maximumFractionDigits: 0 })} ${t(`meal.nutrient.unit.${NUTRIENT_UNITS[key]}`)}`}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <div className="px-2 py-1">
+            {totals.incomplete ? (
+              <p className="px-1 py-2 text-xs text-muted-foreground">
+                {t('meal.review.unknownValues')}.
+              </p>
+            ) : null}
+            <Disclosure label={t('meal.details.more')}>
+              <dl className="divide-y divide-border">
+                {extraNutrients.map((key) => (
+                  <div key={key} className="flex items-center justify-between gap-3 py-2">
+                    <dt className="text-sm">{t(`meal.nutrient.${key}`)}</dt>
+                    <dd className="text-sm tabular-nums" dir="ltr">
+                      {totals.values[key] === null
+                        ? t('meal.nutrient.unknown')
+                        : `${formatNumber(totals.values[key], { maximumFractionDigits: 1 })} ${t(`meal.nutrient.unit.${NUTRIENT_UNITS[key]}`)}`}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </Disclosure>
+            <Disclosure label={t('meal.review.sources')}>
+              <ul className="space-y-1 text-sm">
+                {meal.items.map((item) => (
+                  <li key={item.id} className="flex flex-wrap items-baseline gap-x-2">
+                    <NameLabel
+                      originalName={item.originalName}
+                      englishLabel={item.englishLabel}
+                      size="sm"
+                    />
+                    <span className="text-muted-foreground">
+                      {item.nutrition
+                        ? `${t(`meal.review.source.${item.nutrition.source}`)}${item.nutrition.sourceRef ? ` · ${item.nutrition.sourceRef}` : ''}`
+                        : t('meal.review.sourceNone')}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Disclosure>
+          </div>
+        </Surface>
+      </section>
+
+      {meal.notes ? (
+        <section className="space-y-3" aria-labelledby="notes-title">
+          <SectionHeader icon={StickyNote} title={t('meal.details.notes')} id="notes-title" />
+          <Surface variant="note">
+            <p className="text-sm">
+              <bdi>{meal.notes}</bdi>
+            </p>
+          </Surface>
+        </section>
+      ) : null}
 
       <AlertDialog open={photoToRemove !== null} onOpenChange={(o) => !o && setPhotoToRemove(null)}>
         <AlertDialogContent>

@@ -45,12 +45,12 @@ export function AccountSection() {
 
   return (
     <>
-      <Button type="button" variant="outline" className="h-11 w-full" onClick={() => setOpen(true)}>
-        <KeyRound className="size-4" />
+      <Button type="button" variant="outline" onClick={() => setOpen(true)}>
+        <KeyRound aria-hidden="true" />
         {t('settings.account.changePassword')}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-sm rounded-xl">
+        <DialogContent className="max-w-sm rounded-card">
           <DialogHeader>
             <DialogTitle>{t('settings.account.changePassword')}</DialogTitle>
             <DialogDescription>

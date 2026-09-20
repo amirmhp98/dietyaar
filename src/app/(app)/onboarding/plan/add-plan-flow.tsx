@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
-import { Loader2 } from 'lucide-react';
+import { CircleAlert, Loader2 } from 'lucide-react';
 import { continueToTodayAction } from '@/actions/onboarding-plan.actions';
 import {
   cancelPlanImportAction,
@@ -14,6 +14,7 @@ import {
 import { acknowledgeAiNoticeAction, skipPlanAction } from '@/actions/profile.actions';
 import { AiNoticeSheet } from '@/components/product/AiNoticeSheet';
 import { Disclosure } from '@/components/product/Disclosure';
+import { Surface } from '@/components/product/Surface';
 import { Button, FormField, Textarea, toast } from '@/components/UiComponents';
 import { formatNumber } from '@/lib/format';
 import { t } from '@/lib/t';
@@ -152,22 +153,22 @@ export function AddPlanFlow({
   if (state === 'PENDING') {
     return (
       <PlanScreen step={step} title={t('plan.preparing.title')}>
-        <div
-          role="status"
-          className="flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-sm"
-        >
-          <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-muted-foreground" />
+        <Surface variant="note" role="status" className="flex items-start gap-3 text-sm">
+          <Loader2
+            className="mt-0.5 size-4 shrink-0 animate-spin text-muted-foreground"
+            aria-hidden="true"
+          />
           <p>{slow ? t('plan.preparing.slow') : t('plan.preparing.body')}</p>
-        </div>
+        </Surface>
         {slow ? (
           mode === 'onboarding' ? (
             <form action={continueToTodayAction}>
-              <Button type="submit" className="h-11 w-full">
+              <Button type="submit" className="w-full">
                 {t('plan.preparing.continueToToday')}
               </Button>
             </form>
           ) : (
-            <Button asChild className="h-11 w-full">
+            <Button asChild className="w-full">
               <Link href="/today">{t('plan.preparing.continueToToday')}</Link>
             </Button>
           )
@@ -175,7 +176,7 @@ export function AddPlanFlow({
         <Button
           type="button"
           variant="ghost"
-          className="h-11 w-full"
+          className="w-full"
           disabled={pending}
           onClick={() =>
             startTransition(async () => {
@@ -202,24 +203,23 @@ export function AddPlanFlow({
       backHref={mode === 'plan' ? '/plan' : '/onboarding?step=DISPLAY_NAME'}
     >
       {state === 'FAILED' ? (
-        <div
-          role="alert"
-          className="space-y-3 rounded-xl border border-border bg-card p-4"
-          data-testid="import-failed"
-        >
-          <p className="font-medium">{t('plan.add.failedTitle')}</p>
+        <Surface variant="note" role="alert" className="space-y-3" data-testid="import-failed">
+          <p className="flex items-start gap-2 font-medium">
+            <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            <span>{t('plan.add.failedTitle')}</span>
+          </p>
           <p className="text-sm text-muted-foreground">
             {text.trim() === '' ? t('plan.add.failedBodyKept') : t('plan.add.failedBody')}
           </p>
           <div className="grid grid-cols-2 gap-2">
-            <Button type="button" className="h-11" loading={pending} onClick={tryAgain}>
+            <Button type="button" loading={pending} onClick={tryAgain}>
               {t('plan.add.tryAgain')}
             </Button>
-            <Button type="button" variant="outline" className="h-11" onClick={goManual}>
+            <Button type="button" variant="outline" onClick={goManual}>
               {t('plan.add.setUpManually')}
             </Button>
           </div>
-        </div>
+        </Surface>
       ) : null}
       <p className="text-sm text-muted-foreground">
         {mode === 'plan' ? t('plan.add.replaceHint') : t('plan.add.intro')}
@@ -263,14 +263,17 @@ export function AddPlanFlow({
           />
         </FormField>
         <Disclosure label={t('plan.add.exampleToggle')} testId="plan-example">
-          <p className="whitespace-pre-wrap rounded-lg bg-muted/50 p-3 text-sm" dir="auto">
-            <bdi>{t('plan.add.example')}</bdi>
-          </p>
+          <Surface variant="note" padding="sm">
+            <p className="whitespace-pre-wrap text-sm" dir="auto">
+              <bdi>{t('plan.add.example')}</bdi>
+            </p>
+          </Surface>
         </Disclosure>
         <div className="grid gap-3">
           <Button
             type="submit"
-            className="h-11 w-full"
+            variant={state === 'FAILED' ? 'outline' : 'default'}
+            className="w-full"
             loading={pending}
             disabled={overLimit || text.trim() === ''}
           >
@@ -278,8 +281,8 @@ export function AddPlanFlow({
           </Button>
           <Button
             type="button"
-            variant="outline"
-            className="h-11 w-full"
+            variant={state === 'FAILED' ? 'ghost' : 'outline'}
+            className="w-full"
             disabled={pending}
             onClick={goManual}
           >
@@ -289,7 +292,7 @@ export function AddPlanFlow({
             <Button
               type="button"
               variant="ghost"
-              className="h-11 w-full"
+              className="w-full"
               disabled={pending}
               onClick={() => startTransition(() => skipPlanAction())}
             >

@@ -12,6 +12,8 @@ export type SevenDaySummary =
   | {
       kind: 'SLOT_DIFFERENT';
       slot: FoodName;
+      /** Which of the two the sentence names: a different food, or a slot marked skipped. */
+      reason: 'DIFFERENT_FOOD' | 'SKIPPED';
       days: number;
       completeDays: number;
       incompleteDays: number;
@@ -64,10 +66,13 @@ export function sevenDaySummary(days: DayView[]): SevenDaySummary {
   };
 
   // 1. A slot that was Different food (first) or marked skipped on three or more days.
-  for (const predicate of [
-    (s: DayView['slots'][number]) => s.match?.status === 'DIFFERENT_FOOD',
-    (s: DayView['slots'][number]) => s.state === 'SKIPPED',
-  ]) {
+  const slotReasons: Array<
+    ['DIFFERENT_FOOD' | 'SKIPPED', (s: DayView['slots'][number]) => boolean]
+  > = [
+    ['DIFFERENT_FOOD', (s) => s.match?.status === 'DIFFERENT_FOOD'],
+    ['SKIPPED', (s) => s.state === 'SKIPPED'],
+  ];
+  for (const [reason, predicate] of slotReasons) {
     const top = count(
       complete.flatMap((d) =>
         d.slots
@@ -79,6 +84,7 @@ export function sevenDaySummary(days: DayView[]): SevenDaySummary {
       return {
         kind: 'SLOT_DIFFERENT',
         slot: top.value,
+        reason,
         days: top.days,
         completeDays,
         incompleteDays,

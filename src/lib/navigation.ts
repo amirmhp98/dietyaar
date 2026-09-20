@@ -60,7 +60,18 @@ export function pageTitleFor(pathname: string): string {
   return match?.label ?? '';
 }
 
-/** A detail page shows its record and its own actions; the floating Log meal button would cover them. */
+/**
+ * Flows with a filled primary of their own (Add your plan, Review your plan):
+ * the floating button would be a second emerald on the viewport (decision 025).
+ */
+const FLOW_PAGES = ['/plan/add', '/plan/review'];
+
+/**
+ * A detail page shows its record and its own actions, and a plan flow has
+ * its own primary; the floating Log meal button would cover or compete with them.
+ */
 export function showsLogMealButton(pathname: string): boolean {
-  return !DETAIL_PAGES.some((page) => isNavItemActive(page.href, pathname));
+  return ![...DETAIL_PAGES.map((page) => page.href), ...FLOW_PAGES].some((href) =>
+    isNavItemActive(href, pathname),
+  );
 }

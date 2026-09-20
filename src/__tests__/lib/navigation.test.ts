@@ -36,6 +36,14 @@ describe('navigation', () => {
     expect(showsLogMealButton('/today')).toBe(true);
     expect(showsLogMealButton('/history/2026-09-18')).toBe(true);
   });
+
+  it('hides the Log meal button on the plan flows, which carry their own primary action', () => {
+    expect(showsLogMealButton('/plan')).toBe(true);
+    expect(showsLogMealButton('/plan/add')).toBe(false);
+    expect(showsLogMealButton('/plan/add/manual')).toBe(false);
+    expect(showsLogMealButton('/plan/review')).toBe(false);
+    expect(showsLogMealButton('/settings')).toBe(true);
+  });
 });
 
 describe('sessionCookieOptions', () => {

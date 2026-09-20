@@ -223,6 +223,7 @@ describe('sevenDaySummary', () => {
     expect(sevenDaySummary(makeDays('few'))).toMatchObject({ kind: 'NOT_ENOUGH', completeDays: 2 });
     expect(sevenDaySummary(makeDays('different'))).toMatchObject({
       kind: 'SLOT_DIFFERENT',
+      reason: 'DIFFERENT_FOOD',
       days: 4,
       completeDays: 4,
       slot: { englishLabel: 'Lunch' },
@@ -265,8 +266,10 @@ describe('sevenDaySummary', () => {
         }),
       ),
     );
+    // Skipped slots get their own sentence (F 1.2-6): the reason names which.
     expect(sevenDaySummary(allSkipped)).toMatchObject({
       kind: 'SLOT_DIFFERENT',
+      reason: 'SKIPPED',
       slot: { englishLabel: 'Breakfast' },
     });
     // Breakfast partly matched every day, no times, no targets: nothing repeated and nothing matched.

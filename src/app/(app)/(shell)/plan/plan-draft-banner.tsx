@@ -2,19 +2,22 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
+import { CircleAlert } from 'lucide-react';
 import { discardPlanDraftAction, retryPlanImportAction } from '@/actions/plan.actions';
 import {
   ImportStatusBanner,
   type ImportBannerState,
 } from '@/components/product/ImportStatusBanner';
+import { Surface } from '@/components/product/Surface';
 import { Button, toast } from '@/components/UiComponents';
 import { t } from '@/lib/t';
 import { useImportPolling } from '@/app/(app)/onboarding/plan/add-plan-flow';
 
 /**
  * My plan's draft state (design-scope screen 6 "draft pending"): the import
- * banner for imports; a short line with Continue / Discard for an unfinished
- * manual set-up or unconfirmed edit.
+ * banner for imports; a note surface with Continue / Discard for an
+ * unfinished manual set-up or unconfirmed edit. Both actions stay outline
+ * or ghost: the floating Log meal button is the page's filled primary.
  */
 export function PlanDraftBanner({
   kind,
@@ -62,20 +65,22 @@ export function PlanDraftBanner({
   }
 
   return (
-    <div role="status" className="space-y-3 rounded-xl border border-border bg-card p-4 text-sm">
-      <p>
-        {kind === 'MANUAL'
-          ? t('plan.page.draft.unfinishedManual')
-          : t('plan.page.draft.unfinishedEdit')}
+    <Surface variant="note" role="status" className="space-y-3 text-sm">
+      <p className="flex items-start gap-2">
+        <CircleAlert className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <span>
+          {kind === 'MANUAL'
+            ? t('plan.page.draft.unfinishedManual')
+            : t('plan.page.draft.unfinishedEdit')}
+        </span>
       </p>
       <div className="grid grid-cols-2 gap-2">
-        <Button type="button" className="h-11" onClick={() => router.push(continueHref)}>
+        <Button type="button" variant="outline" onClick={() => router.push(continueHref)}>
           {t('plan.page.draft.continue')}
         </Button>
         <Button
           type="button"
-          variant="outline"
-          className="h-11"
+          variant="ghost"
           loading={pending}
           onClick={() =>
             startTransition(async () => {
@@ -92,6 +97,6 @@ export function PlanDraftBanner({
           {t('plan.page.draft.discard')}
         </Button>
       </div>
-    </div>
+    </Surface>
   );
 }

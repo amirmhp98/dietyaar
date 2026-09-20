@@ -8,9 +8,10 @@ import { ReflectionTrigger } from './reflection-trigger';
 import { ShellActions } from './shell-actions';
 
 /**
- * Product shell: bottom tabs (top row on md+), top bar with the profile
- * button, and the persistent Log meal button. Product pages call
- * requireOnboarded() themselves; admin pages keep their own guards.
+ * Product shell: one top bar (title on phones, the primary tabs on wider
+ * screens, the profile button), bottom tabs on phones, and the persistent
+ * Log meal button. Product pages call requireOnboarded() themselves; admin
+ * pages keep their own guards.
  */
 export default async function ShellLayout({ children }: { children: ReactNode }) {
   const user = await requireAuth();
@@ -24,7 +25,7 @@ export default async function ShellLayout({ children }: { children: ReactNode })
       >
         {t('shell.skipToContent')}
       </a>
-      <div className="flex min-h-screen flex-col md:pt-14">
+      <div className="flex min-h-screen flex-col">
         <TopBar />
         <main
           id="main-content"

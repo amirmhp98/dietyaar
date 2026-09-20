@@ -42,7 +42,7 @@ export const settings = {
   'settings.account.passwordChanged': 'Password changed. Other devices were signed out.',
 
   'settings.privacy.title': 'Privacy & data',
-  'settings.privacy.aiIntro': 'What is sent to the AI service, and when:',
+  'settings.privacy.aiIntro': 'What is sent to the AI service, and when',
   'settings.privacy.aiPlan':
     'Plan import: your pasted plan text, with your age, sex, height and weight as context.',
   'settings.privacy.aiMeal':

@@ -2,20 +2,19 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState, useTransition } from 'react';
-import { ArrowLeft } from 'lucide-react';
 import { deleteUnderageAccountAction } from '@/actions/account.actions';
 import { saveOnboardingStepAction } from '@/actions/profile.actions';
 import {
   Button,
   FormField,
   Input,
-  Progress,
   RadioGroup,
   RadioGroupItem,
   ToggleGroup,
   ToggleGroupItem,
   toast,
 } from '@/components/UiComponents';
+import { Surface } from '@/components/product/Surface';
 import { t } from '@/lib/t';
 import { normalizeDigits } from '@/lib/text/normalize';
 import {
@@ -26,7 +25,7 @@ import {
 } from '@/lib/validations/profile';
 import type { OnboardingState } from '@/services/profile.service';
 import type { OnboardingStep } from '@prisma/client';
-import { ONBOARDING_TOTAL_STEPS, progressPercent } from './plan/plan-screen';
+import { PlanScreen } from './plan/plan-screen';
 
 const STEPS: OnboardingInputStep[] = ['AGE', 'SEX', 'HEIGHT', 'WEIGHT', 'DISPLAY_NAME'];
 type Values = OnboardingState['values'];
@@ -107,7 +106,7 @@ export function OnboardingFlow({
         <p className="text-sm text-muted-foreground">{t('onboarding.age.stopBody')}</p>
         <Button
           variant="destructive"
-          className="h-11 w-full"
+          className="w-full"
           loading={pending}
           onClick={() =>
             startTransition(async () => {
@@ -187,6 +186,7 @@ export function OnboardingFlow({
 
 // ─── Shared screen chrome ───────────────────────────────────────────────────
 
+/** One question per screen, with the same chrome as the plan screens (progress, Back, 28 px title). */
 function Screen({
   current,
   title,
@@ -199,32 +199,10 @@ function Screen({
   onBack?: () => void;
 }) {
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-4 pb-8 pt-6">
-      <div className="space-y-2">
-        <div className="flex h-11 items-center gap-2">
-          {onBack ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-11 w-11"
-              aria-label={t('onboarding.back')}
-              onClick={onBack}
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          ) : null}
-          <span className="text-xs text-muted-foreground">
-            {t('onboarding.progress', { current, total: ONBOARDING_TOTAL_STEPS })}
-          </span>
-        </div>
-        <Progress
-          value={progressPercent(current)}
-          aria-label={t('onboarding.progress', { current, total: ONBOARDING_TOTAL_STEPS })}
-        />
-      </div>
-      <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-      <div className="space-y-5">{children}</div>
+    <main className="min-h-screen px-4 pt-6">
+      <PlanScreen step={current} title={title} onBack={onBack}>
+        {children}
+      </PlanScreen>
     </main>
   );
 }
@@ -256,12 +234,7 @@ function AgeScreen({
           onSave(Number(normalizeDigits(raw)), raw);
         }}
       >
-        <FormField
-          label={t('onboarding.age.label')}
-          required
-          error={error ?? undefined}
-          helperText={t('onboarding.age.why')}
-        >
+        <FormField label={t('onboarding.age.label')} required error={error ?? undefined}>
           <Input
             inputMode="numeric"
             dir="auto"
@@ -271,12 +244,10 @@ function AgeScreen({
             className="h-11 text-lg"
           />
         </FormField>
-        <Button
-          type="submit"
-          className="h-11 w-full"
-          loading={pending}
-          disabled={raw.trim() === ''}
-        >
+        <Surface variant="note" rule>
+          <p className="text-sm text-muted-foreground">{t('onboarding.age.why')}</p>
+        </Surface>
+        <Button type="submit" className="w-full" loading={pending} disabled={raw.trim() === ''}>
           {t('onboarding.continue')}
         </Button>
         <p className="sr-only">
@@ -305,7 +276,7 @@ function SexScreen({
         {(['FEMALE', 'MALE'] as const).map((option) => (
           <label
             key={option}
-            className="flex h-14 cursor-pointer items-center gap-3 rounded-lg border border-border bg-card px-4 text-base font-medium hover:bg-accent has-[[data-state=checked]]:border-primary"
+            className="flex h-14 cursor-pointer items-center gap-3 rounded-xl border border-border bg-card px-4 text-base font-medium hover:bg-tint-1 has-[[data-state=checked]]:border-primary/40 has-[[data-state=checked]]:bg-tint-2"
           >
             <RadioGroupItem value={option} disabled={pending} />
             {t(`onboarding.sex.${option}`)}
@@ -431,7 +402,7 @@ function HeightScreen({
         )}
         <Button
           type="submit"
-          className="h-11 w-full"
+          className="w-full"
           loading={pending}
           disabled={!Number.isFinite(heightCm) || heightCm <= 0}
         >
@@ -498,7 +469,7 @@ function WeightScreen({
         </FormField>
         <Button
           type="submit"
-          className="h-11 w-full"
+          className="w-full"
           loading={pending}
           disabled={raw.trim() === '' || !Number.isFinite(kg)}
         >
@@ -542,13 +513,13 @@ function NameScreen({
           />
         </FormField>
         <div className="grid gap-3">
-          <Button type="submit" className="h-11 w-full" loading={pending}>
+          <Button type="submit" className="w-full" loading={pending}>
             {t('onboarding.continue')}
           </Button>
           <Button
             type="button"
             variant="ghost"
-            className="h-11 w-full"
+            className="w-full"
             disabled={pending}
             onClick={() => onSave(null)}
           >

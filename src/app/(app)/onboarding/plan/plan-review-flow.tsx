@@ -343,7 +343,7 @@ export function PlanReviewFlow({
         <Button
           type="button"
           variant="ghost"
-          className="h-11 w-full"
+          className="w-full text-destructive-ink hover:text-destructive-ink"
           disabled={saving}
           onClick={discard}
         >

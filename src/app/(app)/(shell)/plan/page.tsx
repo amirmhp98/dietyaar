@@ -1,6 +1,18 @@
 import Link from 'next/link';
+import {
+  ClipboardList,
+  FileText,
+  Flag,
+  Plus,
+  StickyNote,
+  Target,
+  type LucideIcon,
+} from 'lucide-react';
 import { Button, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/UiComponents';
 import { Disclosure } from '@/components/product/Disclosure';
+import { Illustration } from '@/components/product/Illustration';
+import { SectionHeader } from '@/components/product/SectionHeader';
+import { Surface } from '@/components/product/Surface';
 import {
   targetSourceLabel,
   targetValueText,
@@ -17,10 +29,15 @@ import { requireProfile } from '@/services/profile.service';
 import { PlanSlotSummary } from './PlanSlotSummary';
 import { PlanActions } from './plan-actions';
 import { PlanDraftBanner } from './plan-draft-banner';
+import { PlanSlotList } from './plan-slot-list';
 
 export const dynamic = 'force-dynamic';
 
-/** My plan (design-scope screen 6): the confirmed plan, read-only, with Edit / Replace / Delete. */
+/**
+ * My plan (design-scope screen 6, decision 025): the confirmed plan as a
+ * header with its actions, slot cards folded after the first two, targets,
+ * notes and the source text. The top bar carries the page title.
+ */
 export default async function PlanPage() {
   const user = await requireOnboarded();
   const now = new Date();
@@ -30,8 +47,6 @@ export default async function PlanPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">{t('plan.page.title')}</h1>
-
       {plan?.draft ? (
         <PlanDraftBanner
           kind={plan.draft.kind}
@@ -48,13 +63,21 @@ export default async function PlanPage() {
         <EmptyState />
       ) : (
         <>
-          <section className="space-y-1 rounded-xl border border-border bg-card p-4">
-            <p className="text-lg font-semibold" dir="auto">
-              <bdi>{plan.name ?? t('plan.page.title')}</bdi>
-            </p>
+          <header className="space-y-1">
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="min-w-0 font-display text-2xl font-semibold leading-tight" dir="auto">
+                <bdi>{plan.name ?? t('plan.page.title')}</bdi>
+              </h2>
+              <PlanActions planName={plan.name} />
+            </div>
             {plan.sourceNote ? (
-              <p className="text-sm text-muted-foreground" dir="auto">
-                {t('plan.page.source', { note: plan.sourceNote })}
+              <p
+                className="flex items-center gap-1.5 text-sm text-muted-foreground"
+                dir="auto"
+                data-testid="plan-source"
+              >
+                <FileText className="size-4 shrink-0" aria-hidden="true" />
+                <span>{t('plan.page.source', { note: plan.sourceNote })}</span>
               </p>
             ) : null}
             {plan.confirmedAt ? (
@@ -64,52 +87,55 @@ export default async function PlanPage() {
                 })}
               </p>
             ) : null}
-          </section>
+          </header>
 
           {profile.goal ? (
-            <Section title={t('plan.page.goal')}>
-              <p className="rounded-xl border border-border bg-card p-4 text-sm" dir="auto">
-                <bdi>{profile.goal}</bdi>
-              </p>
+            <Section icon={Flag} title={t('plan.page.goal')} id="goal">
+              <Surface variant="note" rule>
+                <p className="text-sm" dir="auto">
+                  <bdi>{profile.goal}</bdi>
+                </p>
+              </Surface>
             </Section>
           ) : null}
 
           <MealsSection plan={plan} today={today} weekStart={profile.weekStart} />
 
-          <Section title={t('plan.page.targets')}>
+          <Section icon={Target} title={t('plan.page.targets')} id="targets">
             <DailyTargets plan={plan} />
           </Section>
 
           {plan.notes.length > 0 ? (
-            <Section title={t('plan.page.notes')}>
-              <p className="text-xs text-muted-foreground">{t('plan.review.notes.hint')}</p>
-              <ul
-                className="divide-y divide-border rounded-xl border border-border bg-card"
-                data-testid="plan-notes"
-              >
-                {plan.notes.map((note) => (
-                  <li key={note.id} className="space-y-1 p-3 text-sm">
-                    <p dir="auto">
-                      <bdi>{note.originalText}</bdi>
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t(`plan.review.notes.reason.${noteReason(note.reason)}`)}
-                    </p>
-                  </li>
-                ))}
-              </ul>
+            <Section icon={StickyNote} title={t('plan.page.notes')} id="notes">
+              <Surface variant="note" padding="none">
+                <ul className="divide-y divide-border/60" data-testid="plan-notes">
+                  {plan.notes.map((note) => (
+                    <li key={note.id} className="space-y-0.5 px-4 py-3 text-sm">
+                      <p dir="auto">
+                        <bdi>{note.originalText}</bdi>
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {t(`plan.review.notes.reason.${noteReason(note.reason)}`)}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+                <p className="px-4 pb-3 pt-1 text-xs text-muted-foreground">
+                  {t('plan.review.notes.hint')}
+                </p>
+              </Surface>
             </Section>
           ) : null}
 
           {plan.sourceText ? (
             <Disclosure label={t('plan.page.sourceText')} testId="plan-source-text">
-              <p className="whitespace-pre-wrap rounded-lg bg-muted/50 p-3 text-sm" dir="auto">
-                <bdi>{plan.sourceText}</bdi>
-              </p>
+              <Surface variant="note" padding="sm">
+                <p className="whitespace-pre-wrap text-sm" dir="auto">
+                  <bdi>{plan.sourceText}</bdi>
+                </p>
+              </Surface>
             </Disclosure>
           ) : null}
-
-          <PlanActions planName={plan.name} />
         </>
       )}
     </div>
@@ -123,25 +149,41 @@ function isActive(plan: PlanView | null): plan is PlanView {
   return plan.slots.length > 0;
 }
 
+/** No plan yet: an illustration, one line, one outline action (the floating button is the filled one). */
 function EmptyState() {
   return (
-    <section
-      className="space-y-3 rounded-xl border border-border bg-card p-4"
+    <Surface
+      variant="note"
+      className="flex flex-col items-center gap-3 py-8 text-center"
       data-testid="plan-empty"
     >
-      <p className="text-lg font-semibold">{t('plan.page.empty')}</p>
-      <p className="text-sm text-muted-foreground">{t('plan.page.emptyBody')}</p>
-      <Button asChild className="h-11 w-full">
-        <Link href="/plan/add">{t('plan.page.addPlan')}</Link>
+      <Illustration name="noPlan" />
+      <p className="font-display text-lg font-semibold">{t('plan.page.empty')}</p>
+      <p className="max-w-xs text-sm text-muted-foreground">{t('plan.page.emptyBody')}</p>
+      <Button asChild variant="outline" className="mt-1">
+        <Link href="/plan/add">
+          <Plus aria-hidden="true" />
+          {t('plan.page.addPlan')}
+        </Link>
       </Button>
-    </section>
+    </Surface>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  icon,
+  title,
+  id,
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  id: string;
+  children: React.ReactNode;
+}) {
   return (
-    <section className="space-y-2">
-      <h2 className="text-sm font-medium text-muted-foreground">{title}</h2>
+    <section className="space-y-3" aria-labelledby={`plan-${id}-title`}>
+      <SectionHeader icon={icon} title={title} id={`plan-${id}-title`} />
       {children}
     </section>
   );
@@ -158,22 +200,22 @@ function MealsSection({
 }) {
   if (plan.structure === 'TARGETS_ONLY' || plan.slots.length === 0) {
     return (
-      <Section title={t('plan.page.meals')}>
+      <Section icon={ClipboardList} title={t('plan.page.meals')} id="meals">
         <p className="text-sm text-muted-foreground">{t('plan.page.noSlots')}</p>
       </Section>
     );
   }
   const rangeFor = (slotId: string) =>
     plan.targets.find((x) => x.planSlotId === slotId && x.nutrient === 'ENERGY_KCAL') ?? null;
+  const cardsFor = (weekday: number) =>
+    slotsForWeekday(plan, weekday).map((slot) => (
+      <PlanSlotSummary key={slot.id} slot={slot} range={rangeFor(slot.id)} />
+    ));
 
   if (plan.structure !== 'BY_WEEKDAY') {
     return (
-      <Section title={t('plan.page.todaysMeals')}>
-        <ul className="space-y-3">
-          {slotsForWeekday(plan, EVERY_DAY).map((slot) => (
-            <PlanSlotSummary key={slot.id} slot={slot} range={rangeFor(slot.id)} />
-          ))}
-        </ul>
+      <Section icon={ClipboardList} title={t('plan.page.todaysMeals')} id="meals">
+        <PlanSlotList cards={cardsFor(EVERY_DAY)} />
       </Section>
     );
   }
@@ -183,25 +225,22 @@ function MealsSection({
   );
   const initial = weekdays.includes(today) ? today : weekdays[0];
   return (
-    <Section title={t('plan.page.meals')}>
+    <Section icon={ClipboardList} title={t('plan.page.meals')} id="meals">
       <Tabs defaultValue={String(initial)} className="gap-3">
         <TabsList
+          variant="pills"
           className="w-full justify-start overflow-x-auto"
           aria-label={t('plan.page.meals')}
         >
           {weekdays.map((d) => (
-            <TabsTrigger key={d} value={String(d)} className="min-h-11 px-3">
+            <TabsTrigger key={d} value={String(d)} className="min-h-11 rounded-full px-3">
               {weekdayName(d, 'short')}
             </TabsTrigger>
           ))}
         </TabsList>
         {weekdays.map((d) => (
           <TabsContent key={d} value={String(d)}>
-            <ul className="space-y-3">
-              {slotsForWeekday(plan, d).map((slot) => (
-                <PlanSlotSummary key={slot.id} slot={slot} range={rangeFor(slot.id)} />
-              ))}
-            </ul>
+            <PlanSlotList cards={cardsFor(d)} />
           </TabsContent>
         ))}
       </Tabs>
@@ -209,6 +248,7 @@ function MealsSection({
   );
 }
 
+/** Daily targets as a two-column list: nutrient and where it comes from, value at the end. */
 function DailyTargets({ plan }: { plan: PlanView }) {
   const daily = plan.targets.filter((x) => x.planSlotId === null);
   if (daily.length === 0)
@@ -219,23 +259,28 @@ function DailyTargets({ plan }: { plan: PlanView }) {
     groups.set(key, [...(groups.get(key) ?? []), target]);
   }
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {[...groups.entries()].map(([weekday, targets]) => (
-        <div key={String(weekday)} className="space-y-1">
+        <div key={String(weekday)} className="space-y-1.5">
           {weekday !== null ? <p className="text-sm font-medium">{weekdayName(weekday)}</p> : null}
-          <ul className="divide-y divide-border rounded-xl border border-border bg-card">
+          <Surface variant="list" as="ul">
             {targets.map((target) => (
-              <li key={target.id} className="space-y-0.5 p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-medium">{nutrientLabel(target.nutrient)}</span>
-                  <span className="shrink-0 text-sm" dir="ltr">
-                    {targetValueText(target)}
-                  </span>
+              <li
+                key={target.id}
+                className="flex min-h-11 items-center justify-between gap-3 px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{nutrientLabel(target.nutrient)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {targetSourceLabel(target.source)}
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground">{targetSourceLabel(target.source)}</p>
+                <span className="shrink-0 text-sm font-medium tabular-nums" dir="ltr">
+                  {targetValueText(target)}
+                </span>
               </li>
             ))}
-          </ul>
+          </Surface>
         </div>
       ))}
     </div>

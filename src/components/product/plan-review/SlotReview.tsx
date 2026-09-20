@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { CircleHelp, Clock } from 'lucide-react';
 import { Badge, Button, FormField } from '@/components/UiComponents';
 import { AmountPrefix, GramsEach } from '@/components/product/ItemAmount';
 import { NameLabel } from '@/components/product/NameLabel';
 import { SlotWindowText } from '@/components/product/SlotWindow';
+import { Surface } from '@/components/product/Surface';
 import type { SlotWindow } from '@/lib/rubric/windows';
 import { t } from '@/lib/t';
 import type { DraftItem, DraftQuestion, DraftSlot } from '@/lib/validations/plan';
@@ -13,11 +15,12 @@ import { SourceExcerpt } from './SourceExcerpt';
 import { UnitSelect } from './UnitSelect';
 
 /**
- * Screen 7a: one slot per screen. Source excerpt, the slot's name and window
- * (stated, or the one confirm will assume from the name), its options as a
- * compact list with amounts and "Assumed" tags, and at most one question for
- * a calorie-significant unknown. "Fix" opens the inline editor, where the
- * time fields are the way to replace an assumed window.
+ * Screen 7a: one slot per screen. The slot as a list-surface card (name,
+ * window with a clock — stated, or the one confirm will assume from the
+ * name — and its options as rows with amounts and "Assumed" tags), the
+ * source excerpt, and at most one question for a calorie-significant
+ * unknown as a note surface. "Fix" opens the inline editor with compact
+ * item rows; its time fields are the way to replace an assumed window.
  */
 export function SlotReview({
   slot,
@@ -66,11 +69,11 @@ export function SlotReview({
   if (editing) {
     return (
       <div className="space-y-5">
-        <SlotEditor slot={draft} onChange={setDraft} showTimes />
+        <SlotEditor slot={draft} onChange={setDraft} showTimes compactItems />
         <div className="grid gap-3">
           <Button
             type="button"
-            className="h-11 w-full"
+            className="w-full"
             loading={saving}
             disabled={!canSave}
             // The parent remounts this screen on the new revision; a failed save keeps the edits.
@@ -81,7 +84,7 @@ export function SlotReview({
           <Button
             type="button"
             variant="ghost"
-            className="h-11 w-full"
+            className="w-full"
             disabled={saving}
             onClick={() => {
               setDraft(slot);
@@ -96,45 +99,52 @@ export function SlotReview({
   }
 
   const item = questionItem(slot, question);
+  const multiple = slot.options.length > 1;
 
   return (
     <div className="space-y-5">
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs font-medium text-muted-foreground">
         {t('plan.review.slotProgress', { current, total })}
       </p>
-      <div className="space-y-1">
-        <NameLabel originalName={slot.originalName} englishLabel={slot.englishLabel} size="lg" />
-        {window ? (
-          <p className="text-sm text-muted-foreground">
-            <SlotWindowText window={window} />
-          </p>
-        ) : null}
-        {window?.assumed ? (
-          <p className="text-xs text-muted-foreground" data-testid="window-assumed-hint">
-            {t('plan.time.assumedHint')}
-          </p>
-        ) : null}
-      </div>
+      <Surface variant="list" data-testid="review-slot-card">
+        <div className="space-y-1 px-3 py-3">
+          <NameLabel originalName={slot.originalName} englishLabel={slot.englishLabel} size="lg" />
+          {window ? (
+            <p className="flex items-center gap-1 text-sm text-muted-foreground">
+              <Clock className="size-3.5 shrink-0" aria-hidden="true" />
+              <SlotWindowText window={window} />
+            </p>
+          ) : null}
+          {window?.assumed ? (
+            <p className="text-xs text-muted-foreground" data-testid="window-assumed-hint">
+              {t('plan.time.assumedHint')}
+            </p>
+          ) : null}
+        </div>
+        <ol className="divide-y divide-border" aria-label={t('plan.review.mealsTitle')}>
+          {slot.options.map((option, index) => (
+            <li key={option.key}>
+              {multiple ? (
+                <p className="px-3 pb-1 pt-2 text-xs font-medium text-muted-foreground">
+                  {t('plan.option.n', { n: index + 1 })}
+                </p>
+              ) : null}
+              <ul className="divide-y divide-border/60">
+                {option.items.map((it) => (
+                  <ItemRow key={it.key} item={it} />
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ol>
+      </Surface>
       <SourceExcerpt text={slot.sourceExcerpt} />
-      <ol className="space-y-3" aria-label={t('plan.review.mealsTitle')}>
-        {slot.options.map((option, index) => (
-          <li key={option.key} className="rounded-xl border border-border bg-card p-4">
-            {slot.options.length > 1 ? (
-              <p className="mb-2 text-xs font-medium text-muted-foreground">
-                {t('plan.option.n', { n: index + 1 })}
-              </p>
-            ) : null}
-            <ul className="space-y-2">
-              {option.items.map((it) => (
-                <ItemRow key={it.key} item={it} />
-              ))}
-            </ul>
-          </li>
-        ))}
-      </ol>
       {question && item ? (
-        <div className="space-y-3 rounded-xl border border-primary/40 bg-card p-4">
-          <p className="text-xs font-medium text-muted-foreground">{t('plan.review.question')}</p>
+        <Surface variant="note" className="space-y-3">
+          <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <CircleHelp className="size-4" aria-hidden="true" />
+            {t('plan.review.question')}
+          </p>
           <p className="text-base">
             <bdi>{question.question}</bdi>
           </p>
@@ -157,38 +167,85 @@ export function SlotReview({
             </FormField>
           </div>
           <p className="text-xs text-muted-foreground">{t('plan.review.questionHint')}</p>
-        </div>
+        </Surface>
       ) : null}
-      <div className="grid gap-3">
-        <Button type="button" className="h-11 w-full" loading={saving} onClick={accept}>
-          {t('plan.review.looksRight')}
-        </Button>
-        <div className={onBack ? 'grid grid-cols-2 gap-3' : 'grid gap-3'}>
+      <ReviewActions
+        primary={t('plan.review.looksRight')}
+        saving={saving}
+        onPrimary={accept}
+        onBack={onBack}
+        secondary={t('plan.review.fix')}
+        onSecondary={() => {
+          setDraft(slot);
+          setEditing(true);
+        }}
+      />
+    </div>
+  );
+}
+
+/**
+ * The action block every review screen ends with: the one filled primary,
+ * then Back (ghost) and an optional outline secondary side by side.
+ */
+export function ReviewActions({
+  primary,
+  saving,
+  disabled = false,
+  onPrimary,
+  onBack,
+  secondary,
+  onSecondary,
+  primaryTestId,
+}: {
+  primary: string;
+  saving: boolean;
+  disabled?: boolean;
+  onPrimary: () => void;
+  onBack?: () => void;
+  secondary?: string;
+  onSecondary?: () => void;
+  primaryTestId?: string;
+}) {
+  const row = [onBack, secondary].filter(Boolean).length;
+  return (
+    <div className="grid gap-3">
+      <Button
+        type="button"
+        className="w-full"
+        loading={saving}
+        disabled={disabled}
+        onClick={onPrimary}
+        data-testid={primaryTestId}
+      >
+        {primary}
+      </Button>
+      {row > 0 ? (
+        <div className={row === 2 ? 'grid grid-cols-2 gap-3' : 'grid gap-3'}>
           {onBack ? (
             <Button
               type="button"
               variant="ghost"
-              className="h-11 w-full"
+              className="w-full"
               disabled={saving}
               onClick={onBack}
             >
               {t('plan.review.back')}
             </Button>
           ) : null}
-          <Button
-            type="button"
-            variant="outline"
-            className="h-11 w-full"
-            disabled={saving}
-            onClick={() => {
-              setDraft(slot);
-              setEditing(true);
-            }}
-          >
-            {t('plan.review.fix')}
-          </Button>
+          {secondary ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              disabled={saving || disabled}
+              onClick={onSecondary}
+            >
+              {secondary}
+            </Button>
+          ) : null}
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }
@@ -196,7 +253,7 @@ export function SlotReview({
 /** One prescribed item: the amount before the name ("2 × سیب", "150 g · مرغ"), grams each for counts. */
 export function ItemRow({ item }: { item: DraftItem }) {
   return (
-    <li className="flex items-start justify-between gap-3 text-sm">
+    <li className="flex items-start justify-between gap-3 px-3 py-2 text-sm">
       <div className="min-w-0">
         <div className="flex flex-wrap items-baseline gap-x-1.5">
           <AmountPrefix quantity={item.quantity} unit={item.unit} className="text-sm" />
