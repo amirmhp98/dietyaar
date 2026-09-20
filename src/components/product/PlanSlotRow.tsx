@@ -2,13 +2,15 @@
 
 import Link from 'next/link';
 import { Fragment, type ReactNode } from 'react';
-import { Minus, Plus } from 'lucide-react';
+import { Minus, Plus, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/UiComponents';
 import { DifferenceChip, type DifferenceKind } from '@/components/product/DifferenceChip';
 import { Disclosure } from '@/components/product/Disclosure';
+import { IconAction } from '@/components/product/IconAction';
 import { fillNames, InlineName, InlineNames } from '@/components/product/InlineName';
 import { NameLabel } from '@/components/product/NameLabel';
 import { slotWindowText } from '@/components/product/SlotWindow';
+import { StatusGlyph, type StatusGlyphName } from '@/components/product/StatusGlyph';
 import { formatNumber } from '@/lib/format';
 import { optionNumber } from '@/lib/rubric/options';
 import type { EnergyResult, RubricTarget, SlotView } from '@/lib/rubric/types';
@@ -17,12 +19,15 @@ import { portionAmount } from '@/lib/units';
 import { cn } from '@/lib/utils';
 
 /**
- * Plan slot row (design-scope "Shared components", product spec § 9): one row
- * per prescribed slot with the name, one status label, the window, the option
- * count or picked option, the energy range, and the actions its window state
- * allows: an open or passed slot can be logged or skipped, an upcoming one
- * only logged early through a faint icon. A recorded row expands into its
- * differences; everything else stays compact.
+ * Plan slot row (design-scope "Shared components", product spec § 9, design.md
+ * "Product UI"): a leading status glyph whose shape is the state, the name as
+ * written, one status line, the window · options · energy subline, and the
+ * actions the window allows as icon buttons: an open or passed slot can be
+ * logged (outline ＋) or skipped (ghost —), an upcoming one only logged early
+ * through a faint ＋, a skipped one restored. The next slot to log carries the
+ * full-width outline "Log this meal"; a recorded row is one tap target that
+ * expands into its difference chips. The floating Log meal button stays the
+ * only filled emerald on the screen.
  */
 export function PlanSlotRow({
   slot,
@@ -46,184 +51,178 @@ export function PlanSlotRow({
 }) {
   const { state, match, windowState } = slot;
   const name = slot.slot.originalName;
+  const glyph = glyphFor(slot);
   const subline = [
     slotWindowText(slot.window),
     optionLine(slot),
     energyRangeLine(slot.energyTarget),
   ].filter((part): part is string => part !== null);
+  const passed = state === 'NOT_RECORDED' && windowState === 'PASSED' && ongoing;
 
-  return (
-    <li
-      data-testid="plan-slot-row"
-      data-slot-state={state}
-      data-window-state={windowState}
-      className={cn(
-        'space-y-2 px-3 py-3',
-        highlighted && 'rounded-lg bg-accent/60 ring-1 ring-border',
-      )}
-    >
-      {/* Name and status share the header; the subline takes the full width so it stays one line at 390 px. */}
-      <div className="flex items-start justify-between gap-3">
-        <NameLabel
-          originalName={name}
-          englishLabel={slot.slot.englishLabel}
-          className="min-w-0 flex-1"
-        />
-        {state !== 'RECORDED' ? (
-          <div className="flex shrink-0 flex-col items-end gap-1">
-            <div className="flex items-center gap-1">
-              <span className="pt-0.5 text-sm text-muted-foreground" data-testid="slot-status">
-                {state === 'SKIPPED'
-                  ? t('slot.state.skipped')
-                  : state === 'NEEDS_REVIEW'
-                    ? t('slot.state.needsReview')
-                    : t('slot.state.notRecorded')}
-              </span>
-              {/* Not yet open: one small, faint action beside the status and no Skip. */}
-              {state === 'NOT_RECORDED' && !highlighted && windowState === 'UPCOMING' && onLog ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="-me-2 h-9 w-9 text-muted-foreground/70"
-                  aria-label={t('slot.logEarly', { slot: name })}
-                  onClick={onLog}
-                  disabled={pending}
-                  data-testid="log-slot-early"
-                >
-                  <Plus aria-hidden="true" />
-                </Button>
-              ) : null}
-            </div>
-            {state === 'SKIPPED' && onSkip ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="-me-2 h-9 px-2 text-muted-foreground"
-                onClick={() => onSkip(false)}
-                disabled={pending}
-                data-testid="unskip"
-              >
-                {t('slot.unskip')}
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-      <p className="-mt-1 truncate text-xs text-muted-foreground">
+  const head = (
+    <Fragment>
+      <NameLabel originalName={name} englishLabel={slot.slot.englishLabel} />
+      <span className="block text-sm text-muted-foreground" data-testid="slot-status">
+        {state === 'RECORDED'
+          ? (statusLabel(slot) ?? t('glyph.status.recorded'))
+          : state === 'SKIPPED'
+            ? t('slot.state.skipped')
+            : state === 'NEEDS_REVIEW'
+              ? t('slot.state.needsReview')
+              : t('slot.state.notRecorded')}
+      </span>
+      {/* Wraps rather than truncates: beside two 44 px actions the energy range would be cut. */}
+      <span className="block text-xs text-muted-foreground">
         {subline.map((part, index) => (
           <Fragment key={index}>
             {index > 0 ? ' · ' : null}
             {part}
           </Fragment>
         ))}
-      </p>
-
-      {/* Open or passed, not the next one: icon Log and Skip on their own line, the passed hint beside them. */}
-      {state === 'NOT_RECORDED' && !highlighted && windowState !== 'UPCOMING' ? (
-        <div className="flex items-center justify-between gap-3">
-          <p className="min-w-0 text-xs text-muted-foreground">
-            {windowState === 'PASSED' && ongoing ? (
-              <span data-testid="window-passed">{t('slot.window.passed')}</span>
-            ) : null}
-          </p>
-          <div className="-me-2 flex shrink-0 items-center gap-1">
-            {onLog ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="h-11 px-3"
-                aria-label={t('slot.logAria', { slot: name })}
-                onClick={onLog}
-                disabled={pending}
-                data-testid="log-slot"
-              >
-                <Plus aria-hidden="true" />
-                {t('slot.log')}
-              </Button>
-            ) : null}
-            {onSkip ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-11 w-11 text-muted-foreground"
-                aria-label={t('slot.skipAria', { slot: name })}
-                onClick={() => onSkip(true)}
-                disabled={pending}
-                data-testid="mark-skipped"
-              >
-                <Minus aria-hidden="true" />
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-
-      {state === 'NOT_RECORDED' && highlighted && windowState === 'PASSED' && ongoing ? (
-        <p className="text-xs text-muted-foreground" data-testid="window-passed">
+      </span>
+      {passed ? (
+        <span className="block text-xs text-muted-foreground" data-testid="window-passed">
           {t('slot.window.passed')}
-        </p>
+        </span>
       ) : null}
+    </Fragment>
+  );
 
+  return (
+    <li
+      data-testid="plan-slot-row"
+      data-slot-state={state}
+      data-window-state={windowState}
+      className={cn(highlighted && 'bg-tint-1')}
+    >
       {state === 'RECORDED' && match ? (
+        // The whole row opens the differences: one 44 px target with the chevron at the end.
         <Disclosure
           testId="slot-details"
-          triggerClassName="font-normal"
+          triggerClassName="items-start rounded-none px-3 py-3 font-normal focus-visible:ring-inset focus-visible:ring-offset-0"
+          contentClassName="ps-11 pe-3 pb-3 pt-0"
           label={
-            <span data-testid="slot-status" className="text-sm">
-              {statusLabel(slot)}
+            <span className="flex items-start gap-3">
+              <StatusGlyph status={glyph} describe={false} className="mt-0.5" />
+              <span className="min-w-0 flex-1 space-y-0.5">{head}</span>
             </span>
           }
         >
           <SlotDetails slot={slot} />
         </Disclosure>
-      ) : null}
+      ) : (
+        <div className="px-3 py-3">
+          <div className="flex items-start gap-3">
+            {/* The clock adds what the visible text does not say: the window has not opened. */}
+            <StatusGlyph status={glyph} describe={glyph === 'UPCOMING'} className="mt-0.5" />
+            <div className="min-w-0 flex-1 space-y-0.5">{head}</div>
+            <div className="-me-2 -mt-1.5 flex shrink-0 items-center">
+              {state === 'NOT_RECORDED' && !highlighted && windowState === 'UPCOMING' && onLog ? (
+                <IconAction
+                  label={t('slot.logEarly', { slot: name })}
+                  icon={Plus}
+                  className="text-muted-foreground/70"
+                  onClick={onLog}
+                  disabled={pending}
+                  data-testid="log-slot-early"
+                />
+              ) : null}
+              {state === 'NOT_RECORDED' && !highlighted && windowState !== 'UPCOMING' ? (
+                <Fragment>
+                  {onLog ? (
+                    <IconAction
+                      label={t('slot.logAria', { slot: name })}
+                      icon={Plus}
+                      variant="outline"
+                      onClick={onLog}
+                      disabled={pending}
+                      data-testid="log-slot"
+                    />
+                  ) : null}
+                  {onSkip ? (
+                    <IconAction
+                      label={t('slot.skipAria', { slot: name })}
+                      icon={Minus}
+                      className="text-muted-foreground"
+                      onClick={() => onSkip(true)}
+                      disabled={pending}
+                      data-testid="mark-skipped"
+                    />
+                  ) : null}
+                </Fragment>
+              ) : null}
+              {state === 'SKIPPED' && onSkip ? (
+                <IconAction
+                  label={t('slot.unskip')}
+                  icon={RotateCcw}
+                  className="text-muted-foreground"
+                  onClick={() => onSkip(false)}
+                  disabled={pending}
+                  data-testid="unskip"
+                />
+              ) : null}
+            </div>
+          </div>
 
-      {state === 'NEEDS_REVIEW' && reviewHref ? (
-        <Button asChild variant="outline" className="h-11 w-full">
-          <Link href={reviewHref}>{t('slot.state.chooseOption')}</Link>
-        </Button>
-      ) : null}
-
-      {/* Outline, not filled: the Log meal button stays the one filled emerald on the screen (decision 019). */}
-      {state === 'NOT_RECORDED' && highlighted ? (
-        <div className="flex items-center gap-2">
-          {onLog ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 flex-1"
-              onClick={onLog}
-              disabled={pending}
-              data-testid="log-this-meal"
-            >
-              <Plus aria-hidden="true" />
-              {t('day.plan.logThis')}
+          {state === 'NEEDS_REVIEW' && reviewHref ? (
+            <Button asChild variant="outline" className="mt-3 w-full">
+              <Link href={reviewHref}>{t('slot.state.chooseOption')}</Link>
             </Button>
           ) : null}
-          {onSkip ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-11 w-11 shrink-0 text-muted-foreground"
-              aria-label={t('slot.skipAria', { slot: name })}
-              onClick={() => onSkip(true)}
-              disabled={pending}
-              data-testid="mark-skipped"
-            >
-              <Minus aria-hidden="true" />
-            </Button>
+
+          {/* Outline, not filled: the Log meal button stays the one filled emerald on the screen (decision 025). */}
+          {state === 'NOT_RECORDED' && highlighted ? (
+            <div className="mt-3 flex items-center gap-2">
+              {onLog ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={onLog}
+                  disabled={pending}
+                  data-testid="log-this-meal"
+                >
+                  <Plus aria-hidden="true" />
+                  {t('day.plan.logThis')}
+                </Button>
+              ) : null}
+              {onSkip ? (
+                <IconAction
+                  label={t('slot.skipAria', { slot: name })}
+                  icon={Minus}
+                  className="shrink-0 text-muted-foreground"
+                  onClick={() => onSkip(true)}
+                  disabled={pending}
+                  data-testid="mark-skipped"
+                />
+              ) : null}
+            </div>
           ) : null}
         </div>
-      ) : null}
+      )}
     </li>
   );
 }
 
-// ─── Labels ────────────────────────────────────────────────────────────────
+// ─── Glyph and labels ──────────────────────────────────────────────────────
+
+/** The row's glyph: the record state, or the match result once recorded. */
+export function glyphFor(slot: SlotView): StatusGlyphName {
+  switch (slot.state) {
+    case 'SKIPPED':
+      return 'SKIPPED';
+    case 'NEEDS_REVIEW':
+      return 'NEEDS_REVIEW';
+    case 'RECORDED':
+      return slot.match?.status === 'DIFFERENT_FOOD'
+        ? 'DIFFERENT'
+        : slot.match?.status === 'PARTLY_MATCHED'
+          ? 'PARTLY'
+          : 'RECORDED';
+    case 'NOT_RECORDED':
+      return slot.windowState === 'UPCOMING' ? 'UPCOMING' : 'NOT_RECORDED';
+  }
+}
 
 /** The picked option by its place in the plan ("Option 2"), or the count still to choose from. */
 function optionLine(slot: SlotView): string | null {

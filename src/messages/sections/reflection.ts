@@ -7,6 +7,7 @@ export const reflection = {
   'reflection.gotIt': 'Got it',
   'reflection.collapse': 'Collapse',
   'reflection.readAgain': 'Read again',
+  'reflection.readMore': 'Read more',
   'reflection.preparing': 'Preparing your reflection…',
   'reflection.stillPreparing': 'Still preparing your reflection',
   'reflection.retry': 'Retry',

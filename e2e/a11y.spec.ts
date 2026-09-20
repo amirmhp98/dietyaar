@@ -2,19 +2,22 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { t } from '../src/lib/t';
 import { disconnectDb, seedMenuPlan } from './helpers/db';
+import { disconnectMealsDb, insertMeal, localDateOf } from './helpers/meals-db';
 import { createOnboardedUser } from './helpers/onboard';
 
 /**
- * Accessibility gate (tech spec § 15): axe on Today, the composer, the meal
- * review, Settings and the "Product UI" block of the components gallery
- * (decision 025: the tint surfaces and glyphs), in both themes; zero serious
- * or critical violations.
+ * Accessibility gate (tech spec § 15): axe on Today (empty, then scored with
+ * the numeral on the hero tint, a recorded row and the nutrition details
+ * expanded), the composer, the meal review, Settings and the "Product UI"
+ * block of the components gallery (decision 025: the tint surfaces and
+ * glyphs), in both themes; zero serious or critical violations.
  */
 test.use({ storageState: { cookies: [], origins: [] } });
 test.describe.configure({ timeout: 120_000 });
 
 test.afterAll(async () => {
   await disconnectDb();
+  await disconnectMealsDb();
 });
 
 async function expectNoSeriousViolations(page: Page, label: string, within?: string) {
@@ -56,7 +59,29 @@ for (const theme of ['light', 'dark'] as const) {
     await context.addCookies([{ name: 'appearance', value: theme, url: page.url() }]);
     await page.goto('/today');
     await expect(page.locator('html')).toHaveAttribute('data-appearance', theme);
+    await expect(page.getByTestId('reflection-card')).toHaveAttribute('data-phase', 'READY');
     await expectNoSeriousViolations(page, `today/${theme}`);
+
+    // Scored: the numeral and coverage on the hero tint, a recorded row's chips, the nutrition bars.
+    const today = localDateOf(0);
+    for (const [slot, time, name, kcal] of [
+      [plan.slots[0], '08:30', 'تخم‌مرغ', 150],
+      [plan.slots[2], '13:00', 'ساندویچ', 520],
+    ] as const) {
+      await insertMeal(username, today, {
+        time,
+        planSlotId: slot.id,
+        planOptionId: slot.options[0].id,
+        items: [{ originalName: name, englishLabel: name, quantity: 1, unit: 'piece', kcal }],
+      });
+    }
+    await page.reload();
+    await expect(page.getByTestId('score-number')).toBeVisible();
+    await page.getByTestId('why-this-score').click();
+    await page.getByTestId('slot-details').first().click();
+    await page.getByTestId('nutrition-details').click();
+    await page.locator('[data-nutrient="ENERGY_KCAL"] button').click();
+    await expectNoSeriousViolations(page, `today-scored/${theme}`);
 
     await page.getByTestId('log-meal').click();
     const composer = page.getByTestId('meal-composer');
