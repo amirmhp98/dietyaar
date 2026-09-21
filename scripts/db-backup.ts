@@ -1,8 +1,9 @@
 /**
  * Operator backup (tech spec § 13, runbook "Backups"): the same pipeline the
  * nightly task runs, started by hand before a destructive migration or for the
- * restore rehearsal. Run it from a developer machine with the production env,
- * or from the Darkube terminal (the image has `pg_dump`):
+ * restore rehearsal. Run it from a developer machine that can reach the
+ * database (Supabase for Vercel; on the VPS the database is not published, so
+ * the runbook's `docker compose exec db pg_dump` path is used there instead):
  *
  *   npm run db:backup                                   # reads .env
  *   DOTENV_CONFIG_PATH=.env.production.local npm run db:backup
@@ -10,7 +11,7 @@
  * Needs `pg_dump`, `gzip` and `openssl` on PATH, `DIRECT_DATABASE_URL`,
  * `BACKUP_S3_*` and `BACKUP_ENCRYPTION_KEY`. Exits 1 when the backup fails.
  * The npm script passes `--conditions=react-server` so `server-only` modules
- * load outside Next.js.
+ * load outside Next.js (the production image has `pg_dump` but not `tsx`).
  */
 import { config } from 'dotenv';
 
