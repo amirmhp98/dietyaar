@@ -57,17 +57,28 @@ ENV NODE_ENV=production \
 # Supabase server's major version (runbook "Measured values": 17). Debian's own
 # package is older, so it comes from the PostgreSQL apt repository. gzip is in
 # the base image; openssl came with the base stage.
+# apt.postgresql.org sits behind Fastly and is unreachable from some build
+# networks (Darkube's builders, 2026-09-21). There the step falls back to
+# Debian's postgresql-client (15 on bookworm) with a warning: `psql` works, but
+# `pg_dump` refuses a newer server, so backups need an image built where the
+# repository is reachable (GitHub CI builds the VPS image); on Darkube
+# BACKUP_ENABLED=false and pg_dump is never called.
 ARG PG_MAJOR=17
 RUN apt-get -o Acquire::Check-Valid-Until=false update -y \
     && apt-get install -y --no-install-recommends curl gnupg \
     && install -d /usr/share/postgresql-common/pgdg \
-    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
-         -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+    && (curl -fsSL --max-time 30 https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+          -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+        || echo "WARN: could not fetch the PostgreSQL apt key" >&2) \
     && . /etc/os-release \
     && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
          > /etc/apt/sources.list.d/pgdg.list \
-    && apt-get update -y \
-    && apt-get install -y --no-install-recommends "postgresql-client-${PG_MAJOR}" \
+    && apt-get -o Acquire::Retries=0 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update -y \
+    && ( apt-get install -y --no-install-recommends "postgresql-client-${PG_MAJOR}" \
+         || { echo "WARN: postgresql-client-${PG_MAJOR} unavailable (apt.postgresql.org unreachable); installing Debian's postgresql-client instead. pg_dump will refuse a newer server, so backups need a build with the PostgreSQL repository reachable." >&2; \
+              rm -f /etc/apt/sources.list.d/pgdg.list \
+              && apt-get update -y \
+              && apt-get install -y --no-install-recommends postgresql-client; } ) \
     && apt-get purge -y --auto-remove curl gnupg \
     && rm -rf /var/lib/apt/lists/*
 
