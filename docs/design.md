@@ -252,9 +252,13 @@ kit is for admin and settings forms, not product screens.
 
 Icon 20 px (`size-5`, `--muted-foreground`) + title (`text-base font-semibold`, display face) +
 optional trailing action (one `IconAction`). Sections sit **24 px** apart (`space-y-6`), content
-inside a section **12 px** (`space-y-3`). Icons per section: `Sun` Your plan today, `Utensils`
-Recorded meals, `Sparkles` reflection, `CalendarDays` History, `ClipboardList` My plan.
-`src/components/product/SectionHeader.tsx`.
+inside a section **12 px** (`space-y-3`). Icons per section: `Sun` Your plan today (and the
+planned slots in the composer), `Utensils` Recorded meals (and a slot's options in the composer),
+`Sparkles` reflection, `CalendarDays` History, `ClipboardList` My plan; on My plan `Flag` goal,
+`Target` daily targets, `StickyNote` notes; in the composer `PencilLine` "Something else?",
+`History` recent meals, `Flame` totals; in Settings `SlidersHorizontal`, `KeyRound`,
+`ShieldCheck`, `Wrench`. `src/components/product/SectionHeader.tsx` (`icon`, `title`,
+`trailing`, `level` 2 | 3, `id`).
 
 ### Status glyph set — shape carries the meaning
 
@@ -273,6 +277,14 @@ Neutral colour (`--foreground`); the shape is the state, the sr-only name comes 
 Score bands: `CLOSELY` `Sparkles`, `MOSTLY` `ThumbsUp`, `DIFFERENT` `Compass`, `IN_PROGRESS`
 `Hourglass`. `src/components/product/StatusGlyph.tsx` (`StatusGlyph`, `BandGlyph`; sizes
 16 / 20 / 24 px).
+
+### Meter bar — progress without a colour
+
+A 6 px neutral bar: ink at 60 % over a 10 % track, never red, never emerald. `value` is the
+filled fraction, `band` draws a target range on the track, `unknown` hatches it. With a `label`
+it is a `progressbar` for assistive tech (the score card's "2 of 5 meals recorded"); without one
+it is decorative and the text beside it speaks (nutrition value / target rows).
+`src/components/product/MeterBar.tsx`.
 
 ### Icon-first actions
 
@@ -314,8 +326,9 @@ Tints are the primary over the surface beneath (`hsl(var(--primary) / a)`); body
 ### Illustrations
 
 Simple two-tone inline SVG line illustrations — ink from `currentColor`, emerald from
-`hsl(var(--primary))` — 96–120 px, decorative (`aria-hidden`). Four: `noPlan`, `noMeals`,
-`firstDay`, `ready` (`src/components/product/Illustration.tsx`). Never photography.
+`hsl(var(--primary))` — 112 px by default, 64–96 px inline (the first-day reflection, the empty
+meals row), decorative (`aria-hidden`). Four: `noPlan`, `noMeals`, `firstDay`, `ready`
+(`src/components/product/Illustration.tsx`). Never photography.
 
 ### Motion
 

@@ -1,7 +1,9 @@
 # Product specification — Diet adherence companion
 
-Version: 1.7.1 — September 17, 2026: removed three leftover sentences about a password-reset email and one “plan-ended” state that v1.7 had already retired (implementation-plan.md § 3.1 C1, C2)  
-Date: September 17, 2026  
+Version: 1.8 — September 20, 2026  
+Revised 2026-09-20 (improvement plan phases A–D): fixed app time zone, rules deferred, units as measures, meal time windows, positional option labels, hidden English labels, static reflection states with “Got it”, the review refine loop, explicit extra meals, Back / Start over, native photo actions, the consumer visual language (decisions 022–025); § 12 copy table re-read against `src/messages/`  
+Previous: 1.7.1 — September 17, 2026: removed three leftover sentences about a password-reset email and one “plan-ended” state that v1.7 had already retired (implementation-plan.md § 3.1 C1, C2)  
+Date: September 20, 2026  
 Product language: English UI and English system copy; plan and meal input accepted in any language  
 Platform: mobile-first responsive web application
 
@@ -11,13 +13,15 @@ This document describes the proposed first release, including behavior, user exp
 
 **Confirmed requirements** come from the product owner's brief: users bring their existing diet; onboarding collects initial profile information; users record food they actually ate, optionally with a photo; AI proposes nutrition information that the user reviews before saving; a focused daily dashboard explains progress; a supportive morning paragraph reflects on yesterday and prepares the user for today; English copy; DeepSeek API; minimal UI, progressive disclosure, reusable components, light/dark modes, mobile-first design, and smooth transitions. Visual styling belongs in a separate `design.md`.
 
-**Additional confirmed decisions:** adherence covers calories/nutrients and the prescribed foods, quantities, timing, and variety in the diet. Nutritionally similar substitutions do not count as following the diet. V1 plan input is text or manual entry only; plan photos/PDFs are deferred. Meal photos remain in scope. The daily paragraph appears inside the app on the first visit of the day; there are no external notifications.
+**Additional confirmed decisions:** adherence covers calories/nutrients and the prescribed foods, quantities, timing, and variety in the diet (variety and every other plan rule are deferred with decision 023; V1 keeps them as notes). Nutritionally similar substitutions do not count as following the diet. V1 plan input is text or manual entry only; plan photos/PDFs are deferred. Meal photos remain in scope. The daily paragraph appears inside the app on the first visit of the day; there are no external notifications.
 
 **Further owner-confirmed decisions:** AI estimates the nutritional content of the prescribed diet when numeric values are absent; comparisons must not be strict or punitive; age, sex, height, and current weight are required and may be included as context in AI requests; progress includes both an overall score and dimension-level detail. The daily log-completeness checkbox is checked by default; users uncheck it for days when they have not recorded everything.
 
 **Owner decisions of September 14, 2026 (v1.4):** the audience is adults aged 18 to 45 in the Middle East who follow a diet written by an AI tool, a nutrition specialist, or a doctor. Plan and meal input may arrive in any language, including Persian and Arabic; the application UX, system copy, and daily paragraph stay in English. Dates use the Gregorian calendar. Authentication is a simple username and password with no one-time codes. The product does not consider training, exercise, or day types in this release; exercise-conditional plan instructions are kept as untracked notes. Two real plan samples supplied by the owner (a menu-style plan with several options per meal, and a weekday plan with a fixed meal per day) are the reference formats in section 6.
 
 **Owner decisions of September 16, 2026 (v1.7):** there is no password recovery in this release: no recovery email, no forgot-password form, no reset link, and no email of any kind; a forgotten password loses the account. There is one plan per user, edited in place: no plan versions, effective dates, end dates, previous versions, or per-day plan assignment; editing or replacing the plan changes how every day, past and future, is compared, and the confirm step says so. A meal belongs wholly to the date the user chose for it; a cross-midnight window is not split across dates. Features stay minimal; where this document offered a second mechanism, the simpler one applies.
+
+**Owner decisions of September 19, 2026 (v1.8, improvement plan § 2):** every account counts its days in one app time zone, Asia/Dubai, and nothing about zones is asked or shown (decision 022). Plan rules are not evaluated in this release; every instruction that is not a meal, target or schedule is kept verbatim as a note (decision 023). A unit is a measure, never a food or a size; the grams of one counted unit are an attribute of the item (decision 024). Every meal slot has a time window, stated by the plan or assumed from the slot's name; windows drive the Today actions and never enter the score. The reflection is acknowledged with **Got it**, which moves it to the bottom of Today for the day, and the empty data states (first day, no records yesterday, no plan) are fixed paragraphs written without an AI call. Options are labelled by position (“Option 1”), the English food labels are kept for matching and never shown, and the three tabs are History · Today · My plan with Today in the middle. Meals outside the plan have an explicit place (“Extra · in addition to your plan”), the review refines an estimate instead of re-analysing it, and photos go through the device's own camera or gallery picker. The visual language is a warm consumer companion on the same palette (decision 025).
 
 **Product defaults (v1.4).** The owner delegated the remaining product decisions to the product author. Those decisions are marked “Product default (v1.4)” below. They are binding for implementation until the owner revises them, but do not represent them as owner-approved.
 
@@ -26,7 +30,7 @@ This document describes the proposed first release, including behavior, user exp
 | Meaning of adherence                   | Compare nutrition plus prescribed foods, portions and order/timing; no substitution recommendations or nutritional-equivalence credit. Rules are not evaluated in V1 (decision 023)                                                                                                                                                                   | Owner confirmed                                                         |
 | Plan-authorized options                | When a plan offers several options for a meal, any one listed option is the prescribed food for that meal. Mixing items across options, or eating an option from another slot's list, is “Partly matched” with the reason shown                                                                                                                       | Product default (v1.4)                                                  |
 | Added items                            | An added amount of a prescribed food is a portion difference. An added item from the calorie-significant categories in section 6 makes the meal “Partly matched” with the reason “Added: …”. Any other addition keeps the status. All added food counts in nutrition totals                                                                           | Product default (v1.6)                                                  |
-| Meal slot and plan link                | Saving a meal under a plan slot links it to that slot and evaluates it against the slot's options; “Other” is for food eaten in addition to the plan and is compared on nutrition only                                                                                                                                                                | Product default (v1.6)                                                  |
+| Meal slot and plan link                | Saving a meal under a plan slot links it to that slot and evaluates it against the slot's options; “Other” (shown to the user as “Extra · in addition to your plan”) is for food eaten in addition to the plan and is compared on nutrition only                                                                                                      | Product default (v1.6)                                                  |
 | Option choice at logging               | For a slot with several options, the last-used option is shown as a suggestion and nothing is preselected; the user chooses the option before saving                                                                                                                                                                                                  | Product default (v1.6)                                                  |
 | Difference thresholds                  | Portion within 15% of the prescribed amount, energy within 10% beyond a range boundary, and order/time within 60 minutes are “small”: shown in detail, never changing the status label. Larger differences are described neutrally                                                                                                                    | Product default (v1.4)                                                  |
 | Off-plan extra meals                   | Listed under recorded meals, counted in nutrition totals, affect only the nutrition dimension of the score                                                                                                                                                                                                                                            | Product default (v1.4)                                                  |
@@ -35,14 +39,14 @@ This document describes the proposed first release, including behavior, user exp
 | Training/rest days and exercise        | Not considered; day-conditional and exercise instructions are untracked notes                                                                                                                                                                                                                                                                         | Owner confirmed                                                         |
 | Meal slots and order                   | Meal slot names come from the plan as written; when the plan has no clock times, meal order replaces timing                                                                                                                                                                                                                                           | Product default (v1.4)                                                  |
 | Per-meal energy ranges                 | Supported and compared per meal; the daily range is the sum of meal ranges when the plan gives none                                                                                                                                                                                                                                                   | Product default (v1.4)                                                  |
-| Unquantified items and household units | Labeled regional default portions from a maintained unit table; the review asks a question only for calorie-significant items                                                                                                                                                                                                                         | Product default (v1.4)                                                  |
+| Unquantified items and household units | Labeled regional default portions; units are measures and the grams of one counted unit sit on the item, from a food-weight hint table or the model's own estimate (decision 024); the review asks a question only for calorie-significant items                                                                                                      | Product default (v1.4)                                                  |
 | In-item alternatives                   | “Boiled or oven potato” style alternatives: either choice is on plan; preparation affects only the nutrition estimate                                                                                                                                                                                                                                 | Product default (v1.4)                                                  |
 | Plan lifecycle                         | One plan per user, edited in place; edits and replacements apply to every day, past and future, and the confirm step says so; no versions, effective dates, end dates, or history; no phases; rotations longer than seven days stay unresolved                                                                                                        | Owner confirmed (v1.7)                                                  |
 | Plan input                             | Pasted text or manual setup, in any language; plan photos/PDFs deferred                                                                                                                                                                                                                                                                               | Owner confirmed                                                         |
 | Morning delivery                       | In-app on the first visit of each day; no push notification and no email of any kind                                                                                                                                                                                                                                                                  | Owner confirmed                                                         |
 | Daily log completeness                 | A two-state checkbox, checked by default per day; the user unchecks it if food or drinks are missing. Checked is an assumption, never a confirmation. A past day that is checked but has unrecorded prescribed slots shows its coverage as “log complete by default” and stays out of trends until every slot is recorded or marked skipped           | Owner confirmed; coverage handling is Product default (v1.6)            |
 | Dashboard nutrition display            | Daily nutrition totals are collapsed under “Today's nutrition details” within the plan block; no separate always-visible summary card                                                                                                                                                                                                                 | Revised proposal; not an owner-confirmed layout                         |
-| Overall progress presentation          | Show an overall adherence score together with food, portion, order/timing, variety, and nutrition detail                                                                                                                                                                                                                                              | Owner confirmed                                                         |
+| Overall progress presentation          | Show an overall adherence score together with food, portion, order/timing, and nutrition detail; variety waits with the rules (decision 023)                                                                                                                                                                                                          | Owner confirmed                                                         |
 | Missing numeric plan values            | AI estimates prescribed-plan nutrition as a labeled comparison baseline                                                                                                                                                                                                                                                                               | Owner confirmed                                                         |
 | Comparison tone and sensitivity        | Gentle descriptive feedback; no strict pass/fail treatment of small differences                                                                                                                                                                                                                                                                       | Owner confirmed                                                         |
 | Initial audience                       | Adults 18–45 in the Middle East following a diet written by an AI tool, a nutrition specialist, or a doctor                                                                                                                                                                                                                                           | Owner confirmed                                                         |
@@ -98,9 +102,9 @@ Weight can be updated in the profile, with a measurement date. A weight-loss for
 
 ## 4. Navigation and screen structure
 
-Use three primary destinations: **History**, **Today**, and **My plan**, with Today in the middle. A profile button opens account and preferences. **Log meal** remains easy to reach from all three destinations, using the same label and interaction pattern.
+Use three primary destinations: **History**, **Today**, and **My plan**, in that order, with Today in the middle. A profile button opens account and preferences. **Log meal** is a floating button present on all three destinations, using the same label and interaction pattern; it is the one filled action on those screens, so every other action on them is an outline, ghost or icon button. Meal details and the plan flows (Add your plan, Review your plan) hide it: they carry their own primary action.
 
-On mobile, use a compact bottom navigation and a thumb-accessible logging action. On larger screens, preserve the same information hierarchy rather than filling available space with additional reports.
+On mobile, use a compact bottom navigation and a thumb-accessible logging action. On larger screens the same three tabs sit inside the one top bar; preserve the same information hierarchy rather than filling available space with additional reports.
 
 | Surface      | Main purpose                                   | Essential content                                                       |
 | ------------ | ---------------------------------------------- | ----------------------------------------------------------------------- |
@@ -122,9 +126,9 @@ No separate report center or chat home screen is required.
 2. **About you.** Require age in years, sex, height, and current weight before completing onboarding. Sex offers two options, female and male. Let users choose measurement units; metric is the default for this audience. Days are counted in the app time zone (Asia/Dubai, decision 022); nothing about zones is asked. An optional display name is used in greetings; otherwise the username is used. Explain that this profile provides context for AI estimates and personalized reflections. The four required fields cannot be skipped. Do not ask for exact birth date, address, or a comprehensive medical history. Preserve partially completed steps and allow users to edit these values later. Onboarding asks one thing per screen and nothing optional beyond the display name: an optional plain-language goal and optional dietary restrictions live in Settings, not in onboarding. The goal is shown back on My plan only and is not sent to AI. Restrictions are used only for a neutral reminder in meal review when a recorded ingredient matches.
 3. **Add your plan.** Paste text in any language or enter the plan manually. Briefly explain that AI will prepare pasted text for review and that the app works in English while keeping food names as written. Show a short example in the user's likely language, including one meal with several options. Do not show inactive photo/PDF controls in V1. Before the first import, show the AI-processing notice from section 15 once: one calm sentence that the pasted plan is sent to an AI provider to be read, with **Continue** and **Set up manually**. Text over the 20,000-character limit is kept on screen with a count and a suggestion to paste the plan in parts.
 4. **Review your plan.** Confirm the extracted meals, their options, schedule, portions, and per-meal and daily targets, one section at a time. Show uncertainties and the original source alongside the relevant section. Every other instruction (training-day conditions, food frequency, exclusions, an unsupported schedule such as a rotation longer than seven days) appears once under “Notes from your plan”, verbatim, with a one-line reason; nothing is chosen there. Rules are not evaluated in V1; plan instructions are kept as notes (decision 023). Each review section shows the excerpt of the source text it was extracted from, so the user can compare without leaving the screen. Review must not become a wall of corrections: every unknown gets a labeled default, only calorie-significant unknowns produce a question, a weekday plan is reviewed for one day and then confirmed for the remaining days from a summary, and the user can confirm now and fix anything later from My plan. If the import is still running after 15 seconds, the user can continue to Today. Today then shows one of three import states: “We're still preparing your plan,” “Your plan is ready to review” with **Review now**, or “We couldn't prepare your plan” with **Try again** and **Set up manually**. A failed or timed-out import keeps the pasted text, and the user can log meals meanwhile.
-5. **Ready for today.** Show a short confirmation, today's plan, and “Log your first meal.” Explain briefly that a new reflection will be waiting on each day's first visit; no notification setup or permission request.
+5. **Ready for today.** Show a short confirmation with an illustration, today's plan, and “Log your first meal.” Explain briefly that a new reflection will be waiting on each day's first visit; no notification setup or permission request.
 
-Use compact groups of related fields, a truthful step indicator, back navigation, and autosaved progress. Preserve input after a failed request, refresh, or interrupted session. Numeric fields use suitable mobile keyboards and accept Persian and Arabic digits; unit changes convert existing values without reinterpreting them.
+The step indicator counts ten steps: the five questions (age, sex, height, weight, display name), the plan text, the three review screens (meals, targets, notes) and Ready; the bar reaches 100 % only on Ready, and a review screen made of several sub-screens advances the bar within its step. Use compact groups of related fields, a truthful step indicator, back navigation on every screen (Back on the plan step reopens the last question), and autosaved progress. Preserve input after a failed request, refresh, or interrupted session. Numeric fields use suitable mobile keyboards and accept Persian and Arabic digits; unit changes convert existing values without reinterpreting them.
 
 Age, sex, height, and current weight may be included as context in two AI requests only: plan interpretation and daily reflection. Their permitted use is narrow: the model may use them to phrase the reflection appropriately and to flag an implausible plan interpretation for review, such as a per-meal figure that is off by an order of magnitude. Explain this during onboarding. These fields do not change the nutritional composition of an identical food/portion, must not be used to fabricate personalized food nutrient values, and are not sent with meal-photo or food-identification requests. Profile information does not automatically change the imported plan. Do not infer a medical condition or use sex, age, or body size to generate nutritional targets. Allergies or dietary restrictions are an optional Settings field whose only purpose is a neutral reminder in meal review when a recorded ingredient matches; the reminder never blocks saving, and the product does not promise that photo analysis can verify their absence.
 
@@ -145,6 +149,7 @@ Eligibility: the user must be at least 18. Age is the first onboarding question.
 - An unavailable AI service does not prevent manual plan entry.
 - Sign-up requires only a username and password; there is no forgot-password form, and sign-up states that a forgotten password cannot be recovered.
 - Onboarding includes no notification permission request or external delivery setup.
+- Onboarding asks nothing about time zones; every account counts its days in Asia/Dubai (decision 022).
 
 ## 6. Diet input and normalized plan
 
@@ -214,8 +219,10 @@ If the user deletes the plan, continue logging without comparisons and show “A
 ### Acceptance criteria
 
 - Source text and extracted values can be compared before confirmation.
-- A Persian menu plan imports with every option preserved under its slot, per-meal ranges, original food names with English labels, and the training-day instruction under “Notes from your plan”.
-- A Persian weekday plan imports with Saturday as the first day, day-specific slot names, and day-type labels kept as notes only.
+- A Persian menu plan imports with every option preserved under its slot as “Option 1, 2 …”, per-meal ranges, original food names (the English labels stay in the data for matching and are not shown), and the training-day instruction under “Notes from your plan”.
+- A Persian weekday plan imports with Saturday as the first day, day-specific slot names, and day-type labels kept as notes only; a weekday range heading (“شنبه تا پنجشنبه”) fills every day of the range.
+- Every confirmed slot has a window: stated times are kept as written; the rest are assumed from the slot's name, shown as “≈ …”, editable through the slot's time fields, and never scored.
+- A counted item stores a measure as its unit and the grams of one unit on the item; a plan or meal that names a food the hint table does not know still gets a count and an estimated weight.
 - Importing a new draft leaves existing totals and the active plan unchanged.
 - A food-based plan receives an editable, labeled AI-estimated nutrition baseline where portions are usable; explicit source targets retain priority and unknowns remain visible.
 - Unsupported or unresolved instructions are not reported as achieved or violated.
@@ -227,36 +234,44 @@ If the user deletes the plan, continue logging without comparisons and show “A
 
 **Open Log meal → provide food input → review foods and portions → Save meal.**
 
-The composer presents a description field and a photo action, with compact access to recent meals and today's planned meals. Do not make users choose among several large competing workflows before entering food. Before the first text analysis, and again before the first photo analysis, show the section 15 AI-processing notice once as a small sheet with **Continue** and **Enter manually**; it never appears again for that kind of input.
+The composer is a bottom sheet with a description field and a photo action, compact access to recent meals and today's planned meals, and a pinned footer with the date/time summary, **Check this meal** (outline) and **Enter manually**. It leads with the decision the user came to make: opened from a slot row on Today, that slot's options come first (“Option 1 …” with their items and energy, “Last time” marked, nothing preselected), then “Something else?” with the text field and the photo actions, then Recent meals when there are any; opened from the floating button or a History day, the text field comes first, then the day's planned slots as chips carrying their status glyph, then Recent meals. Do not make users choose among several large competing workflows before entering food. Before the first text analysis, and again before the first photo analysis, show the section 15 AI-processing notice once as a small sheet with **Continue** and **Enter manually**; it never appears again for that kind of input.
 
 Support:
 
 - Text only, in any language: “Two eggs, one slice of toast, and coffee with milk” or “۲ تخم‌مرغ، ۸۰ گرم نان سنگک و یک لیوان شیر”.
-- Photo only: attach or capture food, then clarify important missing information.
+- Photo only: on a touch device two native actions, **Take photo** (camera) and **Choose from gallery**; on desktop one **Add photo**; each opens the device's own picker every time. Then clarify important missing information.
 - Photo plus text: useful for hidden ingredients or quantity corrections.
 - Recent meal: reuse a previous confirmed entry, with editable portions.
-- Planned meal: “I ate this.” When the slot has several options, the user picks the option first, then confirms what was actually eaten. The last-used option for that slot is marked “Last time” as a suggestion, but nothing is preselected; the review cannot be saved until an option is chosen. The prescribed portions prefill the review.
-- Manual entry: food name and portion, with optional known nutrition values.
+- Planned meal: “I ate this.” When the slot has several options, the user picks the option first, then confirms what was actually eaten. The last-used option for that slot is marked “Last time” as a suggestion, but nothing is preselected; this path cannot be saved until an option is chosen. The prescribed portions prefill the review.
+- Manual entry: food name and portion, with optional known nutrition values. The text already typed becomes the first item's name.
+
+**The option rule.** The planned path always needs its option. On every other path an option is owed only when the recorded items overlap at least one option of the chosen slot; a meal that overlaps none of them saves under the slot as a different food with no option, and the row never names an option for it.
+
+**Extra meals.** The review always states the outcome of the slot decision in one line with a glyph and a **Change** action: “Linked to ناهار · Option 2”, “Linked to ناهار · different from your plan”, or “Extra meal · not part of your plan”. When the AI suggests no slot, or the slot it suggests already holds a meal on that date (“ناهار is already recorded · saving as an extra meal”), the default is Extra and one tap opens the picker; the user's own choice always wins. The picker names the choice “Extra · in addition to your plan” (data key `OTHER`); slots that already hold a meal are marked. “I had junk food after dinner” and “I had two afternoon snacks” therefore have an obvious place.
+
+**Back and Start over.** The review has a Back action to the compose step that keeps the text and photos (no new analysis when the input is unchanged) and a **Start over** action that discards the server draft and its staged photos. A sheet that opens on a draft from before says “Continuing where you left off” with the same Start over beside it.
 
 What counts as an entry: anything with calories, including sweetened tea, coffee with milk, juice, and dates eaten alone. Plain water is not logged and has no widget. Supplements are out of scope. Food names are stored as the user wrote them; the review shows the original name only (the English label stays in the data for matching), and right-to-left text renders correctly inside the English layout.
 
 Meal-photo input accepts one to three JPEG, PNG, WebP, or HEIC images per meal, with a proposed 10 MB limit per image. Convert HEIC to a provider-supported image format, validate real file contents, strip unnecessary metadata, and provide preview/remove controls. Multiple photos show the same meal from different angles unless the user explicitly identifies additional food; never automatically count each photo as another serving. These application limits are separate from provider limits. Photo logging is in scope but is not a launch blocker: if the photo model fails the section 13 evaluation, V1 ships with the photo action hidden and the other five paths intact, and the photo action is added when the evaluation passes.
 
-The default consumed time is now, initialized when the composer opens. Between local midnight and 04:00, the composer first asks “Was this for yesterday?” with yesterday and today as equal choices, so a late dinner does not land on the next day unnoticed. Always show a compact date/time summary near the save action. Put editing date/time, meal slot, and notes under **More details**. The meal slot list comes from the active plan's slots for that day, plus “Other”; a target-only plan offers breakfast, snack, lunch, and dinner. Choosing a plan slot links the meal to that slot, so it is compared with the slot's options and shown on that row of Today; “Other” is described in the picker as “in addition to your plan” and is compared on nutrition only. A future consumed time cannot be saved; the composer says so and keeps the draft. On a past-day page, initialize the composer to that date and show a prominent “Logging for [date]” context; do not hide that fact inside an accordion.
+The default consumed time is now, initialized when the composer opens. Between local midnight and 04:00, the composer first asks “Was this for yesterday?” with yesterday and today as equal choices, so a late dinner does not land on the next day unnoticed. Always show a compact date/time summary in the pinned footer, next to the save action. Put editing date/time, meal slot, and notes under **More details**, collapsed by default; it opens by itself when the day is backdated or a time is still needed. The meal slot list comes from the active plan's slots for that day, plus Extra; a target-only plan offers breakfast, snack, lunch, and dinner. Choosing a plan slot links the meal to that slot, so it is compared with the slot's options and shown on that row of Today; Extra is described in the picker as “Extra · in addition to your plan” and is compared on nutrition only. A future consumed time cannot be saved; the composer says so and keeps the draft. On a past-day page, initialize the composer to that date and show a prominent “Logging for [date]” context; do not hide that fact inside an accordion.
 
-For a backdated record, ask the user to confirm the consumed time or choose “I don't remember the time”; never silently reuse the current clock time for that earlier day. Save a known date with an unknown time if needed, retaining food/nutrition comparison but leaving timing unevaluated. Do not invent a timestamp such as noon or midnight to represent an unknown time.
+For a backdated record, ask the user to confirm the consumed time or choose “I don't remember the time”; never silently reuse the current clock time for that earlier day. Save a known date with an unknown time if needed, retaining food/nutrition comparison but leaving timing unevaluated. Do not invent a timestamp such as noon or midnight to represent an unknown time: unticking “I don't remember the time” leaves the time field empty and Save disabled until a time is typed.
 
 Required corrections, uncertain portions, unsaved status, and important errors must remain visible. Progressive disclosure is for optional detail, not information needed to save accurately.
 
 ### AI review
 
-Display the identified food items, editable portions, and estimated meal totals. The first view shows energy, protein, carbohydrate, and fat; other available nutrients and sources expand on demand.
+“Check your meal” shows the staged photos first as thumbnails (tap for full size), then one compact row per identified item (amount · name · energy · chevron) that expands into its editor, then the estimated meal totals. The first view shows energy, protein, carbohydrate, and fat; other available nutrients and sources expand on demand. **Save meal** sits in a pinned footer with the slot sentence, the date/time summary and, when Save is held back, the reason.
 
-The user can add/remove foods; change preparation, quantity, and unit; choose an alternative identification; or enter known label values. Editing a quantity recalculates the affected totals. Editing identity or preparation requires refreshed estimates, but must preserve user-entered overrides and explain what changed.
+The user can add/remove foods; change preparation, quantity (a −/+ stepper for a count unit), unit and grams per unit; mark a quantity unknown; choose an alternative identification; or enter known label values. Editing a quantity recalculates the affected totals. Editing identity or preparation requires refreshed estimates, but must preserve user-entered overrides and explain what changed.
 
-A photo of a shared dish does not establish how much the user ate. When necessary, ask a focused question such as “How much of this dish did you eat?” Hidden oil, sauces, ingredients, and portion weights remain assumptions until clarified. Group essential questions on the review screen instead of starting an endless chat.
+**Review is a loop, not a one-shot.** Answering one of the questions, or pressing **Re-estimate**, sends the current items back with the user's names, values and answers in a refine mode: the model returns the same items in the same order, fills what the answers now make known, keeps every name and every user-provided value, and lists what it changed, shown under “What changed” beside the totals. A choice answer that names a unit (“2 slices”) sets the quantity at once, before the refine returns. A renamed item survives Re-estimate and is marked for a new estimate.
 
-Use plain uncertainty messages, such as “Portion size needs a quick check.” Do not display an uncalibrated confidence percentage. Mark nutrient values “Estimated” where applicable. Unknown values stay unknown; they are never converted to zero.
+A photo of a shared dish does not establish how much the user ate. When necessary, ask a focused question such as “How much of this dish did you eat?” Hidden oil, sauces, ingredients, and portion weights remain assumptions until clarified. Group essential questions in one block on the review screen, choices as pills, instead of starting an endless chat.
+
+Use plain uncertainty messages, such as “Portion size needs a quick check.” Do not display an uncalibrated confidence percentage. Say once that the values are estimates (“These values are estimates. Adjust anything that looks different.”); an item carries a badge only when it is **Assumed**, holds **Label values**, **Needs a new estimate** or asks to **Check this value**. Unknown values stay unknown; they are never converted to zero.
 
 If a recorded item matches a restriction the user entered in Settings, the review shows one neutral line naming the item, for example “Contains walnuts, which is on your restrictions list.” It does not block saving, does not judge, and does not claim that other items are free of it.
 
@@ -284,7 +299,11 @@ Preserve an in-progress form through temporary connectivity loss. Clearly label 
 
 - A text-only meal and a photo meal can both reach an editable review.
 - The AI-processing notice appears once before the first text analysis and once before the first photo analysis, each with a manual alternative.
-- A planned meal whose items overlap one of the slot's options cannot be saved without a chosen option; no option is preselected. A meal that overlaps none of the options saves under the slot as a different food, with no option.
+- The planned path (“I ate this”) cannot be saved without a chosen option; no option is preselected. On any other path an option is owed only when the recorded items overlap one of the slot's options; a meal that overlaps none of them saves under the slot as a different food, with no option.
+- The review states the slot outcome in one line; a meal the AI cannot place, or whose suggested slot is already recorded, defaults to Extra and says so.
+- Answering a portion question changes the totals without discarding the user's names and values; a renamed item survives Re-estimate.
+- Back from the review keeps the text and photos; Start over empties the composer and drops the server draft.
+- The photo actions open the device picker every time (camera or gallery on a touch device); a storage problem is named inline and never leaves the button inert.
 - No AI output changes totals before confirmation.
 - A recorded item that matches a Settings restriction shows a neutral reminder that does not block saving.
 - Correcting a portion updates the meal and day consistently.
@@ -302,7 +321,7 @@ Preserve an in-progress form through temporary connectivity loss. Clearly label 
 2. **Comparison with the plan:** deterministic comparisons against the day's confirmed slots and targets.
 3. **Log completeness:** a per-day setting, checked by default, that users can turn off when food or drinks are missing. The default is an assumption, not an explicit user confirmation.
 
-Show both an **overall plan-adherence score** and the underlying dimension-level observations. The score summarizes alignment with the user's confirmed diet; it is not a health score, nutritional adequacy rating, or measure of personal success. It must never replace the explanation of food, portion, order/timing, variety, and nutrition.
+Show both an **overall plan-adherence score** and the underlying dimension-level observations. The score summarizes alignment with the user's confirmed diet; it is not a health score, nutritional adequacy rating, or measure of personal success. It must never replace the explanation of food, portion, order/timing, and nutrition.
 
 ### Difference thresholds (product-wide, rubric v1)
 
@@ -328,7 +347,7 @@ AI suggests the slot and, within the slot, the option with the highest item over
 - **Different food:** fewer than half of the counted items are present, or the food is not in the plan at all.
 - **Added item:** an added amount of a prescribed food is a portion difference, not an added item. An added item from the calorie-significant categories in section 6 (oil, bread, rice, potato, nuts, dairy, meat) turns Matched into Partly matched with the reason “Added: …”. Any other addition, such as raw vegetables, herbs, or condiments, keeps the status. All added food counts in nutrition totals.
 
-A meal saved under a plan slot is always evaluated against that slot: if nothing in it matches any option, the slot shows “Different food”. A meal saved under “Other” is food eaten in addition to the plan; it is never matched to a slot and cannot stand in for one. This keeps the two honest paths distinct: “I ate something else for lunch” is the lunch slot with a different food, and “I also had a snack” is Other.
+A meal saved under a plan slot is always evaluated against that slot: if nothing in it matches any option, the slot shows “Different food”. A meal saved under “Other” (“Extra” in the UI; the data key stays `OTHER`) is food eaten in addition to the plan; it is never matched to a slot and cannot stand in for one. This keeps the two honest paths distinct: “I ate something else for lunch” is the lunch slot with a different food, and “I also had a snack” is Other.
 
 ### Adherence score rubric v1
 
@@ -353,7 +372,7 @@ Owner-aligned constraints that the rubric and its future revisions must keep:
 - Gentle treatment of differences: no binary all-or-nothing meal failure, no score drop for small variation, and no alarming red grade or shame-based copy.
 - Matching calories cannot erase a different prescribed food; substitutions remain visible and receive no prescribed-food equivalence credit.
 - Missing logs or unknown values must not become failures, successes, or hidden zeroes. Label any usable partial assessment “Based on recorded meals”; show “Not enough information yet” where coverage is inadequate.
-- Order and timing remain visible as descriptive context; there are no minute-by-minute penalties. Variety follows only explicit plan requirements.
+- Order and timing remain visible as descriptive context; there are no minute-by-minute penalties. Variety is not scored: rules are not evaluated in V1 (decision 023).
 - Show which dimensions and records contributed, what was excluded, and whether each baseline is explicit or estimated. A portion difference appears once, in the portion component; the day's energy total, which that portion also affects, enters only the separate nutrition component and is never shown as a second portion difference.
 - AI can interpret foods and explain the result, but cannot choose a fresh opaque score on every request.
 
@@ -393,7 +412,7 @@ Use neutral terms, not rewards for eating less. Never subtract exercise, carry a
 
 A saved meal can be linked to a planned meal. AI may suggest which scheduled slot and which option it belongs to; the user confirms the link and actual food/portion details. Similar calories or macros never make a different food count as the prescribed food. Do not suggest substitutes to close a nutritional gap. Users must still be able to honestly record an off-plan meal without friction or moral judgment. A meal saved under “Other” appears in the recorded-meals list, counts in nutrition totals, and affects no food, portion, or order result. A meal saved under a plan slot is linked to that slot and evaluated; when nothing in it matches, the slot shows “Different food” with neutral wording and no penalty beyond the food component.
 
-Support checklist-style meal states: **Not recorded**, **Recorded**, **Marked skipped**, and **Needs review**. A **Needs review** row always carries its one resolving action, such as **Choose option** or **Confirm portion**, so the user never has to guess what is missing. For a recorded meal, show food identity, quantity, and timing in its details. Keep the main status neutral; do not turn a meal into a failure because of a small quantity or timing difference. Important food differences remain visible, using descriptive copy such as “A different food was recorded.” Unknown information produces a specific review note, not assumed success or failure.
+Support checklist-style meal states: **Not recorded**, **Recorded**, **Marked skipped**, and **Needs review**. A **Needs review** row always carries its one resolving action, **Choose the option you ate**, which opens the meal's details where the option is chosen, so the user never has to guess what is missing. For a recorded meal, show food identity, quantity, and timing in its details. Keep the main status neutral; do not turn a meal into a failure because of a small quantity or timing difference. Important food differences remain visible, using descriptive copy such as “A different food was recorded.” Unknown information produces a specific review note, not assumed success or failure.
 
 Distinguish an absent requirement from unresolved evidence: no plan timing instruction means the order rule applies instead and the detail reads “No time specified in your plan; checked by order”; an instruction with an unknown consumed time means “Time not evaluated.” Neither should create a timing penalty. A time difference by itself does not justify labeling the entire meal noncompliant.
 
@@ -447,7 +466,7 @@ Variety is not a score dimension. For weekday prescriptions, the food-match comp
 - Every result can be traced to the current plan and confirmed records.
 - A substitute with matching calories/macros never receives prescribed-food credit.
 - Backdating the consumed time changes timing comparison; changing only the save time does not.
-- Variety/frequency calculations respect the confirmed period, missing data, plan changes, and never count the same serving or group twice.
+- No variety or frequency rule is calculated anywhere; plan instructions stay verbatim notes (decision 023).
 
 ## 9. Today dashboard
 
@@ -457,47 +476,50 @@ This layout is a product-design proposal, not an owner-approved screen. The revi
 
 The dashboard should answer: **What is recorded? How does that compare? What is useful next?**
 
-1. **Date and morning paragraph.** Compact greeting, today's date, the daily paragraph, and its link to yesterday. The paragraph carries one action, **Got it**: tapping it moves the card to the bottom of Today (above the completeness checkbox) for the rest of that date, collapsed to its title with **Read again**. The choice is remembered per date across devices.
-2. **Your plan today.** The primary progress card: a compact overall adherence score with its coverage label and a “Why this score” expansion, followed by a checklist of today's slots in plan order, with neutral recorded/not-recorded status and specific differences. A slot with several options shows the slot name, its energy range when given, and “3 options”; the options expand on tap and the picked option is named once recorded. Each unrecorded row shows its window ("12:00–15:30", or "≈ 12:00–15:30" when assumed) and the actions the clock allows: while the window is **open** or has **passed**, an icon **Log** (＋) and an icon **Skip** (—), and a passed slot adds the muted line "Window passed · log it or mark skipped"; an **upcoming** slot shows only one small, faint ＋ to log it early and no Skip. Highlight the first open or passed unrecorded slot in plan order (before any window has opened, the first unrecorded slot) with a full-width outline **Log this meal** inside this block; the floating Log meal button stays the only filled action on the screen. On a past day every window has passed. Completed rows stay compact; food, quantity, order/timing, and applicable variety details expand. When every slot is recorded, offer **Log another meal** rather than guessing. Do not prescribe a different meal based on remaining calories. A target-only plan shows an explanation that no meal schedule is defined and no score. Untracked notes are reachable from **View today's plan**, not repeated here.
-3. **Recorded meals.** A chronological list with time, name, and edit access. Nutrition is available in meal details rather than repeated across every collapsed list row. Put day-completeness control at the end.
+1. **Date and morning paragraph.** Today's date and a compact greeting, then the daily paragraph as a note surface headed “Today's reflection”; a long paragraph is capped to a few lines with **Read more** until it is acknowledged. The paragraph carries one action, **Got it** (an outline button, so the floating Log meal stays the one filled action): tapping it moves the card to the bottom of Today (above the completeness checkbox) for the rest of that date, collapsed to its title with **Read again**. The choice is remembered per date across devices.
+2. **Your plan today.** The section is headed by an icon and title. The score card is the one elevated (hero) surface on the screen: a band glyph, the 40 px number once it exists (it counts up when it changes) or the band word alone, a thin neutral “2 of 5 meals recorded” bar, and the coverage label; before any planned meal is scored it says “Your number appears after two planned meals are logged”, and “Why this score” appears only once a meal is scored. On a past day the section is headed “Your plan · Sep 19”. Below it, in one list surface, a checklist of today's slots in plan order: each row leads with a status glyph whose shape is the state (○ not recorded · ● recorded/matched · ◐ partly · ⊘ different food · — skipped · ? needs review · ◷ upcoming), then the slot name as written, one status line, and a subline with the window, the option count or the picked “Option 2”, and the energy range when given. Tapping the row's Log action opens the composer with that slot's options first; the options do not expand inside the row. Each unrecorded row shows its window ("12:00–15:30", or "≈ 12:00–15:30" when assumed) and the actions the clock allows: while the window is **open** or has **passed**, an icon **Log** (＋) and an icon **Skip** (—), and a passed slot adds the muted line "Window passed · log it or mark skipped"; an **upcoming** slot shows only one small, faint ＋ to log it early and no Skip. Highlight the first open or passed unrecorded slot in plan order (before any window has opened, the first unrecorded slot) with a full-width outline **Log this meal** inside this block; the floating Log meal button stays the only filled action on the screen. On a past day every window has passed. Completed rows stay compact; food, quantity, and order/timing details expand as difference chips. When every slot is recorded, offer **Log another meal** rather than guessing. Do not prescribe a different meal based on remaining calories. A target-only plan shows an explanation that no meal schedule is defined and no score. Untracked notes are reachable from **View today's plan**, not repeated here.
+3. **Recorded meals.** A chronological list in one list surface: each row carries the time, the item names as written, the slot (or “Extra”), the meal's energy, a camera glyph when photos exist, and a chevron; the whole row opens the meal. Nutrition is otherwise available in meal details rather than repeated across every row. Put the day-completeness control at the end, after the acknowledged reflection when there is one.
 
-Inside **Your plan today**, include a collapsed **Today's nutrition details** control. Its expanded content shows totals for energy, protein, carbohydrate, and fat from confirmed recorded meals, alongside explicit plan targets or the confirmed AI-estimated plan baseline, with their source clearly labeled. State the number of recorded meals, log completeness, estimates, and missing values. This is the meaning of “daily nutrition summary”; it is not a general nutrition report, additional input requirement, or new dietary advice. Other nutrients expand further only when available and relevant to the plan. A food-based plan uses its confirmed AI-estimated baseline where available; no new personalized nutrient goals are invented. Weekly variety progress belongs in the prescribed-plan details or History, not another dashboard widget.
+Inside **Your plan today**, include a collapsed **Today's nutrition details** control. Its expanded content shows, for energy, protein, carbohydrate, and fat, a value / target row with a thin neutral bar, from confirmed recorded meals alongside explicit plan targets or the confirmed AI-estimated plan baseline, with their source clearly labeled behind a per-row disclosure. State the number of recorded meals, log completeness, estimates, and missing values. This is the meaning of “daily nutrition summary”; it is not a general nutrition report, additional input requirement, or new dietary advice. Other nutrients expand further only when available and relevant to the plan. A food-based plan uses its confirmed AI-estimated baseline where available; no new personalized nutrient goals are invented. Plan notes are read on My plan, not on the dashboard.
 
 The logging action stays accessible as the user scrolls. The morning paragraph is the primary interpretation and the first block until the user taps Got it; avoid adding multiple advice cards repeating it. A reflection that became stale shows its badge and **Update reflection** wherever it sits. An essential uncertainty notice may appear inline with the affected data.
 
 ### Illustrative content layout
 
 ```text
-Today · Monday, September 14
-[Morning paragraph: yesterday + one focus for today]
+Monday, September 14 · Hello, Sara
+✦ Today's reflection
+[Morning paragraph: yesterday + one focus for today]       [Got it]
 
-Your plan today
-[78 · Mostly followed · based on 2 of 5 prescribed meals]
-[Why this score ▸]
-[صبحانه Breakfast · matched · option 2]
-[میان‌وعده اول First snack · recorded · a bit less than planned]
-ناهار Lunch · 650–720 kcal · 4 options    [Log this meal]
-[میان‌وعده دوم Second snack · not recorded]
-[شام Dinner · not recorded]
+☼ Your plan today
+[◔ 78 · Mostly followed · ▬▬▬▭▭ 2 of 5 meals recorded]
+[Based on 2 of 5 prescribed meals · Why this score ▸]
+● صبحانه · Matches your plan · ≈ 06:00–10:30 · Option 2
+◐ میان‌وعده اول · Some of this meal matches · ≈ 10:00–12:30
+○ ناهار · Not recorded · ≈ 12:00–15:30 · 4 options · 650–720 kcal
+  [Log this meal]                                          (—)
+◷ میان‌وعده دوم · Not recorded · ≈ 15:00–18:30            (＋)
+◷ شام · Not recorded · ≈ 18:30–23:00                       (＋)
 [Today's nutrition details ▸]            (collapsed)
+View today's plan ›
 
-Meals
-08:30  Breakfast                         [Open]
-11:00  Snack                             [Open]
+⚲ Recorded meals
+08:30  تخم‌مرغ · نان سنگک   صبحانه            420 kcal ›
+11:00  سیب                  میان‌وعده اول      90 kcal  ›
 
 [✓] I've logged everything for this day
 Uncheck this if you haven't recorded everything.
 
-Persistent primary action: Log meal
-Navigation: Today | History | My plan
+Persistent primary action: Log meal (floating)
+Navigation: History | Today | My plan
 ```
 
-This defines hierarchy, not colors, card styling, or a final visual composition.
+This defines hierarchy, not colors, card styling, or a final visual composition; `design.md` “Product UI” fixes the surfaces, glyphs and actions.
 
 ### Essential states
 
-- **First use/no records:** show the plan and “Log your first meal”; no empty charts.
-- **No active plan:** keep logging available and show “Add your plan.”
+- **First use/no records:** show the plan and “Log your first meal” with an illustration; no empty charts. The first day's reflection is a fixed welcome paragraph.
+- **No active plan:** keep logging available and show “Add your plan” with an illustration.
 - **Plan import pending or failed:** a single banner above the plan block, “We're still preparing your plan,” “Your plan is ready to review” with **Review now**, or “We couldn't prepare your plan” with **Try again** and **Set up manually**.
 - **Ongoing day:** display recorded progress; the checked completeness default does not imply that today has ended.
 - **Incomplete log:** display recorded amounts and partial-data context when unchecked.
@@ -516,13 +538,15 @@ This defines hierarchy, not colors, card styling, or a final visual composition.
 
 ## 10. History and useful progress
 
-History defaults to the past seven days and provides a date selector for older days. Opening a day shows its records compared against the current plan, completeness status, eligible comparisons, and any morning message referencing it.
+History defaults to the past seven days and provides a date selector for older days. It never lists a day before the account existed: the summary says “Your history starts on Sep 12” when the seven days reach back past sign-up. Opening a day shows its records compared against the current plan, completeness status, eligible comparisons, and any morning message referencing it.
 
-The seven-day view contains one compact pattern summary and day-level access. Prioritize prescribed-food and timing patterns; nutrition alone must not stand in for overall adherence. Show denominators: for example, “Within your planned calorie range on 3 of 4 complete days; 3 days have incomplete logs.” Keep food/portion/timing statuses separate. Rules are not evaluated in V1; plan instructions are kept as notes (decision 023). Never count incomplete days as failed days or conceal them from the description.
+The seven-day view contains one compact pattern summary and day-level access. The summary is one note surface: the pattern sentence as its headline, then the denominators as small lines with an icon each (“4 complete days”, “3 days with incomplete logs”, “Your plan changed during these days.” when it did). Prioritize prescribed-food and timing patterns; nutrition alone must not stand in for overall adherence. Keep food/portion/timing statuses separate. Rules are not evaluated in V1; plan instructions are kept as notes (decision 023). Never count incomplete days as failed days or conceal them from the description.
 
-For a trend statement, require at least three complete, comparable days with the relevant data. A day counts as complete for trends only when its checkbox is checked and every prescribed slot has a recorded or marked-skipped meal. Checked days with unrecorded slots are listed as “complete by default, 2 of 5 meals” and stay out of the denominator. Otherwise show “A few more complete days will make patterns clearer.” This threshold is a proposed product rule, not a scientific validity claim.
+Day rows carry the date, then a glyph and one line: the band glyph with the band word and the number (“Mostly followed · 2 of 5 meals”), or “In progress”, “No meals recorded”, “Incomplete log”, or “Marked complete · 2 of 5 meals recorded” for a checked day with unrecorded slots.
 
-The seven-day pattern summary is one sentence built from the most frequent noticeable or large difference across complete days, in this priority: a slot that was “Different food” or marked skipped on three or more days, then a repeated portion difference on the same item, then a repeated order difference, then energy against the daily range. Example: “Dinner was a different food on 3 of 4 complete days.” When no repeated difference exists, say what matched most often instead.
+For a trend statement, require at least three complete, comparable days with the relevant data. A day counts as complete for trends only when its checkbox is checked and every prescribed slot has a recorded or marked-skipped meal. Checked days with unrecorded slots are listed as “Marked complete · 2 of 5 meals recorded” and stay out of the denominator. Otherwise show “A few more complete days will make patterns clearer.” This threshold is a proposed product rule, not a scientific validity claim.
+
+The seven-day pattern sentence is built from the most frequent noticeable or large difference across complete days, in this priority: a slot that was “Different food” or marked skipped on three or more days (two sentences, one per case: “شام was a different food on 3 of 4 complete days.” / “شام was skipped on 3 of 4 complete days.”), then a repeated portion difference on the same item (“more” or “less than planned”), then a repeated order difference, then energy against the daily range (“Within / Above / Below your planned calorie range on 3 of 4 complete days.”). When no repeated difference exists, say what matched most often instead (“صبحانه matched your plan on 4 of 4 complete days.”), or that no difference repeated.
 
 If the plan changed during the seven days, label the change; do not average unlike goals into a misleading trend. No causal claims about weight, metabolism, or health outcomes. No default collection of unrelated charts.
 
@@ -595,30 +619,55 @@ Supportive, calm, kind, and professional. Speak directly to the user in plain En
 | Context                                 | Example                                                                                                         |
 | --------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | Primary logging action                  | Log meal                                                                                                        |
+| Analyse action (compose footer)         | Check this meal                                                                                                 |
+| Manual alternative                      | Enter manually                                                                                                  |
 | Review title                            | Check your meal                                                                                                 |
 | Estimate helper                         | These values are estimates. Adjust anything that looks different.                                               |
-| Quantity clarification                  | How much of this dish did you eat?                                                                              |
+| Quantity clarification (AI question)    | How much of this dish did you eat?                                                                              |
+| Questions block title                   | A few quick checks                                                                                              |
+| After a refine                          | What changed                                                                                                    |
+| Refine failed                           | We couldn't update the estimate. Your answer is kept.                                                           |
 | Confirmation                            | Save meal                                                                                                       |
 | Successful save                         | Meal saved                                                                                                      |
 | AI failure                              | We couldn't estimate this meal. Try again or enter the details yourself.                                        |
 | Save failure                            | Your meal hasn't saved yet. Your edits are still here. Try again.                                               |
+| Back from the review                    | Back to what you ate                                                                                            |
+| Resumed draft · discard                 | Continuing where you left off · Start over                                                                      |
+| Photo actions (touch · desktop)         | Take photo · Choose from gallery · Add photo                                                                    |
+| Text field after the option list        | Something else?                                                                                                 |
 | Missing plan                            | Add your plan to see how your meals compare.                                                                    |
 | Incomplete day                          | Based on the meals you've recorded.                                                                             |
 | Empty history day                       | No meals recorded for this day.                                                                                 |
 | Advanced section                        | More details                                                                                                    |
+| Time still needed                       | Enter the time or tick 'I don't remember the time'.                                                             |
 | Daily reflection title                  | Today's reflection                                                                                              |
+| Reflection actions                      | Got it · Read again · Read more · Update reflection                                                             |
+| Reflection stale badge                  | Based on an earlier log                                                                                         |
+| Section headers on Today                | Your plan today · Recorded meals (a past day: Your plan · Sep 19)                                               |
+| Score hint before two scored meals      | Your number appears after two planned meals are logged.                                                         |
+| Score bar                               | 2 of 5 meals recorded                                                                                           |
+| Score coverage                          | Based on 2 of 5 prescribed meals · 1 skipped · log complete by default                                          |
 | Matched meal                            | Matches your plan                                                                                               |
 | Partly matched meal                     | Some of this meal matches your plan                                                                             |
 | Cross-slot option                       | This is a lunch option                                                                                          |
-| Needs review row                        | Choose the option you ate                                                                                       |
-| Late-night composer                     | Was this for yesterday?                                                                                         |
 | Different food                          | A different food was recorded                                                                                   |
-| Score coverage                          | Based on 2 of 5 prescribed meals                                                                                |
-| Untracked instruction                   | Notes from your plan · These aren't checked automatically                                                       |
-| Option slot                             | 4 options · choose what you ate                                                                                 |
-| Last-used option                        | Last time                                                                                                       |
 | Added item                              | Added: burger                                                                                                   |
-| Other slot in picker                    | Other · in addition to your plan                                                                                |
+| Needs review row                        | Choose the option you ate                                                                                       |
+| Slot window (stated · assumed)          | 12:00–15:30 · ≈ 12:00–15:30                                                                                     |
+| Assumed window hint (review, edit)      | Assumed from the meal name — edit the times if your plan says otherwise.                                        |
+| Window passed                           | Window passed · log it or mark skipped                                                                          |
+| Row actions (aria-labels)               | Log ناهار · Log ناهار early · Mark ناهار skipped · Undo skip                                                    |
+| Next slot · every slot done             | Log this meal · Log another meal                                                                                |
+| Option label                            | Option 2                                                                                                        |
+| Option slot subline                     | 4 options                                                                                                       |
+| Last-used option                        | Last time                                                                                                       |
+| Counted item · measured item            | 2 × سیب · 2 slices · نان سنگک · 150 g · مرغ                                                                     |
+| Grams of one unit                       | ≈ 180 g each (field: Grams each)                                                                                |
+| Slot sentence on review                 | Linked to ناهار · Option 2 · Linked to ناهار · different from your plan · Extra meal · not part of your plan    |
+| Extra by default                        | ناهار is already recorded · saving as an extra meal                                                             |
+| Extra in the picker · on a meal         | Extra · in addition to your plan · Extra (In addition to your plan · compared on nutrition only)                |
+| Late-night composer                     | Was this for yesterday?                                                                                         |
+| Untracked instruction                   | Notes from your plan · These aren't checked automatically                                                       |
 | Restriction reminder                    | Contains walnuts, which is on your restrictions list.                                                           |
 | AI notice, plan                         | We'll send your plan text to an AI service to read it. Food names stay as you wrote them.                       |
 | AI notice, meal                         | We'll send this description (or photo) to an AI service to estimate it. You can enter details yourself instead. |
@@ -626,9 +675,14 @@ Supportive, calm, kind, and professional. Speak directly to the user in plain En
 | Import ready                            | Your plan is ready to review.                                                                                   |
 | Import failed                           | We couldn't prepare your plan. Try again or set it up manually.                                                 |
 | Completeness helper, past day with gaps | 2 of 5 meals recorded. Mark the rest skipped if you didn't eat them.                                            |
+| History day row, checked with gaps      | Marked complete · 2 of 5 meals recorded                                                                         |
+| History start                           | Your history starts on Sep 12                                                                                   |
+| History pattern (two variants)          | شام was a different food on 3 of 4 complete days. · شام was skipped on 3 of 4 complete days.                    |
+| My plan folded slots                    | Show all 5 meals · Show fewer meals                                                                             |
 | No recovery                             | A forgotten password can't be recovered in this release.                                                        |
 | Plan edit confirm                       | Past days will be compared against the updated plan · 3 meals affected.                                         |
 | Newer edit exists                       | This meal was updated on another device. Reload to see the latest version.                                      |
+| Session ended in the composer           | Your session ended. Sign in again to continue.                                                                  |
 | Delete action                           | Delete this meal? Your daily totals will update.                                                                |
 
 Use sentence case, explicit field labels, specific button verbs, and consistent food/portion/unit terminology. Do not use placeholder text as the only label. Do not expose model names, JSON, tokens, or internal job states in ordinary product screens.
@@ -637,7 +691,9 @@ All system copy is English. User-written food, meal, and plan text is shown as w
 
 ### Progressive disclosure and components
 
-Use existing accessible library primitives for forms, buttons, navigation, dialogs, sheets, accordions, lists, notifications, and date/time inputs. Compose them into the reusable product components named in `design-scope.md`: Meal composer, Meal review, Plan slot row, Score card with Why this score, Nutrition details, Completeness checkbox, Reflection card, Difference chip, Original + English name label, Import status banner, AI notice sheet, and one Expand/collapse pattern. Use these names in both documents and in code. A composed product component is expected; rebuilding standard control behavior from scratch is not.
+Use existing accessible library primitives for forms, buttons, navigation, dialogs, sheets, accordions, lists, notifications, and date/time inputs. Compose them into the reusable product components named in `design-scope.md`: Meal composer, Meal review, Plan slot row, Score card with Why this score, Nutrition details, Completeness checkbox, Reflection card, Difference chip, Name label (the name as written; the English label is never rendered), Import status banner, AI notice sheet, and one Expand/collapse pattern, on the Product UI primitives of `design.md` (Surface, SectionHeader, StatusGlyph / BandGlyph, IconAction, Illustration, ScoreNumeral, MeterBar). Use these names in both documents and in code. A composed product component is expected; rebuilding standard control behavior from scratch is not.
+
+Actions are icon-first: the one filled emerald action per screen carries an icon and a word; row and secondary actions are icon buttons with an `aria-label` (44 px on rows, 36 px only inside dense editors); text-only buttons are for destructive confirmations. Status is carried by the neutral glyph set, never by colour alone.
 
 Choose one primary component library through `design.md`. Use shared tokens and variants; avoid page-specific colors, spacing values, and duplicate controls. Introduce a custom primitive only when the existing system cannot support a documented user need.
 
@@ -687,18 +743,18 @@ User confirmation is a control against obvious errors, not evidence that nutriti
 
 ### Core records
 
-| Record                  | Essential information                                                                                                                                                                       |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Account and preferences | Owner ID, username, password hash, display name, units, week start, appearance, which AI notices have been shown (plan, meal text, meal photo)                                              |
-| Profile                 | Required age, sex, height, current weight; units, measurement dates; optional goal and explicitly supplied restrictions                                                                     |
-| Plan                    | Source, source language, original text, normalized slots in order with original and English names, options per slot, in-item alternatives, per-meal and daily targets, notes, pending draft |
-| Day                     | Local date, time zone context, completeness boolean (default true; no record of whether it was touched), skipped slots                                                                      |
-| Meal                    | Owner, consumed timestamp when known, recorded local date and zone, time-known flag, slot, confirmed foods, notes, photo references, revision                                               |
-| Food item               | Original name, English label, quantity/unit, nutrients including unknowns, data source, estimate and assumed-portion flags, user overrides                                                  |
-| Plan link               | One per recorded meal: confirmed slot or Other, chosen option, match status with reason                                                                                                     |
-| Day comparison          | Computed on read from confirmed records and the current plan: rubric version, per-slot component values, day score, coverage, contributing record revisions, nutrition results              |
-| Morning message         | User/local date, input snapshot revision, paragraph, generation time/model, stale/fallback state                                                                                            |
-| Upload/draft            | Owner, lifecycle, original input, analysis revision, expiry and cleanup state                                                                                                               |
+| Record                  | Essential information                                                                                                                                                                                 |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Account and preferences | Owner ID, username, password hash, display name, units, week start, appearance, which AI notices have been shown (plan, meal text, meal photo)                                                        |
+| Profile                 | Required age, sex, height, current weight; units, measurement dates; optional goal and explicitly supplied restrictions                                                                               |
+| Plan                    | Source, source language, original text, normalized slots in order with original and English names, options per slot, in-item alternatives, per-meal and daily targets, notes, pending draft           |
+| Day                     | Local date, time zone context, completeness boolean (default true; no record of whether it was touched), skipped slots                                                                                |
+| Meal                    | Owner, consumed timestamp when known, recorded local date and zone, time-known flag, slot, confirmed foods, notes, photo references, revision                                                         |
+| Food item               | Original name, English label (matching only), quantity/unit (a measure) and grams per unit for a count, nutrients including unknowns, data source, estimate and assumed-portion flags, user overrides |
+| Plan link               | One per recorded meal: confirmed slot or Other, chosen option, match status with reason                                                                                                               |
+| Day comparison          | Computed on read from confirmed records and the current plan: rubric version, per-slot component values, day score, coverage, contributing record revisions, nutrition results                        |
+| Morning message         | User/local date, input snapshot revision, paragraph, generation time/model, stale/fallback state, whether it is a fixed paragraph written without an AI call, when it was acknowledged                |
+| Upload/draft            | Owner, lifecycle, original input, analysis revision, expiry and cleanup state                                                                                                                         |
 
 All records and uploads are private to their owner. Server authorization applies to reads, writes, exports, and file access.
 
@@ -751,28 +807,28 @@ Use content-free analytics events such as `plan_confirmed`, `meal_save_succeeded
 
 - [ ] Username/password sign-up and sign-in, the under-18 stop, interrupted onboarding, unit conversion, and required age/sex/height/weight validation work without losing data; no recovery path exists and sign-up says so.
 - [ ] Manual setup offers same-every-day, by-weekday, and targets-only structures, and a targets-only plan can be confirmed without any slot.
-- [ ] Both reference Persian plans import correctly: options preserved per slot, per-meal ranges, plan-derived slot names, Saturday week start, original names with English labels, and day-type instructions under “Notes from your plan”.
+- [ ] Both reference Persian plans import correctly: options preserved per slot as “Option 1, 2 …”, per-meal ranges, plan-derived slot names with a window each, Saturday week start, original names (English labels kept in the data, not shown), and day-type instructions under “Notes from your plan”.
 - [ ] Supported plan inputs reach source-linked review and explicit activation; plan instructions stay visible as notes, never evaluated.
 - [ ] Training, exercise, and day-type instructions are never evaluated anywhere in the product.
 - [ ] Plans without numeric nutrition targets receive reviewed AI-estimated baselines where portions permit; source targets override estimates for the applicable nutrient.
 - [ ] DeepSeek image access, meal-photo interpretation, and text-plan parsing quality have been tested on the deployment account.
-- [ ] Text, photo, manual, recent-meal, and planned-meal logging all reach editable review and explicit save.
+- [ ] Text, photo, manual, recent-meal, and planned-meal logging all reach editable review and explicit save; answering a portion question refines the estimate in place, and Back / Start over work from the review.
 - [ ] AI failures, upload errors, stale responses, save retries, and duplicate requests preserve correct records.
 - [ ] Past-date logging preserves the intended daily history; editing the plan re-compares past days and the confirm step states the number of affected meals.
 - [ ] The completeness checkbox is two-state and defaults to checked for each date; changes persist across visits/devices and meal edits without daily reconfirmation, and a checked day with unrecorded slots is labeled “complete by default” and excluded from trends.
 - [ ] Unchecking a day updates comparisons, trend eligibility, and reflection freshness; today remains in progress and empty logs remain unassessable regardless of the checkbox.
 - [ ] Unknown nutrition and explicitly incomplete logs never become false zeros or full-day judgments.
 - [ ] Target comparison boundaries and plan links are deterministic and tested with known fixtures.
-- [ ] Prescribed-food, quantity, consumed-time, and explicit variety comparisons work independently; substitutions do not receive equivalence credit.
-- [ ] Today shows an overall adherence score alongside dimension details under rubric v1, with coverage labels, honest incomplete-data states, the fixed thresholds, and no punitive treatment of small differences.
+- [ ] Prescribed-food, quantity, and consumed-time comparisons work independently; substitutions do not receive equivalence credit.
+- [ ] Today shows an overall adherence score alongside dimension details under rubric v1, with coverage labels, honest incomplete-data states, the fixed thresholds, and no punitive treatment of small differences; every slot row carries its window and the actions the window allows, and an assumed window never enters the score.
 - [ ] Option matching (Matched, Partly matched, Different food, cross-slot, added calorie-significant item) behaves as section 8 defines, with fixtures from both reference plans; a meal under a plan slot is always evaluated and a meal under Other never is.
-- [ ] A planned meal with options cannot be saved without a chosen option, and the last-used option is only marked as a suggestion.
+- [ ] The planned path cannot be saved without a chosen option and the last-used option is only marked as a suggestion; on the other paths an option is owed only when the recorded items overlap one, and a meal the AI cannot place defaults to Extra with the sentence visible.
 - [ ] The AI-processing notice appears once before each first request kind (plan, meal text, meal photo), each with a manual alternative.
 - [ ] Today shows the import-pending, import-ready, and import-failed states as specified, and a restriction reminder appears in meal review when an item matches.
 - [ ] Persian and Arabic input renders correctly inside English copy across plan, review, Today, History, and the morning paragraph.
 - [ ] Today stays focused, with a persistent logging action and optional detail disclosure.
 - [ ] History explains incomplete-day denominators and plan changes.
-- [ ] Morning messages pass complete/partial/empty/first-day/no-plan tests and contain only supported facts.
+- [ ] Morning messages pass complete/partial/empty/first-day/no-plan tests and contain only supported facts; the empty, first-day and no-plan paragraphs are written without an AI call, and Got it moves the card to the bottom of Today for the date.
 - [ ] First-visit generation, local dates, concurrent requests, fallback timing, and stale reflections work.
 - [ ] The first release contains no push notifications and no email of any kind.
 - [ ] Shared components, dark/light/system appearance, keyboard support, touch targets, and reduced motion are verified.

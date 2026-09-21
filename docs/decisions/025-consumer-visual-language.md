@@ -36,9 +36,10 @@ a 2 px offset focus ring (`icon` 44 px, `icon-sm` 36 px), cards are 16 px with t
 shadow, badges are pills, inputs and selects use the same ring and 44 px height, skeletons are
 `bg-muted`, dialogs and bottom sheets take the card radius, the toaster is top-centre. New
 primitives under `src/components/product/` — `Surface`, `SectionHeader`, `StatusGlyph` /
-`BandGlyph`, `IconAction`, `Illustration`, `ScoreNumeral` — are shown on `/components`
-("Product UI"), which stays the visual regression surface for both themes (019), and the axe
-spec checks that block in both themes. Screens adopt them in D1–D3 of the improvement plan; until
-then the old card recipe and the new primitives coexist. The rules 019 fixed remain: emerald once
-per viewport as the filled primary, status never colour-only, 44 px targets, tokens as CSS
-variables, both themes.
+`BandGlyph`, `IconAction`, `Illustration`, `ScoreNumeral`, `MeterBar` — are shown on
+`/components` ("Product UI"), which stays the visual regression surface for both themes (019),
+and the axe spec checks that block in both themes. Every product screen adopted them in D1–D3 of
+the improvement plan (Today, the composer and review, History, My plan, Meal details, Settings,
+onboarding, the shell); the kit's plain `Card` remains for admin pages and settings forms only.
+The rules 019 fixed remain: emerald once per viewport as the filled primary, status never
+colour-only, 44 px targets, tokens as CSS variables, both themes.
