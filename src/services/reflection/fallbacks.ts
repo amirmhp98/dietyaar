@@ -19,7 +19,7 @@ import { wordCount } from '@/services/ai/schemas';
 export type FallbackState =
   'COMPLETE' | 'UNCHECKED' | 'NO_RECORDS' | 'FIRST_DAY' | 'NO_PLAN' | 'PROVIDER_FAILURE';
 
-export const STATIC_STATES: ReadonlySet<FallbackState> = new Set<FallbackState>([
+const STATIC_STATES: ReadonlySet<FallbackState> = new Set<FallbackState>([
   'NO_RECORDS',
   'FIRST_DAY',
   'NO_PLAN',
@@ -167,22 +167,17 @@ export function fallbackParagraph(
   const coverage = factById(facts, 'coverage');
   const score = factById(facts, 'score');
   switch (state) {
-    case 'FIRST_DAY': {
-      const plan = factById(facts, 'today:plan');
-      const hasPlan = plan !== undefined && plan.signature !== 'NO_PLAN';
+    case 'FIRST_DAY':
       return assembleStatic([
         greeting(context),
         { text: t('reflection.fallback.firstDay.welcome') },
-        hasPlan
-          ? todayPart(facts, {
-              startsWith: 'reflection.fallback.firstDay.startsWith',
-              next: 'reflection.fallback.firstDay.next',
-            })
-          : { text: t('reflection.fallback.firstDay.noPlan') },
+        todayPart(facts, {
+          startsWith: 'reflection.fallback.firstDay.startsWith',
+          next: 'reflection.fallback.firstDay.next',
+        }) ?? { text: t('reflection.fallback.firstDay.noPlan') },
         { text: t('reflection.fallback.firstDay.tomorrow') },
         closing(context),
       ]);
-    }
     case 'NO_PLAN':
       // States nothing about yesterday's log: without a plan there is nothing to compare it with.
       return assembleStatic([

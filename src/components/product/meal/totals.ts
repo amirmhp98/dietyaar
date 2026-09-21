@@ -1,3 +1,5 @@
+import { formatNumber } from '@/lib/format';
+import { t } from '@/lib/t';
 import { toGrams } from '@/lib/units';
 import type { DraftFoodItem } from '@/lib/validations/meal';
 import {
@@ -79,3 +81,9 @@ export const NUTRIENT_UNITS: Record<NutrientKey, 'kcal' | 'g' | 'mg'> = {
   FIBER_G: 'g',
   SODIUM_MG: 'mg',
 };
+
+/** "320 kcal", "12.5 g", or the unknown dash. */
+export function totalText(key: NutrientKey, value: number | null, maximumFractionDigits = 0) {
+  if (value === null) return t('meal.nutrient.unknown');
+  return `${formatNumber(value, { maximumFractionDigits })} ${t(`meal.nutrient.unit.${NUTRIENT_UNITS[key]}`)}`;
+}

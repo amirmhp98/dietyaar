@@ -20,13 +20,11 @@ export function NutritionDetails({
   mealCount,
   logComplete,
   ongoing,
-  className,
 }: {
   nutrition: TargetComparison[];
   mealCount: number;
   logComplete: boolean;
   ongoing: boolean;
-  className?: string;
 }) {
   const main = MAIN_NUTRIENTS.map((key) => nutrition.find((n) => n.nutrient === key)).filter(
     (n): n is TargetComparison => n !== undefined,
@@ -43,7 +41,6 @@ export function NutritionDetails({
   return (
     <Disclosure
       label={ongoing ? t('nutrition.title') : t('nutrition.titlePast')}
-      className={className}
       testId="nutrition-details"
     >
       <div className="space-y-3">
@@ -145,7 +142,7 @@ function statusText(row: TargetComparison, unit: string): string | null {
  * far; a minimum runs its band to the end, a maximum from the start, a single
  * figure is a narrow band around it.
  */
-export function nutrientBar(
+function nutrientBar(
   row: TargetComparison,
 ): { value: number | null; band: { from: number; to: number } } | null {
   const recorded = row.subtotal.value;
@@ -192,7 +189,7 @@ function NutrientRow({ row }: { row: TargetComparison }) {
                 ) : null}
               </span>
             </span>
-            {bar ? <MeterBar value={bar.value} band={bar.band} unknown={unknown} /> : null}
+            {bar ? <MeterBar value={bar.value} band={bar.band} /> : null}
           </span>
         }
       >

@@ -195,7 +195,7 @@ export function AddPlanFlow({
     );
   }
 
-  // ── 7: add your plan (also the failed state, text kept) ────
+  // ── 6: add your plan (also the failed state, text kept) ────
   return (
     <PlanScreen
       step={step}

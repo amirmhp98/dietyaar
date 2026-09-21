@@ -94,6 +94,13 @@ export function renamed<T extends { originalName: string; englishLabel: string }
   return { ...named, originalName, englishLabel: originalName };
 }
 
+/** Every option has at least one named item: what "Looks right" and the wizard's Continue need. */
+export function hasItems(slot: Pick<DraftSlot, 'options'>): boolean {
+  return slot.options.every(
+    (o) => o.items.length > 0 && o.items.every((i) => i.originalName.trim() !== ''),
+  );
+}
+
 /** A quantity typed while no unit is chosen is in grams; a chosen unit stays. */
 export function withQuantity(item: DraftItem, quantity: number | null): DraftItem {
   const unit = item.unit === null && quantity !== null ? 'g' : item.unit;

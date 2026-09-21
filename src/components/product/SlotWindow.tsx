@@ -16,9 +16,9 @@ export function slotWindowText(window: SlotWindow): string {
     : t('plan.time.range', { start, end });
 }
 
-export function SlotWindowText({ window, className }: { window: SlotWindow; className?: string }) {
+export function SlotWindowText({ window }: { window: SlotWindow }) {
   return (
-    <span dir="ltr" className={className} data-testid="slot-window">
+    <span dir="ltr" data-testid="slot-window">
       {slotWindowText(window)}
     </span>
   );

@@ -11,17 +11,6 @@ import type { DraftItem, DraftOption, DraftSlot } from '@/lib/validations/plan';
 import { UnitSelect } from './UnitSelect';
 import { newKey, numberText, parseNumber, renamed, withQuantity } from './helpers';
 
-/**
- * Inline editor for one slot: name, times, options and their items (name,
- * amount, unit). Used by 7a "Fix" and by the manual wizard. A name typed here
- * is also the English label (the AI's label survives only edits to other
- * fields); changing a quantity or a name clears "Assumed" and flags the item
- * for re-estimation on 7b. A quantity typed without a unit is in grams.
- * Typing a time turns an assumed window into a stated one. With
- * `compactItems`, a named item is one row (amount · name · pencil) until its
- * pencil opens the fields (decision 025); items without a name start open.
- */
-
 export function newItem(position: number): DraftItem {
   return {
     key: newKey(),
@@ -63,6 +52,16 @@ export function newSlot(weekday: number, position: number): DraftSlot {
   };
 }
 
+/**
+ * Inline editor for one slot: name, times, options and their items (name,
+ * amount, unit). Used by 7a "Fix" and by the manual wizard. A name typed here
+ * is also the English label (the AI's label survives only edits to other
+ * fields); changing a quantity or a name clears "Assumed" and flags the item
+ * for re-estimation on 7b. A quantity typed without a unit is in grams.
+ * Typing a time turns an assumed window into a stated one. With
+ * `compactItems`, a named item is one row (amount · name · pencil) until its
+ * pencil opens the fields (decision 025); items without a name start open.
+ */
 export function SlotEditor({
   slot,
   onChange,
@@ -303,23 +302,17 @@ export function QuantityInput({
   value,
   onChange,
   onInvalid,
-  id,
-  ariaLabel,
 }: {
   value: number | null;
   onChange: (value: number | null) => void;
   onInvalid?: (invalid: boolean) => void;
-  id?: string;
-  ariaLabel?: string;
 }) {
   const [raw, setRaw] = useState(numberText(value));
   return (
     <Input
-      id={id}
       inputMode="decimal"
       dir="auto"
       className="h-11"
-      aria-label={ariaLabel}
       value={raw}
       onChange={(e) => {
         setRaw(e.target.value);

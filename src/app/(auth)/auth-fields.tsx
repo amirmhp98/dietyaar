@@ -17,20 +17,31 @@ export function AuthHeader({ title }: { title: string }) {
   );
 }
 
+/** The action's error above the submit button. */
+export function AuthError({ error, testId }: { error: string | undefined; testId: string }) {
+  return error ? (
+    <div
+      role="alert"
+      data-testid={testId}
+      className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+    >
+      {error}
+    </div>
+  ) : null;
+}
+
 /** A labelled 44 px input; the label binds to the input directly, so tests and assistive tech find it. */
 export function AuthField({
   id,
   label,
-  hint,
   ...input
-}: { id: string; label: string; hint?: string } & ComponentProps<typeof Input>) {
+}: { id: string; label: string } & ComponentProps<typeof Input>) {
   return (
     <div className="space-y-1.5">
       <label htmlFor={id} className="text-sm font-medium text-foreground">
         {label}
       </label>
       <Input id={id} className="h-11" {...input} />
-      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }

@@ -33,12 +33,6 @@ export interface ReflectionContext {
   hasPlan: boolean;
   /** No confirmed meal on any day before today. */
   isFirstDay: boolean;
-  profile?: {
-    ageYears: number | null;
-    sex: string | null;
-    heightCm: number | null;
-    weightKg: number | null;
-  };
 }
 
 /** A name as the user wrote it; the English label only stands in when the original is blank. */

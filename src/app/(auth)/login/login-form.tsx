@@ -5,7 +5,7 @@ import { useActionState } from 'react';
 import { LogIn } from 'lucide-react';
 import { loginAction } from '@/actions/auth.actions';
 import { Button } from '@/components/UiComponents';
-import { AuthField, AuthHeader, PasswordField } from '@/app/(auth)/auth-fields';
+import { AuthError, AuthField, AuthHeader, PasswordField } from '@/app/(auth)/auth-fields';
 import { t } from '@/lib/t';
 
 /** Sign in (design-scope screen 1): the value line under the logo, two fields, one filled button. */
@@ -38,15 +38,7 @@ export function LoginForm() {
             placeholder={t('auth.login.passwordPlaceholder')}
           />
 
-          {state?.error && (
-            <div
-              role="alert"
-              data-testid="login-error"
-              className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-            >
-              {state.error}
-            </div>
-          )}
+          <AuthError error={state?.error} testId="login-error" />
 
           <Button type="submit" loading={isPending} className="w-full">
             <LogIn aria-hidden="true" />

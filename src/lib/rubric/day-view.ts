@@ -7,6 +7,7 @@ import {
   nutritionComponent,
   nutritionSubtotals,
 } from '@/lib/rubric/nutrition';
+import { sortedOptions } from '@/lib/rubric/options';
 import { portionResult } from '@/lib/rubric/portion';
 import { scoreDay, scoreSlot } from '@/lib/rubric/score';
 import { orderResult, statedWindow, timeResult, type OrderEntry } from '@/lib/rubric/timing';
@@ -22,8 +23,6 @@ import type {
 } from '@/lib/rubric/types';
 import {
   assignWindows,
-  DAY_END,
-  DAY_START,
   windowOf,
   windowStateAt,
   type SlotWindow,
@@ -37,9 +36,9 @@ function earliestTime(meals: RubricMeal[]): string | null {
   return times.reduce((a, b) => (minutesBetween(a, b) > 0 ? a : b));
 }
 
-/** After `assignWindows` every slot has one; the whole-day fallback is never reached. */
+/** After `assignWindows` every slot has one. */
 function windowFor(slot: RubricSlot): SlotWindow {
-  return windowOf(slot) ?? { start: DAY_START, end: DAY_END, assumed: true };
+  return windowOf(slot)!;
 }
 
 /** Past day: every window has passed; future day: none has opened; today: the clock decides. */
@@ -56,8 +55,7 @@ function windowStateFor(input: DayInput, window: SlotWindow): WindowState {
  */
 function referenceOption(view: SlotView): RubricOption | null {
   if (view.option) return view.option;
-  const [first] = [...view.slot.options].sort((a, b) => a.position - b.position);
-  return first ?? null;
+  return sortedOptions(view.slot)[0] ?? null;
 }
 
 /**

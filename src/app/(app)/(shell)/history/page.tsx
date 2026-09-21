@@ -8,6 +8,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { fillNames, InlineName } from '@/components/product/InlineName';
+import { bandLabel } from '@/components/product/ScoreCard';
 import { SectionHeader } from '@/components/product/SectionHeader';
 import {
   BandGlyph,
@@ -158,13 +159,6 @@ function rowDate(localDate: string, today: string): string {
   return label;
 }
 
-const BAND_LABEL: Record<BandGlyphName, string> = {
-  CLOSELY: t('score.band.closely'),
-  MOSTLY: t('score.band.mostly'),
-  DIFFERENT: t('score.band.different'),
-  IN_PROGRESS: t('day.state.inProgress'),
-};
-
 // The row states the status in text, so the glyphs are decorative here.
 const status = (name: StatusGlyphName) => (
   <StatusGlyph status={name} size="sm" describe={false} className="text-muted-foreground" />
@@ -200,7 +194,7 @@ function rowState(row: DayRow): { glyph: React.ReactNode; text: string } {
         return { glyph: status('RECORDED'), text: t('score.notEnough') };
       return {
         glyph: band(scoreBand),
-        text: `${BAND_LABEL[scoreBand]} · ${t('history.row.coverage', { scored: coverage.scored, total: coverage.prescribed })}`,
+        text: `${bandLabel(scoreBand)} · ${t('history.row.coverage', { scored: coverage.scored, total: coverage.prescribed })}`,
       };
     }
   }

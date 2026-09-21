@@ -7,12 +7,14 @@ export type Band = 'SMALL' | 'NOTICEABLE' | 'LARGE';
 export const TIME_SMALL_MINUTES = 60;
 export const TIME_NOTICEABLE_MINUTES = 120;
 
+/** "HH:mm" → minutes since midnight. */
+export function toMinutes(time: string): number {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
+}
+
 /** Signed minutes from `a` to `b` ("HH:mm" → "HH:mm") on one linear day; a total order for sorting. */
 export function minutesBetween(a: string, b: string): number {
-  const toMinutes = (v: string) => {
-    const [h, m] = v.split(':').map(Number);
-    return h * 60 + m;
-  };
   return toMinutes(b) - toMinutes(a);
 }
 

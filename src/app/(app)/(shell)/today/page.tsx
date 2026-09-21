@@ -31,7 +31,6 @@ export default async function TodayPage() {
     <div className="space-y-6">
       <DayHeader
         localDate={localDate}
-        zone={APP_TIME_ZONE}
         greeting={t('today.greeting', { name: greetingNameFor(profile, user) })}
       />
       {draft ? <ImportBanner state={draft.state} /> : null}

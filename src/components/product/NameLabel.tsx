@@ -1,3 +1,4 @@
+import { nameText } from '@/components/product/InlineName';
 import { cn } from '@/lib/utils';
 
 /**
@@ -24,7 +25,7 @@ export function NameLabel({
   // shrink-to-fit box too wide and the word drifts to the right.
   return (
     <span className={cn('block', className)}>
-      <bdi className={cn('font-medium', sizes)}>{originalName.trim() || englishLabel.trim()}</bdi>
+      <bdi className={cn('font-medium', sizes)}>{nameText({ originalName, englishLabel })}</bdi>
     </span>
   );
 }

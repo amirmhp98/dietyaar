@@ -10,7 +10,7 @@ import { IconAction } from '@/components/product/IconAction';
 import { fillNames, InlineName, InlineNames } from '@/components/product/InlineName';
 import { NameLabel } from '@/components/product/NameLabel';
 import { slotWindowText } from '@/components/product/SlotWindow';
-import { StatusGlyph, type StatusGlyphName } from '@/components/product/StatusGlyph';
+import { MATCH_GLYPH, StatusGlyph, type StatusGlyphName } from '@/components/product/StatusGlyph';
 import { formatNumber } from '@/lib/format';
 import { optionNumber } from '@/lib/rubric/options';
 import type { EnergyResult, RubricTarget, SlotView } from '@/lib/rubric/types';
@@ -58,6 +58,16 @@ export function PlanSlotRow({
     energyRangeLine(slot.energyTarget),
   ].filter((part): part is string => part !== null);
   const passed = state === 'NOT_RECORDED' && windowState === 'PASSED' && ongoing;
+  const skipAction = onSkip ? (
+    <IconAction
+      label={t('slot.skipAria', { slot: name })}
+      icon={Minus}
+      className="shrink-0 text-muted-foreground"
+      onClick={() => onSkip(true)}
+      disabled={pending}
+      data-testid="mark-skipped"
+    />
+  ) : null;
 
   const head = (
     <Fragment>
@@ -96,7 +106,6 @@ export function PlanSlotRow({
       className={cn(highlighted && 'bg-tint-1')}
     >
       {state === 'RECORDED' && match ? (
-        // The whole row opens the differences: one 44 px target with the chevron at the end.
         <Disclosure
           testId="slot-details"
           triggerClassName="items-start rounded-none px-3 py-3 font-normal focus-visible:ring-inset focus-visible:ring-offset-0"
@@ -139,16 +148,7 @@ export function PlanSlotRow({
                       data-testid="log-slot"
                     />
                   ) : null}
-                  {onSkip ? (
-                    <IconAction
-                      label={t('slot.skipAria', { slot: name })}
-                      icon={Minus}
-                      className="text-muted-foreground"
-                      onClick={() => onSkip(true)}
-                      disabled={pending}
-                      data-testid="mark-skipped"
-                    />
-                  ) : null}
+                  {skipAction}
                 </Fragment>
               ) : null}
               {state === 'SKIPPED' && onSkip ? (
@@ -186,16 +186,7 @@ export function PlanSlotRow({
                   {t('day.plan.logThis')}
                 </Button>
               ) : null}
-              {onSkip ? (
-                <IconAction
-                  label={t('slot.skipAria', { slot: name })}
-                  icon={Minus}
-                  className="shrink-0 text-muted-foreground"
-                  onClick={() => onSkip(true)}
-                  disabled={pending}
-                  data-testid="mark-skipped"
-                />
-              ) : null}
+              {skipAction}
             </div>
           ) : null}
         </div>
@@ -214,11 +205,7 @@ export function glyphFor(slot: SlotView): StatusGlyphName {
     case 'NEEDS_REVIEW':
       return 'NEEDS_REVIEW';
     case 'RECORDED':
-      return slot.match?.status === 'DIFFERENT_FOOD'
-        ? 'DIFFERENT'
-        : slot.match?.status === 'PARTLY_MATCHED'
-          ? 'PARTLY'
-          : 'RECORDED';
+      return slot.match ? MATCH_GLYPH[slot.match.status] : 'RECORDED';
     case 'NOT_RECORDED':
       return slot.windowState === 'UPCOMING' ? 'UPCOMING' : 'NOT_RECORDED';
   }
@@ -287,11 +274,6 @@ function reasonText(slot: SlotView): ReactNode {
 
 // ─── Expanded details ──────────────────────────────────────────────────────
 
-/** "120 g", "3 slices"; a piece count is a bare number since the item's name leads the chip. */
-function amount(value: number, unit: string): string {
-  return portionAmount(value, unit);
-}
-
 function SlotDetails({ slot }: { slot: SlotView }) {
   const chips: Array<{ kind: DifferenceKind; node: ReactNode; key: string }> = [];
   const lines: Array<{ node: ReactNode; key: string }> = [];
@@ -302,8 +284,8 @@ function SlotDetails({ slot }: { slot: SlotView }) {
     if (item.band === 'SMALL') continue;
     const more = item.ratio > 0;
     const params = {
-      actual: amount(item.actual, item.unit),
-      planned: amount(item.planned, item.unit),
+      actual: portionAmount(item.actual, item.unit),
+      planned: portionAmount(item.planned, item.unit),
     };
     const text =
       item.band === 'NOTICEABLE'

@@ -32,7 +32,7 @@ export default async function HistoryDayPage({ params }: { params: Promise<{ dat
   ]);
   return (
     <div className="space-y-6">
-      <HistoryDayHeader localDate={date} zone={day.zone} />
+      <HistoryDayHeader localDate={date} />
 
       {message?.paragraph ? (
         <ReflectionCard
@@ -48,7 +48,7 @@ export default async function HistoryDayPage({ params }: { params: Promise<{ dat
         zone={day.zone}
         view={day.view}
         meals={day.meals}
-        draftPending={day.plan?.draft !== null && day.plan?.draft !== undefined}
+        draftPending={!!day.plan?.draft}
       />
     </div>
   );

@@ -43,14 +43,16 @@ import { MealReview } from '@/components/product/MealReview';
 import { AmountPrefix, GramsEach } from '@/components/product/ItemAmount';
 import { NameLabel } from '@/components/product/NameLabel';
 import { SectionHeader } from '@/components/product/SectionHeader';
-import { StatusGlyph, type StatusGlyphName } from '@/components/product/StatusGlyph';
+import { MATCH_GLYPH, StatusGlyph } from '@/components/product/StatusGlyph';
 import { Surface } from '@/components/product/Surface';
 import { useComposerOpener } from '@/components/product/composer-bus';
 import { OTHER_SLOT, SlotSelect } from '@/components/product/meal/SlotPicker';
-import { NUTRIENT_UNITS, portionValues, sumTotals } from '@/components/product/meal/totals';
-import { formatDate, formatNumber, formatTime } from '@/lib/format';
+import { SourcesList } from '@/components/product/meal/SourcesList';
+import { sanitizeItems } from '@/components/product/meal/composition';
+import { portionValues, sumTotals, totalText } from '@/components/product/meal/totals';
+import { formatLocalDate, formatNumber, formatTime } from '@/lib/format';
 import { optionNumber } from '@/lib/rubric/options';
-import type { MatchStatus, RubricSlot, SlotView } from '@/lib/rubric/types';
+import type { RubricSlot, SlotView } from '@/lib/rubric/types';
 import { t } from '@/lib/t';
 import { instantFor } from '@/lib/time';
 import { portionAmount } from '@/lib/units';
@@ -101,12 +103,6 @@ function toDraftState(meal: MealView): MealDraftState {
     lastChanges: [],
   };
 }
-
-const MATCH_GLYPH: Record<MatchStatus, StatusGlyphName> = {
-  MATCHED: 'RECORDED',
-  PARTLY_MATCHED: 'PARTLY',
-  DIFFERENT_FOOD: 'DIFFERENT',
-};
 
 /** The meal's items as the user wrote them: the page title and the delete confirmation. */
 function MealName({ meal }: { meal: MealView }) {
@@ -226,9 +222,9 @@ export function MealDetails({
   const slot = slots.find((s) => s.id === meal.planSlotId) ?? null;
   const optionN = slot ? optionNumber(slot, meal.planOptionId) : null;
   const diffs = useMemo(() => differences(slotView), [slotView]);
+  const dateLabel = formatLocalDate(meal.localDate);
   // The meal's day carries the zone it was computed in.
   const zone = meal.timeZone;
-  const dateLabel = formatDate(instantFor(meal.localDate, '12:00', zone), { timeZone: zone });
   const timeLabel = meal.consumedLocalTime
     ? formatTime(instantFor(meal.localDate, meal.consumedLocalTime, zone), { timeZone: zone })
     : t('meal.details.timeUnknown');
@@ -247,13 +243,6 @@ export function MealDetails({
     if (!editState) return;
     setSaving(true);
     setEditError(null);
-    const items = editState.items
-      .filter((i) => i.originalName.trim() !== '')
-      .map((i, position) => ({
-        ...i,
-        position,
-        englishLabel: i.englishLabel.trim() || i.originalName.trim(),
-      }));
     const result = await updateMealAction({
       mealId: meal.id,
       expectedRevision: meal.revision,
@@ -261,7 +250,7 @@ export function MealDetails({
         time: editState.time,
         localDate: editState.localDate,
         notes: editState.notes,
-        items,
+        items: sanitizeItems(editState.items),
       },
     });
     setSaving(false);
@@ -354,7 +343,6 @@ export function MealDetails({
             setEditing(false);
             setEditState(null);
           }}
-          saveLabel={t('meal.review.save')}
           dateSummary={`${dateLabel} · ${timeLabel}`}
           today={today}
         />
@@ -616,9 +604,7 @@ export function MealDetails({
               <div key={key} className="flex min-h-11 items-center justify-between gap-3 px-3 py-2">
                 <dt className="text-sm">{t(`meal.nutrient.${key}`)}</dt>
                 <dd className="text-sm font-medium tabular-nums" dir="ltr">
-                  {totals.values[key] === null
-                    ? t('meal.nutrient.unknown')
-                    : `${formatNumber(totals.values[key], { maximumFractionDigits: 0 })} ${t(`meal.nutrient.unit.${NUTRIENT_UNITS[key]}`)}`}
+                  {totalText(key, totals.values[key])}
                 </dd>
               </div>
             ))}
@@ -635,31 +621,14 @@ export function MealDetails({
                   <div key={key} className="flex items-center justify-between gap-3 py-2">
                     <dt className="text-sm">{t(`meal.nutrient.${key}`)}</dt>
                     <dd className="text-sm tabular-nums" dir="ltr">
-                      {totals.values[key] === null
-                        ? t('meal.nutrient.unknown')
-                        : `${formatNumber(totals.values[key], { maximumFractionDigits: 1 })} ${t(`meal.nutrient.unit.${NUTRIENT_UNITS[key]}`)}`}
+                      {totalText(key, totals.values[key], 1)}
                     </dd>
                   </div>
                 ))}
               </dl>
             </Disclosure>
             <Disclosure label={t('meal.review.sources')}>
-              <ul className="space-y-1 text-sm">
-                {meal.items.map((item) => (
-                  <li key={item.id} className="flex flex-wrap items-baseline gap-x-2">
-                    <NameLabel
-                      originalName={item.originalName}
-                      englishLabel={item.englishLabel}
-                      size="sm"
-                    />
-                    <span className="text-muted-foreground">
-                      {item.nutrition
-                        ? `${t(`meal.review.source.${item.nutrition.source}`)}${item.nutrition.sourceRef ? ` · ${item.nutrition.sourceRef}` : ''}`
-                        : t('meal.review.sourceNone')}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <SourcesList items={meal.items} />
             </Disclosure>
           </div>
         </Surface>

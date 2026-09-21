@@ -66,7 +66,6 @@ export const day = {
   'slot.energy.max': 'Up to {value} kcal',
   'slot.energy.about': 'About {value} kcal',
   'slot.energy.recorded': '{value} kcal recorded',
-  'slot.markSkipped': 'Mark skipped',
   'slot.skipAria': 'Mark {slot} skipped',
   'slot.log': 'Log',
   'slot.logAria': 'Log {slot}',

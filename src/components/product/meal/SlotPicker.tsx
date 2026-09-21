@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 export { OTHER_SLOT };
 
 /** The option's energy when every item states one; otherwise nothing is claimed. */
-export function optionKcal(option: RubricOption): number | null {
+function optionKcal(option: RubricOption): number | null {
   let sum = 0;
   for (const item of option.items) {
     const kcal = item.nutrition?.values.ENERGY_KCAL;
@@ -39,14 +39,12 @@ export function OptionList({
   lastUsedOptionId,
   onPick,
   testId,
-  className,
 }: {
   slot: RubricSlot;
   selectedOptionId: string | null;
   lastUsedOptionId: string | null;
   onPick: (optionId: string) => void;
   testId?: string;
-  className?: string;
 }) {
   return (
     <Surface
@@ -54,7 +52,6 @@ export function OptionList({
       role="radiogroup"
       aria-label={t('meal.compose.chooseOption')}
       data-testid={testId}
-      className={className}
     >
       {sortedOptions(slot).map((option, index) => {
         const selected = option.id === selectedOptionId;
@@ -120,18 +117,16 @@ export function PlannedSlotsRow({
   slots,
   lastUsed,
   recordedSlotIds = [],
-  initialExpandedSlotId = null,
   onExpand,
   onPick,
 }: {
   slots: RubricSlot[];
   lastUsed: Record<string, string | null>;
   recordedSlotIds?: readonly string[];
-  initialExpandedSlotId?: string | null;
   onExpand: (slotId: string) => void;
   onPick: (slotId: string, optionId: string) => void;
 }) {
-  const [expanded, setExpanded] = useState<string | null>(initialExpandedSlotId);
+  const [expanded, setExpanded] = useState<string | null>(null);
   const open = slots.find((s) => s.id === expanded) ?? null;
   return (
     <div className="space-y-3">

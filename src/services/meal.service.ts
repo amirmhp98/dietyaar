@@ -8,6 +8,7 @@ import { t } from '@/lib/t';
 import { bestOption, matchSlot, optionRequiredFor } from '@/lib/rubric/match-slot';
 import { isCountUnit } from '@/lib/units';
 import { foodKey, sameFood } from '@/lib/rubric/names';
+import { sortedOptions } from '@/lib/rubric/options';
 import { restrictionHits } from '@/lib/rubric/restrictions';
 import type {
   MatchResult,
@@ -738,7 +739,7 @@ function suggestLink(
   const byIndex =
     output.suggestedOptionIndex === null
       ? undefined
-      : [...slot.options].sort((a, b) => a.position - b.position)[output.suggestedOptionIndex];
+      : sortedOptions(slot)[output.suggestedOptionIndex];
   const option = byIndex ?? bestOption(items.map(toRubricItem), slot);
   return { planSlotId: slot.id, planOptionId: option?.id ?? null };
 }

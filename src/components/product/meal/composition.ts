@@ -2,8 +2,9 @@ import type { DraftFoodItem } from '@/lib/validations/meal';
 
 /**
  * Pure pieces of the composer's state logic, kept out of the island so they
- * can be unit-tested: new items, the manual seed (B7), the time gate (B6)
- * and the default slot link after an analysis (B4).
+ * can be unit-tested: new items, the manual seed (B7), the items as the
+ * server takes them, the time gate (B6) and the default slot link after an
+ * analysis (B4).
  */
 
 export const OTHER_SLOT = 'OTHER';
@@ -41,6 +42,17 @@ export function seedManualItem(text: string): DraftFoodItem | null {
   const name = text.trim().slice(0, MANUAL_SEED_MAX).trim();
   if (name === '') return null;
   return { ...newDraftItem(0), originalName: name, englishLabel: name, quantityUnknown: true };
+}
+
+/** The items as the server takes them: blank names dropped, positions renumbered, the English label falling back to the name. */
+export function sanitizeItems(items: DraftFoodItem[]): DraftFoodItem[] {
+  return items
+    .filter((item) => item.originalName.trim() !== '')
+    .map((item, position) => ({
+      ...item,
+      position,
+      englishLabel: item.englishLabel.trim() || item.originalName.trim(),
+    }));
 }
 
 /**

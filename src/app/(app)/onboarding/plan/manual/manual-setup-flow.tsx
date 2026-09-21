@@ -22,7 +22,7 @@ import {
   newTarget,
   targetComplete,
 } from '@/components/product/plan-review/TargetFields';
-import { newKey, renamed, weekdayName } from '@/components/product/plan-review/helpers';
+import { hasItems, newKey, renamed, weekdayName } from '@/components/product/plan-review/helpers';
 import {
   Button,
   FormField,
@@ -580,9 +580,7 @@ function ItemsScreen({
     ...slot,
     options: slot.options.map((o) => (o.items.length === 0 ? { ...o, items: [newItem(0)] } : o)),
   }));
-  const valid = edited.options.every(
-    (o) => o.items.length > 0 && o.items.every((i) => i.originalName.trim() !== ''),
-  );
+  const valid = hasItems(edited);
   return (
     <PlanScreen
       step={step}

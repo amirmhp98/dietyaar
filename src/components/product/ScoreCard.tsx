@@ -2,8 +2,22 @@ import { MeterBar } from '@/components/product/MeterBar';
 import { ScoreNumeral } from '@/components/product/ScoreNumeral';
 import { BandGlyph, type BandGlyphName } from '@/components/product/StatusGlyph';
 import { Surface } from '@/components/product/Surface';
-import type { DayScore } from '@/lib/rubric/types';
+import type { DayScore, WordingBand } from '@/lib/rubric/types';
 import { t, tp } from '@/lib/t';
+
+/** The band as the score card and the History rows word it. */
+export function bandLabel(band: WordingBand): string {
+  switch (band) {
+    case 'CLOSELY':
+      return t('score.band.closely');
+    case 'MOSTLY':
+      return t('score.band.mostly');
+    case 'DIFFERENT':
+      return t('score.band.different');
+    case 'NOT_ENOUGH':
+      return t('score.notEnough');
+  }
+}
 
 /**
  * Score card (product spec § 8 display, design.md "Product UI" › hero): the
@@ -29,14 +43,6 @@ export function ScoreCard({
   const { coverage } = score;
   const notEnough = score.band === 'NOT_ENOUGH';
   const band: BandGlyphName = score.band === 'NOT_ENOUGH' ? 'IN_PROGRESS' : score.band;
-  const bandLabel =
-    score.band === 'CLOSELY'
-      ? t('score.band.closely')
-      : score.band === 'MOSTLY'
-        ? t('score.band.mostly')
-        : score.band === 'DIFFERENT'
-          ? t('score.band.different')
-          : t('score.notEnough');
   const coverageParts = [tp('score.coverage', coverage.scored, { total: coverage.prescribed })];
   if (coverage.skipped > 0) coverageParts.push(tp('score.skipped', coverage.skipped));
   if (score.completeByDefault) coverageParts.push(t('score.completeByDefault'));
@@ -67,7 +73,7 @@ export function ScoreCard({
           }
           data-testid="score-band"
         >
-          {bandLabel}
+          {bandLabel(score.band)}
         </span>
       </div>
       {coverage.prescribed > 0 ? (

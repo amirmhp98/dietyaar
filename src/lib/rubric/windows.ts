@@ -1,3 +1,5 @@
+import { toMinutes } from '@/lib/time/bands';
+
 /**
  * Meal time windows (product spec § 6 "Optional meal times/windows", § 9):
  * every slot gets one. Times the plan states are kept as they are; every
@@ -33,8 +35,8 @@ interface WindowRule {
 }
 
 /** Unrecognised names share this span, in plan order. */
-export const DAY_START = '07:00';
-export const DAY_END = '22:00';
+const DAY_START = '07:00';
+const DAY_END = '22:00';
 
 /**
  * First matching rule wins, so the compound names come before the words they
@@ -132,11 +134,6 @@ export function keywordWindow(
       return { start: rule.start, end: rule.end };
   }
   return null;
-}
-
-function toMinutes(time: string): number {
-  const [h, m] = time.split(':').map(Number);
-  return h * 60 + m;
 }
 
 function toTime(minutes: number): string {

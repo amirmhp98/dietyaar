@@ -2,19 +2,12 @@
 
 import type { ReactNode } from 'react';
 import { CalendarDays, History, PencilLine, Sparkles, Sun, Utensils } from 'lucide-react';
-import {
-  Button,
-  Checkbox,
-  Input,
-  Label,
-  Skeleton,
-  Spinner,
-  Textarea,
-} from '@/components/UiComponents';
+import { Button, Label, Skeleton, Spinner, Textarea } from '@/components/UiComponents';
 import { Disclosure } from '@/components/product/Disclosure';
 import { InlineName, InlineNames } from '@/components/product/InlineName';
 import { SectionHeader } from '@/components/product/SectionHeader';
 import { Surface } from '@/components/product/Surface';
+import { DateTimeFields, NotesField } from '@/components/product/meal/DetailFields';
 import { PhotoPicker, type StagedPhoto } from '@/components/product/meal/PhotoPicker';
 import { ResumedBanner } from '@/components/product/meal/ResumedBanner';
 import {
@@ -356,46 +349,16 @@ export function MealComposer(props: MealComposerProps) {
         testId="more-details"
       >
         <div className="space-y-4 pt-2">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1">
-              <Label htmlFor="composer-date" className="text-xs">
-                {t('meal.compose.date')}
-              </Label>
-              <Input
-                id="composer-date"
-                type="date"
-                className="h-11 w-44"
-                dir="ltr"
-                max={today}
-                value={localDate}
-                onChange={(event) => {
-                  if (event.target.value) onDateChange(event.target.value);
-                }}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="composer-time" className="text-xs">
-                {t('meal.compose.time')}
-              </Label>
-              <Input
-                id="composer-time"
-                type="time"
-                className="h-11 w-32"
-                dir="ltr"
-                disabled={timeUnknown}
-                value={time ?? ''}
-                onChange={(event) => onTimeChange(event.target.value || null)}
-              />
-            </div>
-            <label className="flex min-h-11 items-center gap-2 text-sm">
-              <Checkbox
-                checked={timeUnknown}
-                data-testid="time-unknown"
-                onCheckedChange={(checked) => onTimeUnknownChange(checked === true)}
-              />
-              {t('meal.compose.timeUnknown')}
-            </label>
-          </div>
+          <DateTimeFields
+            idPrefix="composer"
+            localDate={localDate}
+            today={today}
+            time={time}
+            timeUnknown={timeUnknown}
+            onDateChange={onDateChange}
+            onTimeChange={onTimeChange}
+            onTimeUnknownChange={onTimeUnknownChange}
+          />
           {timeMissing(time, timeUnknown) ? (
             <p className="text-sm text-muted-foreground" role="status" data-testid="time-required">
               {t('meal.review.timeRequired')}
@@ -415,20 +378,7 @@ export function MealComposer(props: MealComposerProps) {
               onSlotChange(slotId, option);
             }}
           />
-          <div className="space-y-1">
-            <Label htmlFor="composer-notes" className="text-xs">
-              {t('meal.compose.notes')}
-            </Label>
-            <Textarea
-              id="composer-notes"
-              dir="auto"
-              rows={2}
-              maxLength={1000}
-              placeholder={t('meal.compose.notesPlaceholder')}
-              value={notes}
-              onChange={(event) => onNotesChange(event.target.value)}
-            />
-          </div>
+          <NotesField idPrefix="composer" value={notes} onChange={onNotesChange} />
         </div>
       </Disclosure>
     </div>

@@ -1,37 +1,23 @@
-import { formatDate } from '@/lib/format';
-import { instantFor } from '@/lib/time/local-date';
+import { formatLocalDate } from '@/lib/format';
 
-/** Full date of a local day in its zone, e.g. "Wednesday, September 17, 2026". */
-export function fullDate(localDate: string, zone: string): string {
-  return formatDate(instantFor(localDate, '12:00', zone), { timeZone: zone, dateStyle: 'full' });
+/** Full date of a local day, e.g. "Wednesday, September 17, 2026". */
+export function fullDate(localDate: string): string {
+  return formatLocalDate(localDate, { dateStyle: 'full' });
 }
 
-/** Page header shared by Today and a History day: the date in the display face, and an optional greeting line. */
-export function DayHeader({
-  localDate,
-  zone,
-  greeting,
-  eyebrow,
-}: {
-  localDate: string;
-  zone: string;
-  greeting?: string;
-  eyebrow?: string;
-}) {
+/** Today's page header: the date in the display face and the greeting line. */
+export function DayHeader({ localDate, greeting }: { localDate: string; greeting: string }) {
   return (
     <header className="space-y-1">
-      {eyebrow ? <p className="text-sm text-muted-foreground">{eyebrow}</p> : null}
       <h1 className="font-display text-2xl font-semibold leading-tight" data-testid="day-date">
-        {fullDate(localDate, zone)}
+        {fullDate(localDate)}
       </h1>
-      {greeting ? (
-        <p
-          className="bidi-plaintext font-display text-base text-muted-foreground"
-          data-testid="greeting"
-        >
-          {greeting}
-        </p>
-      ) : null}
+      <p
+        className="bidi-plaintext font-display text-base text-muted-foreground"
+        data-testid="greeting"
+      >
+        {greeting}
+      </p>
     </header>
   );
 }

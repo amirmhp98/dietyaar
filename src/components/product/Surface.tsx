@@ -1,7 +1,7 @@
 import type { HTMLAttributes, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
-export type SurfaceVariant = 'hero' | 'list' | 'note';
+type SurfaceVariant = 'hero' | 'list' | 'note';
 
 type SurfaceTag = 'div' | 'section' | 'article' | 'aside' | 'ul' | 'ol' | 'li';
 

@@ -7,7 +7,7 @@ import { t, tp } from '@/lib/t';
 import { cn } from '@/lib/utils';
 
 /** How many slot cards show before "Show all N meals" (decision 025: My plan is not a document). */
-export const VISIBLE_SLOTS = 2;
+const VISIBLE_SLOTS = 2;
 
 /**
  * The slot cards of one day: the first two always, the rest behind one

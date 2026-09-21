@@ -58,7 +58,6 @@ export function ReflectionCard({
   const ready = phase === 'READY';
   const collapsible = ready && acknowledged && onToggleExpanded !== undefined;
   const open = !collapsible || expanded;
-  // The morning moment: the paragraph is capped to its first lines until "Read more".
   const capped = ready && !acknowledged && onAcknowledge !== undefined;
   const [readMore, setReadMore] = useState(false);
   const [overflows, setOverflows] = useState(false);

@@ -2,35 +2,27 @@
 
 import { useMemo, useState, type ReactNode } from 'react';
 import { CalendarDays, Check, CirclePlus, CloudOff, Flame, Pencil, Plus } from 'lucide-react';
-import {
-  Badge,
-  Button,
-  Checkbox,
-  Input,
-  Label,
-  Spinner,
-  Textarea,
-} from '@/components/UiComponents';
+import { Badge, Button, Spinner } from '@/components/UiComponents';
 import { DifferenceChip } from '@/components/product/DifferenceChip';
 import { Disclosure } from '@/components/product/Disclosure';
 import { IconAction } from '@/components/product/IconAction';
 import { InlineName, InlineNames, fillNames } from '@/components/product/InlineName';
-import { NameLabel } from '@/components/product/NameLabel';
 import { SectionHeader } from '@/components/product/SectionHeader';
-import { StatusGlyph, type StatusGlyphName } from '@/components/product/StatusGlyph';
+import { MATCH_GLYPH, StatusGlyph, type StatusGlyphName } from '@/components/product/StatusGlyph';
 import { Surface } from '@/components/product/Surface';
+import { DateTimeFields, NotesField } from '@/components/product/meal/DetailFields';
 import { ItemRow } from '@/components/product/meal/ItemRow';
 import type { StagedPhoto } from '@/components/product/meal/PhotoPicker';
 import { PhotoThumbnails } from '@/components/product/meal/PhotoThumbnails';
 import { QuestionCard } from '@/components/product/meal/QuestionCard';
 import { ResumedBanner } from '@/components/product/meal/ResumedBanner';
 import { OTHER_SLOT, OptionList, SlotSelect } from '@/components/product/meal/SlotPicker';
+import { SourcesList } from '@/components/product/meal/SourcesList';
 import { newDraftItem } from '@/components/product/meal/composition';
 import { quantityFromChoice } from '@/components/product/meal/questions';
 import { reviewGate } from '@/components/product/meal/review-state';
-import { NUTRIENT_UNITS, sumTotals } from '@/components/product/meal/totals';
-import { formatNumber } from '@/lib/format';
-import type { MatchResult, MatchStatus, RubricSlot } from '@/lib/rubric/types';
+import { sumTotals, totalText } from '@/components/product/meal/totals';
+import type { MatchResult, RubricSlot } from '@/lib/rubric/types';
 import { t } from '@/lib/t';
 import type { DraftFoodItem, MealDraftState } from '@/lib/validations/meal';
 import { MAIN_NUTRIENTS } from '@/lib/validations/nutrition';
@@ -68,7 +60,6 @@ export interface MealReviewProps {
   onSave: () => void;
   onReload: () => void;
   onCancel?: () => void;
-  saveLabel?: string;
   dateSummary: string;
   today: string;
   /** Lifted by the composer so the compose step and the review agree; local otherwise (edit mode). */
@@ -84,12 +75,6 @@ export interface MealReviewProps {
    */
   footer?: 'inline' | 'external';
 }
-
-const MATCH_GLYPH: Record<MatchStatus, StatusGlyphName> = {
-  MATCHED: 'RECORDED',
-  PARTLY_MATCHED: 'PARTLY',
-  DIFFERENT_FOOD: 'DIFFERENT',
-};
 
 function matchLabel(match: MatchResult): { text: string; reason: ReactNode | null } {
   const text = t(`meal.review.match.${match.status}`);
@@ -206,29 +191,21 @@ export function MealReview(props: MealReviewProps) {
       </div>
 
       {conflict ? (
-        <div
-          role="alert"
-          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning bg-warning/10 p-3 text-sm"
-          data-testid="conflict-banner"
-        >
-          <span>{t('meal.errors.conflict')}</span>
-          <Button type="button" variant="outline" size="sm" onClick={onReload}>
-            {t('meal.review.reload')}
-          </Button>
-        </div>
+        <WarningBar
+          message={t('meal.errors.conflict')}
+          action={t('meal.review.reload')}
+          onAction={onReload}
+          testId="conflict-banner"
+        />
       ) : null}
 
       {refineError ? (
-        <div
-          role="alert"
-          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning bg-warning/10 p-3 text-sm"
-          data-testid="refine-failed"
-        >
-          <span>{refineError}</span>
-          <Button type="button" variant="outline" size="sm" onClick={onReestimate}>
-            {t('meal.compose.retry')}
-          </Button>
-        </div>
+        <WarningBar
+          message={refineError}
+          action={t('meal.compose.retry')}
+          onAction={onReestimate}
+          testId="refine-failed"
+        />
       ) : null}
 
       <PhotoThumbnails photos={photos} />
@@ -304,9 +281,7 @@ export function MealReview(props: MealReviewProps) {
             <div key={key} className="min-w-0">
               <dt className="text-xs text-muted-foreground">{t(`meal.nutrient.${key}`)}</dt>
               <dd className="font-display text-base font-semibold tabular-nums" dir="ltr">
-                {totals.values[key] === null
-                  ? t('meal.nutrient.unknown')
-                  : `${formatNumber(totals.values[key], { maximumFractionDigits: 0 })} ${t(`meal.nutrient.unit.${NUTRIENT_UNITS[key]}`)}`}
+                {totalText(key, totals.values[key])}
               </dd>
             </div>
           ))}
@@ -328,18 +303,7 @@ export function MealReview(props: MealReviewProps) {
           </div>
         ) : null}
         <Disclosure label={t('meal.review.sources')} testId="sources-toggle">
-          <ul className="space-y-1 text-sm">
-            {state.items.map((item) => (
-              <li key={item.key} className="flex flex-wrap items-baseline gap-x-2">
-                <NameLabel originalName={item.originalName || t('meal.review.newItem')} size="sm" />
-                <span className="text-muted-foreground">
-                  {item.nutrition
-                    ? `${t(`meal.review.source.${item.nutrition.source}`)}${item.nutrition.sourceRef ? ` · ${item.nutrition.sourceRef}` : ''}`
-                    : t('meal.review.sourceNone')}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <SourcesList items={state.items} />
         </Disclosure>
       </Surface>
 
@@ -353,60 +317,21 @@ export function MealReview(props: MealReviewProps) {
           {gate.backdated ? (
             <p className="text-sm text-muted-foreground">{t('meal.compose.confirmTime')}</p>
           ) : null}
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1">
-              <Label htmlFor="review-date" className="text-xs">
-                {t('meal.compose.date')}
-              </Label>
-              <Input
-                id="review-date"
-                type="date"
-                className="h-11 w-44"
-                dir="ltr"
-                max={today}
-                value={state.localDate}
-                onChange={(event) => {
-                  if (event.target.value) onChange({ localDate: event.target.value });
-                }}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="review-time" className="text-xs">
-                {t('meal.compose.time')}
-              </Label>
-              <Input
-                id="review-time"
-                type="time"
-                className="h-11 w-32"
-                dir="ltr"
-                disabled={timeUnknown}
-                value={state.time ?? ''}
-                onChange={(event) => onChange({ time: event.target.value || null })}
-              />
-            </div>
-            <label className="flex min-h-11 items-center gap-2 text-sm">
-              <Checkbox
-                checked={timeUnknown}
-                data-testid="time-unknown"
-                onCheckedChange={(checked) => setTimeUnknown(checked === true)}
-              />
-              {t('meal.compose.timeUnknown')}
-            </label>
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="review-notes" className="text-xs">
-              {t('meal.compose.notes')}
-            </Label>
-            <Textarea
-              id="review-notes"
-              dir="auto"
-              rows={2}
-              maxLength={1000}
-              placeholder={t('meal.compose.notesPlaceholder')}
-              value={state.notes ?? ''}
-              onChange={(event) => onChange({ notes: event.target.value || null })}
-            />
-          </div>
+          <DateTimeFields
+            idPrefix="review"
+            localDate={state.localDate}
+            today={today}
+            time={state.time}
+            timeUnknown={timeUnknown}
+            onDateChange={(localDate) => onChange({ localDate })}
+            onTimeChange={(time) => onChange({ time })}
+            onTimeUnknownChange={setTimeUnknown}
+          />
+          <NotesField
+            idPrefix="review"
+            value={state.notes ?? ''}
+            onChange={(notes) => onChange({ notes: notes || null })}
+          />
         </div>
       </Disclosure>
 
@@ -605,9 +530,35 @@ export function MealReviewFooter(props: MealReviewProps) {
           data-testid="save-meal"
         >
           {saving ? <Spinner /> : <Check aria-hidden="true" />}
-          {saving ? t('meal.review.saving') : (props.saveLabel ?? t('meal.review.save'))}
+          {saving ? t('meal.review.saving') : t('meal.review.save')}
         </Button>
       </div>
+    </div>
+  );
+}
+
+/** A recoverable problem with its one action: a stale revision (Reload), a failed refine (Retry). */
+function WarningBar({
+  message,
+  action,
+  onAction,
+  testId,
+}: {
+  message: string;
+  action: string;
+  onAction: () => void;
+  testId: string;
+}) {
+  return (
+    <div
+      role="alert"
+      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning bg-warning/10 p-3 text-sm"
+      data-testid={testId}
+    >
+      <span>{message}</span>
+      <Button type="button" variant="outline" size="sm" onClick={onAction}>
+        {action}
+      </Button>
     </div>
   );
 }

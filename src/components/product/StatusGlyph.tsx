@@ -12,6 +12,7 @@ import {
   ThumbsUp,
   type LucideIcon,
 } from 'lucide-react';
+import type { MatchStatus } from '@/lib/rubric/types';
 import { t, type MessageKey } from '@/lib/t';
 import { cn } from '@/lib/utils';
 
@@ -21,6 +22,13 @@ export type StatusGlyphName =
 
 /** Score wording bands plus the in-progress state of today. */
 export type BandGlyphName = 'CLOSELY' | 'MOSTLY' | 'DIFFERENT' | 'IN_PROGRESS';
+
+/** The glyph of a recorded slot or meal once the matcher has spoken. */
+export const MATCH_GLYPH: Record<MatchStatus, StatusGlyphName> = {
+  MATCHED: 'RECORDED',
+  PARTLY_MATCHED: 'PARTLY',
+  DIFFERENT_FOOD: 'DIFFERENT',
+};
 
 // Literal keys keep t()'s parameter inference (none of these take params).
 const STATUS = {

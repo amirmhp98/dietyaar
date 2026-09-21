@@ -73,7 +73,6 @@ export function DayBlocks({
 
   function skip(planSlotId: string, skipped: boolean) {
     startTransition(async () => {
-      // Optimistic: the row flips now and reverts with the toast if the action fails.
       setOptimisticSlot({ planSlotId, skipped });
       const result = await markSlotSkippedAction({ localDate, planSlotId, skipped });
       if (!result.ok) toast.error(result.error);

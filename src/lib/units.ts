@@ -59,8 +59,6 @@ export function unitByKey(key: string | null | undefined): UnitDefinition | unde
   return key ? byKey.get(key) : undefined;
 }
 
-export const UNIT_KEYS: string[] = UNITS.map((u) => u.key);
-
 export function isUnitKey(key: string | null | undefined): key is UnitKey {
   return key !== null && key !== undefined && byKey.has(key);
 }

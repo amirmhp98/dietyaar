@@ -3,6 +3,7 @@ import {
   OTHER_SLOT,
   composeLayout,
   defaultLinkAfterAnalysis,
+  sanitizeItems,
   seedManualItem,
   timeMissing,
 } from '@/components/product/meal/composition';
@@ -122,6 +123,20 @@ describe('seedManualItem (B7)', () => {
   it('caps the name at 120 characters and seeds nothing for an empty box', () => {
     expect(seedManualItem('x'.repeat(300))?.originalName).toHaveLength(120);
     expect(seedManualItem('   ')).toBeNull();
+  });
+});
+
+describe('sanitizeItems', () => {
+  it('drops blank names, renumbers positions and fills a missing English label', () => {
+    const items = sanitizeItems([
+      draftItem({ key: 'a', position: 0, originalName: 'نان', englishLabel: ' ' }),
+      draftItem({ key: 'b', position: 1, originalName: '   ' }),
+      draftItem({ key: 'c', position: 2, originalName: 'egg', englishLabel: 'boiled egg' }),
+    ]);
+    expect(items).toMatchObject([
+      { key: 'a', position: 0, englishLabel: 'نان' },
+      { key: 'c', position: 1, englishLabel: 'boiled egg' },
+    ]);
   });
 });
 

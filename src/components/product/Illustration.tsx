@@ -5,7 +5,6 @@ export type IllustrationName = 'noPlan' | 'noMeals' | 'firstDay' | 'ready';
 
 const EMERALD = 'hsl(var(--primary))';
 
-// Ink is `currentColor` (inherits the text colour); emerald is the one accent.
 const ART: Record<IllustrationName, ReactNode> = {
   noPlan: (
     <>

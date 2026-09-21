@@ -24,7 +24,7 @@ import { addDays, dateRange, localDateFor, localTimeFor, weekdayOf } from '@/lib
 import { APP_TIME_ZONE } from '@/lib/time/zone';
 import { nutritionSchema, type Nutrition } from '@/lib/validations/nutrition';
 import { getActivePlan, slotsForWeekday, type ActivePlan } from '@/services/plan.service';
-import { DEFAULT_WEEK_START, getProfile } from '@/services/profile.service';
+import { getProfile } from '@/services/profile.service';
 
 /**
  * Day read model (tech spec § 6, decision 013): the comparison is computed on
@@ -42,7 +42,6 @@ export interface MealSummary {
   planOptionId: string | null;
   /** The linked slot's names, or null for "Other". */
   slot: FoodName | null;
-  optionPosition: number | null;
   /** The first items, for the row label. */
   itemNames: FoodName[];
   itemCount: number;
@@ -56,7 +55,6 @@ export interface DayViewResult {
   meals: MealSummary[];
   /** The zone the day was computed in (the stored one for historical days). */
   zone: string;
-  weekStart: number;
   plan: ActivePlan | null;
 }
 
@@ -162,7 +160,6 @@ function energyOf(items: RubricFoodItem[]): number | null {
 function toMealSummary(row: MealRow, plan: ActivePlan | null): MealSummary {
   const meal = toRubricMeal(row);
   const slot = plan?.slots.find((s) => s.id === row.planSlotId) ?? null;
-  const option = slot?.options.find((o) => o.id === row.planOptionId) ?? null;
   return {
     id: row.id,
     revision: row.revision,
@@ -171,7 +168,6 @@ function toMealSummary(row: MealRow, plan: ActivePlan | null): MealSummary {
     planSlotId: row.planSlotId,
     planOptionId: row.planOptionId,
     slot: slot ? { originalName: slot.originalName, englishLabel: slot.englishLabel } : null,
-    optionPosition: option?.position ?? null,
     itemNames: meal.items
       .slice(0, 3)
       .map((i) => ({ originalName: i.originalName, englishLabel: i.englishLabel })),
@@ -304,25 +300,20 @@ function buildRange(
 
 /**
  * One day, computed on read (tech spec § 17: the day with its meals, items and
- * skips, the plan and the profile load in parallel).
+ * skips, and the plan load in parallel).
  */
 export async function getDayView(
   ownerId: string,
   localDate: string,
   now: Date,
 ): Promise<DayViewResult> {
-  const [row, plan, profile] = await Promise.all([
-    loadDay(ownerId, localDate),
-    getActivePlan(ownerId),
-    getProfile(ownerId),
-  ]);
+  const [row, plan] = await Promise.all([loadDay(ownerId, localDate), getActivePlan(ownerId)]);
   const day = buildDay(localDate, row, plan, now);
 
   return {
     view: day.view,
     meals: (row?.meals ?? []).map((m) => toMealSummary(m, isPlanActive(plan) ? plan : null)),
     zone: day.zone,
-    weekStart: profile?.weekStart ?? DEFAULT_WEEK_START,
     plan,
   };
 }

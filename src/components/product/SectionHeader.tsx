@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 /**
  * Product section header (design.md "Product UI" › Section headers): a 20 px
@@ -15,7 +14,6 @@ export function SectionHeader({
   trailing,
   level = 2,
   id,
-  className,
 }: {
   icon: LucideIcon;
   title: ReactNode;
@@ -24,11 +22,10 @@ export function SectionHeader({
   level?: 2 | 3;
   /** Set when the surrounding section uses `aria-labelledby`. */
   id?: string;
-  className?: string;
 }) {
   const Heading = level === 3 ? 'h3' : 'h2';
   return (
-    <div className={cn('flex items-center gap-2', className)}>
+    <div className="flex items-center gap-2">
       <Icon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
       <Heading
         id={id}

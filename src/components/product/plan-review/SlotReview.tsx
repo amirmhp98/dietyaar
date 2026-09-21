@@ -13,6 +13,7 @@ import type { DraftItem, DraftQuestion, DraftSlot } from '@/lib/validations/plan
 import { QuantityInput, SlotEditor } from './SlotEditor';
 import { SourceExcerpt } from './SourceExcerpt';
 import { UnitSelect } from './UnitSelect';
+import { hasItems } from './helpers';
 
 /**
  * Screen 7a: one slot per screen. The slot as a list-surface card (name,
@@ -49,13 +50,11 @@ export function SlotReview({
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(slot);
-  const [answer, setAnswer] = useState<Answer>(() => {
-    const item = questionItem(slot, question);
-    return {
-      quantity: item?.quantity ?? null,
-      unit: item?.unit ?? null,
-      unitGrams: item?.unitGrams ?? null,
-    };
+  const item = questionItem(slot, question);
+  const [answer, setAnswer] = useState<Answer>({
+    quantity: item?.quantity ?? null,
+    unit: item?.unit ?? null,
+    unitGrams: item?.unitGrams ?? null,
   });
 
   const canSave = draft.originalName.trim() !== '' && hasItems(draft);
@@ -98,7 +97,6 @@ export function SlotReview({
     );
   }
 
-  const item = questionItem(slot, question);
   const multiple = slot.options.length > 1;
 
   return (
@@ -251,7 +249,7 @@ export function ReviewActions({
 }
 
 /** One prescribed item: the amount before the name ("2 × سیب", "150 g · مرغ"), grams each for counts. */
-export function ItemRow({ item }: { item: DraftItem }) {
+function ItemRow({ item }: { item: DraftItem }) {
   return (
     <li className="flex items-start justify-between gap-3 px-3 py-2 text-sm">
       <div className="min-w-0">
@@ -312,12 +310,6 @@ function applyAnswer(slot: DraftSlot, question: DraftQuestion, answer: Answer): 
       ),
     })),
   };
-}
-
-function hasItems(slot: DraftSlot) {
-  return slot.options.every(
-    (o) => o.items.length > 0 && o.items.every((i) => i.originalName.trim() !== ''),
-  );
 }
 
 /** Empty English labels fall back to the original so NameLabel always has both. */

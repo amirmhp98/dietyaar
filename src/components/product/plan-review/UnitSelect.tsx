@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from '@/components/UiComponents';
 import { t } from '@/lib/t';
-import { UNITS, isCountUnit, unitLabel } from '@/lib/units';
+import { UNITS, isCountUnit, isUnitKey, unitLabel } from '@/lib/units';
 import { numberText, parseNumber } from './helpers';
 
 const NONE = '__none';
@@ -37,7 +37,7 @@ export function UnitSelect({
   id?: string;
   ariaLabel: string;
 }) {
-  const known = value === null || UNITS.some((u) => u.key === value);
+  const known = value === null || isUnitKey(value);
   const [other, setOther] = useState(!known);
   const selected = other ? OTHER : value === null ? NONE : value;
   return (
@@ -85,16 +85,12 @@ export function UnitSelect({
 }
 
 /** The grams of one piece / slice / …: a small numeric field, empty when unknown. */
-export function GramsEachInput({
+function GramsEachInput({
   value,
   onChange,
-  id,
-  className,
 }: {
   value: number | null;
   onChange: (value: number | null) => void;
-  id?: string;
-  className?: string;
 }) {
   const [raw, setRaw] = useState(numberText(value));
   const [synced, setSynced] = useState(value);
@@ -103,22 +99,19 @@ export function GramsEachInput({
     if (parseNumber(raw) !== value) setRaw(numberText(value));
   }
   return (
-    <div className={className}>
-      <Input
-        id={id}
-        inputMode="decimal"
-        dir="ltr"
-        className="h-11"
-        aria-label={t('unit.gramsEach.label')}
-        placeholder={t('unit.gramsEach.label')}
-        value={raw}
-        onChange={(e) => {
-          setRaw(e.target.value);
-          const parsed = parseNumber(e.target.value);
-          if (parsed === null) onChange(null);
-          else if (Number.isFinite(parsed) && parsed > 0) onChange(parsed);
-        }}
-      />
-    </div>
+    <Input
+      inputMode="decimal"
+      dir="ltr"
+      className="h-11"
+      aria-label={t('unit.gramsEach.label')}
+      placeholder={t('unit.gramsEach.label')}
+      value={raw}
+      onChange={(e) => {
+        setRaw(e.target.value);
+        const parsed = parseNumber(e.target.value);
+        if (parsed === null) onChange(null);
+        else if (Number.isFinite(parsed) && parsed > 0) onChange(parsed);
+      }}
+    />
   );
 }

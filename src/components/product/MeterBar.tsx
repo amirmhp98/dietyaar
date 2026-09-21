@@ -7,26 +7,25 @@ function clamp(fraction: number): number {
 /**
  * A thin neutral bar (design.md "Product UI", decision 025): ink over a faint
  * track, never red, never emerald. `value` is the filled fraction, `band` an
- * optional target range drawn on the track, `unknown` hatches the track for
- * a value that could not be summed. With a `label` it is a progressbar for
- * assistive tech; without one it is decorative and the text beside it speaks.
+ * optional target range drawn on the track; a null value hatches the track.
+ * With a `label` it is a progressbar for assistive tech; without one it is
+ * decorative and the text beside it speaks.
  */
 export function MeterBar({
   value,
   band,
-  unknown = false,
   label,
   className,
 }: {
-  /** Filled fraction 0–1 (null when unknown). */
+  /** Filled fraction 0–1; null when it could not be summed, which hatches the track. */
   value: number | null;
   /** Target range as fractions of the scale, drawn as a darker band. */
   band?: { from: number; to: number };
-  unknown?: boolean;
   label?: string;
   className?: string;
 }) {
-  const fill = value === null ? 0 : clamp(value);
+  const unknown = value === null;
+  const fill = unknown ? 0 : clamp(value);
   const aria =
     label === undefined
       ? { 'aria-hidden': true as const }

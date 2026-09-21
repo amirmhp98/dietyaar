@@ -25,6 +25,7 @@ import {
   MealComposerFooter,
   canCheckMeal,
   type AnalysisStatus,
+  type ComposerRecentMeal,
 } from '@/components/product/MealComposer';
 import {
   MealReview,
@@ -39,6 +40,7 @@ import { StartOverButton } from '@/components/product/meal/ResumedBanner';
 import {
   OTHER_SLOT,
   defaultLinkAfterAnalysis,
+  sanitizeItems,
   seedManualItem,
 } from '@/components/product/meal/composition';
 import {
@@ -49,7 +51,7 @@ import {
   uploadImage,
 } from '@/components/product/photo-input';
 import type { ActionResult } from '@/lib/action-result';
-import { formatDate, formatTime } from '@/lib/format';
+import { formatLocalDate, formatTime } from '@/lib/format';
 import type { MatchResult, RubricSlot } from '@/lib/rubric/types';
 import { t, tp } from '@/lib/t';
 import {
@@ -95,7 +97,7 @@ interface Composition {
   match: MatchResult | null;
   /** Text + photos the current items were analysed from; Analyze with the same input skips the call. */
   analyzedInput: string | null;
-  /** Set when the composer opened for a slot; the row shows its options expanded. */
+  /** The slot the sheet opened for: its options lead the compose step (D2a) and Start over keeps it. */
   expandSlotId: string | null;
   /** The sheet opened on a draft from before (mirror or resume link). */
   resumed: boolean;
@@ -154,6 +156,24 @@ function newComposition(localDate: string, time: string | null): Composition {
   };
 }
 
+/** A fresh composition for a request: today's time now, none on a backdated day; a slot request leads with its options. */
+function startNew(request: ComposerRequest): Composition {
+  const now = new Date();
+  const todayLocal = localDateFor(now, APP_TIME_ZONE);
+  const localDate = request.localDate ?? todayLocal;
+  const backdated = localDate !== todayLocal;
+  const comp = newComposition(localDate, backdated ? null : localTimeFor(now, APP_TIME_ZONE));
+  if (request.planSlotId) {
+    comp.slotChoice = request.planSlotId;
+    comp.optionId = request.planOptionId ?? null;
+    comp.expandSlotId = request.planSlotId;
+  }
+  if (!request.localDate && !request.planSlotId && isLateNightWindow(now, APP_TIME_ZONE)) {
+    comp.step = 'late-night';
+  }
+  return comp;
+}
+
 function storageKey(userId: string, clientRequestId: string): string {
   return `composer:${userId}:${clientRequestId}`;
 }
@@ -197,16 +217,6 @@ function clearMirror(userId: string, clientRequestId: string): void {
 /** Items the server would refuse: a name is required (the English label falls back to it). */
 function hasBlankItem(items: DraftFoodItem[]): boolean {
   return items.some((item) => item.originalName.trim() === '');
-}
-
-function sanitizeItems(items: DraftFoodItem[]): DraftFoodItem[] {
-  return items
-    .filter((item) => item.originalName.trim() !== '')
-    .map((item, position) => ({
-      ...item,
-      position,
-      englishLabel: item.englishLabel.trim() || item.originalName.trim(),
-    }));
 }
 
 /** A server action call that cannot reach the server (offline) becomes a failed result. */
@@ -267,13 +277,9 @@ export function MealComposerIsland({ photoEnabled }: { photoEnabled: boolean }) 
     aiNoticeMealTextShown: boolean;
     aiNoticePhotoShown: boolean;
   } | null>(null);
-  const [recent, setRecent] = useState<Array<{
-    id: string;
-    items: Array<{ originalName: string; englishLabel: string }>;
-    energyKcal: number | null;
-    planSlotId: string | null;
-    planOptionId: string | null;
-  }> | null>(null);
+  const [recent, setRecent] = useState<Array<
+    ComposerRecentMeal & { planSlotId: string | null; planOptionId: string | null }
+  > | null>(null);
   type DayInfo = { date: string; slots: RubricSlot[]; recordedSlotIds: string[]; hasPlan: boolean };
   const [dayInfo, setDayInfoState] = useState<DayInfo | null>(null);
   // Read through the ref from async paths (analysis returns after loadDay may have resolved).
@@ -692,7 +698,6 @@ export function MealComposerIsland({ photoEnabled }: { photoEnabled: boolean }) 
       }
       setAnalysis('idle');
       adoptDraft(result.data, undefined, 'review');
-      // Where the meal lands: the user's choice, the suggestion, or Extra (B4).
       const decision = defaultLinkAfterAnalysis({
         userChoice: latest.slotChoice,
         suggestedSlotId: result.data.state.planSlotId,
@@ -749,7 +754,6 @@ export function MealComposerIsland({ photoEnabled }: { photoEnabled: boolean }) 
     setBusy(false);
     if (!draft) return;
     adoptDraft(draft, undefined, 'review');
-    // What was typed becomes the first item, so nothing is lost on the way to manual (B7).
     const seed =
       draft.state.items.length === 0 ? seedManualItem(compRef.current?.text ?? '') : null;
     if (seed) patchReview({ items: [seed] });
@@ -882,9 +886,11 @@ export function MealComposerIsland({ photoEnabled }: { photoEnabled: boolean }) 
     }
     if (result.code === 'CONFLICT') {
       setConflict(true);
-    } else if (result.code === 'OPTION_REQUIRED' || result.code === 'FUTURE_TIME') {
-      setSaveError(result.error);
-    } else if (result.code === 'NOT_FOUND') {
+    } else if (
+      result.code === 'OPTION_REQUIRED' ||
+      result.code === 'FUTURE_TIME' ||
+      result.code === 'NOT_FOUND'
+    ) {
       setSaveError(result.error);
     } else {
       setSaveError(t('meal.errors.saveFailed'));
@@ -910,23 +916,6 @@ export function MealComposerIsland({ photoEnabled }: { photoEnabled: boolean }) 
     setComp((prev) => ({ ...prev, step: 'compose' }));
   }, [flushAutosave, setComp]);
 
-  const startNew = useCallback((request: ComposerRequest): Composition => {
-    const now = new Date();
-    const todayLocal = localDateFor(now, APP_TIME_ZONE);
-    const localDate = request.localDate ?? todayLocal;
-    const backdated = localDate !== todayLocal;
-    const comp = newComposition(localDate, backdated ? null : localTimeFor(now, APP_TIME_ZONE));
-    if (request.planSlotId) {
-      comp.slotChoice = request.planSlotId;
-      comp.optionId = request.planOptionId ?? null;
-      comp.expandSlotId = request.planSlotId;
-    }
-    if (!request.localDate && !request.planSlotId && isLateNightWindow(now, APP_TIME_ZONE)) {
-      comp.step = 'late-night';
-    }
-    return comp;
-  }, []);
-
   /** Discards the server draft, its staged photos and the mirror; a fresh compose step for the same date and slot. */
   const startOver = useCallback(async () => {
     const current = compRef.current;
@@ -951,7 +940,7 @@ export function MealComposerIsland({ photoEnabled }: { photoEnabled: boolean }) 
     if (current.draftId) await safely(() => discardMealDraftAction({ draftId: current.draftId }));
     // The discard took the photos the draft knew; any added since are still the client's.
     for (const photo of current.photos) await dropStagedUpload(photo.uploadId);
-  }, [loadDay, replaceComp, startNew, user.id]);
+  }, [loadDay, replaceComp, user.id]);
 
   // ── Opening ─────────────────────────────────────────────────────────────
   const handleRequest = useCallback(
@@ -1091,7 +1080,6 @@ export function MealComposerIsland({ photoEnabled }: { photoEnabled: boolean }) 
       replaceComp,
       scheduleAutosave,
       setComp,
-      startNew,
       user.id,
     ],
   );
@@ -1140,9 +1128,7 @@ export function MealComposerIsland({ photoEnabled }: { photoEnabled: boolean }) 
         ? t('meal.compose.summaryToday')
         : comp.localDate === addDays(today, -1)
           ? t('meal.compose.summaryYesterday')
-          : formatDate(instantFor(comp.localDate, '12:00', APP_TIME_ZONE), {
-              timeZone: APP_TIME_ZONE,
-            });
+          : formatLocalDate(comp.localDate);
     const timeLabel = comp.time
       ? formatTime(instantFor(comp.localDate, comp.time, APP_TIME_ZONE), {
           timeZone: APP_TIME_ZONE,
@@ -1153,11 +1139,7 @@ export function MealComposerIsland({ photoEnabled }: { photoEnabled: boolean }) 
 
   const backdatedLabel =
     comp && comp.localDate !== today
-      ? t('meal.compose.loggingFor', {
-          date: formatDate(instantFor(comp.localDate, '12:00', APP_TIME_ZONE), {
-            timeZone: APP_TIME_ZONE,
-          }),
-        })
+      ? t('meal.compose.loggingFor', { date: formatLocalDate(comp.localDate) })
       : null;
 
   const dayForDate = dayInfo && comp && dayInfo.date === comp.localDate ? dayInfo : null;

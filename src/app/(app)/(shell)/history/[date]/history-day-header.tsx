@@ -13,7 +13,7 @@ import { fullDate } from '@/app/(app)/(shell)/today/day-header';
  * date (the blocks beneath keep their own "Log meal for this date"), so the
  * floating Log meal button stays the one filled emerald.
  */
-export function HistoryDayHeader({ localDate, zone }: { localDate: string; zone: string }) {
+export function HistoryDayHeader({ localDate }: { localDate: string }) {
   const openComposer = useComposerOpener();
   return (
     <header className="space-y-2">
@@ -29,7 +29,7 @@ export function HistoryDayHeader({ localDate, zone }: { localDate: string; zone:
           className="min-w-0 font-display text-2xl font-semibold leading-tight"
           data-testid="day-date"
         >
-          {fullDate(localDate, zone)}
+          {fullDate(localDate)}
         </h2>
         <IconAction
           label={t('history.day.logMeal')}

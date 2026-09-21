@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { t } from '@/lib/t';
 import { isValidLocalTime } from '@/lib/time/local-date';
-import { UNIT_KEYS, withLegacyUnit } from '@/lib/units';
+import { withLegacyUnit } from '@/lib/units';
 import { nutritionSchema } from '@/lib/validations/nutrition';
 
 /**
@@ -274,8 +274,4 @@ export function targetScopeKey(
   nutrient: string,
 ): string {
   return `${weekday ?? 'all'}:${planSlotId ?? 'day'}:${nutrient}`;
-}
-
-export function isKnownUnit(unit: string | null): boolean {
-  return unit !== null && UNIT_KEYS.includes(unit);
 }

@@ -136,7 +136,6 @@ async function buildFacts(
     timeOfDay: timeOfDayFor(now, APP_TIME_ZONE),
     hasPlan: isPlanActive(today.plan),
     isFirstDay,
-    profile,
   };
   const todaySlots = today.view.slots.map((s) => s.slot);
   return {

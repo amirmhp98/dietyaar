@@ -5,7 +5,7 @@ import { useActionState } from 'react';
 import { UserPlus } from 'lucide-react';
 import { signUpAction } from '@/actions/account.actions';
 import { Button } from '@/components/UiComponents';
-import { AuthField, AuthHeader, PasswordField } from '@/app/(auth)/auth-fields';
+import { AuthError, AuthField, AuthHeader, PasswordField } from '@/app/(auth)/auth-fields';
 import { t } from '@/lib/t';
 
 /** Sign up (design-scope screen 1): the same header as sign in, the no-recovery line under the password. */
@@ -40,15 +40,7 @@ export function SignUpForm() {
             hint={t('auth.noRecovery')}
           />
 
-          {state?.error && (
-            <div
-              role="alert"
-              data-testid="signup-error"
-              className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-            >
-              {state.error}
-            </div>
-          )}
+          <AuthError error={state?.error} testId="signup-error" />
 
           <Button type="submit" loading={isPending} className="w-full">
             <UserPlus aria-hidden="true" />

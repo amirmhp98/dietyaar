@@ -7,11 +7,11 @@ import { t } from '@/lib/t';
  * start rule beside the section, so the user can compare without leaving
  * the screen.
  */
-export function SourceExcerpt({ text, label }: { text: string | null; label?: string }) {
+export function SourceExcerpt({ text }: { text: string | null }) {
   if (!text || text.trim() === '') return null;
   return (
     <Surface variant="note" rule as="section" padding="none" className="py-1">
-      <p className="text-xs text-muted-foreground">{label ?? t('plan.sourceExcerpt')}</p>
+      <p className="text-xs text-muted-foreground">{t('plan.sourceExcerpt')}</p>
       <blockquote className="mt-0.5 whitespace-pre-wrap text-sm" dir="auto">
         <bdi>{text}</bdi>
       </blockquote>

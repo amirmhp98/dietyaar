@@ -20,7 +20,7 @@ import { NameLabel } from '@/components/product/NameLabel';
 import { formatNumber } from '@/lib/format';
 import { t } from '@/lib/t';
 import { normalizeDigits } from '@/lib/text/normalize';
-import { UNITS, isCountUnit, unitByKey, unitLabel } from '@/lib/units';
+import { UNITS, isCountUnit, isUnitKey, unitLabel } from '@/lib/units';
 import type { DraftFoodItem } from '@/lib/validations/meal';
 import { MAIN_NUTRIENTS, type Nutrition, type NutritionValues } from '@/lib/validations/nutrition';
 import { cn } from '@/lib/utils';
@@ -28,8 +28,6 @@ import { LabelValuesPopover } from './LabelValuesPopover';
 import { NUTRIENT_UNITS, portionValues } from './totals';
 
 const NO_UNIT = '__none';
-/** The stepper of a counted item moves by one and never below half a piece. */
-const COUNT_STEP = 1;
 const COUNT_MIN = 0.5;
 
 function parseQuantity(raw: string): number | null {
@@ -45,7 +43,7 @@ function parseGrams(raw: string): number | null {
 }
 
 /** "210 kcal · P 8 g · C 30 g · F 5 g" for one item, or null when nothing is known. */
-export function valuesLine(values: NutritionValues | null): string | null {
+function valuesLine(values: NutritionValues | null): string | null {
   if (!values) return null;
   const parts = MAIN_NUTRIENTS.map((key) => {
     const v = values[key];
@@ -63,7 +61,7 @@ export function valuesLine(values: NutritionValues | null): string | null {
  * pending re-estimate, or an unknown quantity that no open question is
  * already asking about — the question block is the shorter way to answer.
  */
-export function needsAttention(item: DraftFoodItem, asked = false): boolean {
+function needsAttention(item: DraftFoodItem, asked = false): boolean {
   return (
     item.originalName.trim() === '' ||
     (item.quantityUnknown && !asked) ||
@@ -124,7 +122,7 @@ export function ItemRow({
   }
   const values = portionValues(item);
   const previous = item.needsReestimate ? valuesLine(item.previousNutrition?.values ?? null) : null;
-  const unitKnown = item.unit === null || unitByKey(item.unit) !== undefined;
+  const unitKnown = item.unit === null || isUnitKey(item.unit);
   const counted = isCountUnit(item.unit);
   const isLabel = item.nutrition?.source === 'USER_LABEL';
   const displayName = item.originalName.trim() || t('meal.review.newItem');
@@ -143,7 +141,7 @@ export function ItemRow({
 
   /** −/+ on a counted item: whole steps, never below half a piece. */
   function step(direction: -1 | 1) {
-    const next = Math.max(COUNT_MIN, (item.quantity ?? 0) + direction * COUNT_STEP);
+    const next = Math.max(COUNT_MIN, (item.quantity ?? 0) + direction);
     setQuantityText(String(next));
     setQuantity(next);
   }

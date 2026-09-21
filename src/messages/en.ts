@@ -65,7 +65,6 @@ export const en = {
   'import.setUpManually': 'Set up manually',
   'day.completeness.label': "I've logged everything for this day",
   'day.completeness.helper': "Uncheck this if you haven't recorded everything.",
-  'score.title': 'Your plan today',
   'score.inProgress': 'In progress',
   'score.notEnough': 'Not enough information yet',
   'score.band.closely': 'Closely followed',

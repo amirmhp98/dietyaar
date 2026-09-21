@@ -16,17 +16,11 @@ import { TARGET_NUTRIENTS, TARGET_TYPES, type DraftTarget } from '@/lib/validati
 import { QuantityInput } from './SlotEditor';
 import { newKey, nutrientLabel, nutrientUnit } from './helpers';
 
-/**
- * Editable daily-target rows (7b "Fix" and the manual wizard): nutrient,
- * kind, and the one or two values the kind needs. Editing an estimated
- * target makes it explicit — the user's figure wins from then on.
- */
-
-export function newTarget(weekday: number | null = null): DraftTarget {
+export function newTarget(): DraftTarget {
   return {
     key: newKey(),
     slotKey: null,
-    weekday,
+    weekday: null,
     nutrient: 'ENERGY_KCAL',
     type: 'RANGE',
     low: null,
@@ -44,6 +38,11 @@ export function targetComplete(target: DraftTarget): boolean {
   return low !== null;
 }
 
+/**
+ * Editable daily-target rows (7b "Fix" and the manual wizard): nutrient,
+ * kind, and the one or two values the kind needs. Editing an estimated
+ * target makes it explicit — the user's figure wins from then on.
+ */
 export function TargetFields({
   target,
   onChange,

@@ -39,7 +39,6 @@ export const history = {
   'day.state.noMeals': 'No meals recorded',
   'day.state.incomplete': 'Incomplete log',
   'day.state.completeByDefault': 'Marked complete · {recorded} of {prescribed} meals recorded',
-  'day.state.complete': 'Complete',
   'history.row.meals.one': '{count} meal recorded',
   'history.row.meals.other': '{count} meals recorded',
   'history.row.coverage': '{scored} of {total} meals',
@@ -47,5 +46,4 @@ export const history = {
   // ── One day ────────────────────────────────────────────────
   'history.day.backToHistory': 'Back to History',
   'history.day.logMeal': 'Add a meal to this day',
-  'history.day.notFoundTitle': 'No such day',
 } as const;
