@@ -149,6 +149,8 @@ jobs:
       contents: read
       packages: write
     env:
+      # Exposed as env because `secrets` cannot be read in step `if` expressions.
+      HAMDOCKER_ORG: ${{ secrets.HAMDOCKER_ORG }}
       IMAGE: registry.hamdocker.ir/${{ secrets.HAMDOCKER_ORG }}/dietyaar
       GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/dietyaar
     outputs:
@@ -203,14 +205,14 @@ jobs:
           docker push "$GHCR_IMAGE:${{ steps.tag.outputs.short }}"
           docker push "$GHCR_IMAGE:latest"
       - name: Log in to registry.hamdocker.ir
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.HAMDOCKER_ORG != ''
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.HAMDOCKER_ORG != ''
         uses: docker/login-action@v3
         with:
           registry: registry.hamdocker.ir
           username: ${{ secrets.HAMDOCKER_USERNAME }}
           password: ${{ secrets.HAMDOCKER_PASSWORD }}
       - name: Push image to registry.hamdocker.ir (main only)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.HAMDOCKER_ORG != ''
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.HAMDOCKER_ORG != ''
         run: |
           docker tag app:ci "$IMAGE:${{ steps.tag.outputs.short }}"
           docker push "$IMAGE:${{ steps.tag.outputs.short }}"
