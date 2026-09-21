@@ -2,7 +2,7 @@
 
 **Decision.** V1 evaluates no plan rules. Every instruction that is not a meal, a quantity, a
 target or a schedule ("ماهی دو بار در هفته", "روزهای تمرین …", "قند ممنوع") is a `PlanNote`:
-kept verbatim, shown once on review screen 8c ("Review: notes") and under "Notes from your plan"
+kept verbatim, shown once on the review's notes screen (design-scope 7c, "Review: notes") and under "Notes from your plan"
 on My plan, never compared, never scored. The `PlanRule` model, its enums, `FoodItem.ruleGroups`,
 `lib/rubric/rules.ts`, the rule progress read models, the weekly-rules block on History and the
 Track it / Keep as a note / Don't compare choice are removed, not hidden. The import prompt no
@@ -20,5 +20,7 @@ own spec.
 **Consequences.** Product spec § 6, § 8 and § 10 read "Rules are not evaluated in V1; plan
 instructions are kept as notes (decision 023)" where they described rule handling. The day score
 is unchanged (rules never entered it); the seven-day pattern sentence is unchanged (it never used
-rules). A meal's timing window comes only from the slot's own times. Old `Plan.draftJson` values
+rules). A meal's timing score uses only the slot's stated times (a window assumed from the
+slot's name drives the Today actions and never enters the score, product spec § 6). Old
+`Plan.draftJson` values
 may still carry a `rules` array; the draft parser strips unknown keys, so they load as before.

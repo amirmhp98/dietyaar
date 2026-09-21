@@ -12,23 +12,23 @@ cluster before step 2 is recorded (tech spec § 1, constraints).
 | #   | Step                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Date       |
 | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | 1   | Create the Supabase project (region per § 19.1, default `eu-central-1`); disable the Data API; create role `dietyaar_app` with table privileges only; create bucket `dietyaar` (private) and S3 keys; enable `citext` and `pgcrypto`. Verify an anonymous REST call to the project is rejected. Create the Hamravesh backup bucket `dietyaar-backup` and key, the Darkube namespace, the Sentry project and the web app.                                                                                                     | Supabase part done, see "Supabase" below: project `dietyaar` (`uhevhxxyjhgldbmxyfmg`, `eu-central-1`, Postgres 17.6); Data API disabled (exposed schemas empty; REST with the `anon` key returns 401/503); role `dietyaar_app` (login, no DDL, `SELECT/INSERT/UPDATE/DELETE` on all tables plus default privileges for future ones); `pgcrypto` in `extensions`, `citext` in `public` by migration 0002; bucket `dietyaar` private; S3 key `dietyaar-app` created in the dashboard. Migrations 0001–0002 deployed. Verified from the dev machine: `select 1` and Prisma CRUD as `dietyaar_app` through the session pooler; put/head/list/get/delete on the bucket with prefix `prod/`. **Pending:** Hamravesh backup bucket `dietyaar-backup` and key, Darkube namespace, web app (no Sentry: owner decision). | 2026-09-17 |
-| 2   | From the web app's terminal on Darkube: `psql "$DIRECT_DATABASE_URL" -c 'select 1'` and the same through `$DATABASE_URL`, round-trip time over 20 runs (record p50/p95 as `R`); S3 `ListObjects` against both buckets; `curl https://api.deepseek.com/models` with the key; `curl` the USDA search endpoint; confirm the DeepSeek request field that disables thinking; a request that sleeps 50 s through the public domain to measure the ingress timeout. If Supabase is unreachable, stop and apply § 19.2 / appendix A. |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |            |
-| 3   | Upload a 10 MB file to `/api/uploads` through the public domain; record the ingress body limit.                                                                                                                                                                                                                                                                                                                                                                                                                              |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |            |
-| 4   | Run `npm run ai:eval` on the deployment account; archive the report; compare with § 19.4 thresholds.                                                                                                                                                                                                                                                                                                                                                                                                                         |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |            |
-| 5   | Run `npm run db:backup`; restore the dump into the second free Supabase project; point a local app at it; sign in as a test user, open the plan, open a photo restored from the backup bucket, confirm a day's totals match. Record how long it took.                                                                                                                                                                                                                                                                        |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |            |
-| 6   | Confirm `/api/health` and `/api/live` return 200 and Loki shows the startup line.                                                                                                                                                                                                                                                                                                                                                                                                                                            |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |            |
+| 2   | From the web app's terminal on Darkube: `psql "$DIRECT_DATABASE_URL" -c 'select 1'` and the same through `$DATABASE_URL`, round-trip time over 20 runs (record p50/p95 as `R`); S3 `ListObjects` against both buckets; `curl https://api.deepseek.com/models` with the key; `curl` the USDA search endpoint; confirm the DeepSeek request field that disables thinking; a request that sleeps 50 s through the public domain to measure the ingress timeout. If Supabase is unreachable, stop and apply § 19.2 / appendix A. | Reframed for the VPS (decision 026, 2026-09-21): Postgres runs on the same box as the app, so there is no cross-border `R` to measure there; on Vercel the function (`fra1`) and Supabase (`eu-central-1`) sit in the same region. DeepSeek: the smoke of 2026-09-17 sent `thinking: { type: 'disabled' }` (`services/ai/deepseek.ts`) and 10/10 calls passed, so the field is confirmed. **Pending:** an S3 `ListObjects` from the box against MinIO and the backup bucket (needs the bucket), the USDA `curl` (`USDA_LOOKUP_ENABLED=false`, not needed for launch), and the 50 s request through the public domain (Caddy sets no proxy timeout, see "VPS" › Ingress).                                                                                                                                       | 2026-09-21 |
+| 3   | Upload a 10 MB file to `/api/uploads` through the public domain; record the ingress body limit.                                                                                                                                                                                                                                                                                                                                                                                                                              | VPS: `request_body max_size 12MB` in `deploy/vps/Caddyfile` (configured, not measured). Vercel: the platform's 4.5 MB request-body limit, enough for device-downscaled photos (< 1 MB, decision 011). **Pending:** the 10 MB upload through the public domain to confirm the Caddy value.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | 2026-09-21 |
+| 4   | Run `npm run ai:eval` on the deployment account; archive the report; compare with § 19.4 thresholds.                                                                                                                                                                                                                                                                                                                                                                                                                         | Run from a developer machine on 2026-09-18 and 2026-09-19 ("Evaluation harness" below), not from a deployment; the deployment env is the same key and model. **Pending:** the photo evaluation (20 photos) that gates `PHOTO_LOGGING_ENABLED`; the meal rows are still `reviewed: false`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | 2026-09-19 |
+| 5   | Run `npm run db:backup`; restore the dump into the second free Supabase project; point a local app at it; sign in as a test user, open the plan, open a photo restored from the backup bucket, confirm a day's totals match. Record how long it took.                                                                                                                                                                                                                                                                        | **Pending**, blocked on the Hamravesh bucket and key (`BACKUP_ENABLED=false` on the VPS). The VPS-shaped manual backup and restore steps are under "Backups"; run them once the bucket exists and record the time here.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |            |
+| 6   | Confirm `/api/health` and `/api/live` return 200 and Loki shows the startup line.                                                                                                                                                                                                                                                                                                                                                                                                                                            | `/api/health` and `/api/live` return 200 on `https://85-198-48-114.sslip.io` (checked 2026-09-21 from the dev machine, 0.25 s) and `/api/health` 200 on `https://dietyaar.vercel.app`. The `deploy-vps` job repeats the health check after every deploy. No Loki on the VPS: the startup line is in `docker compose logs app`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 2026-09-21 |
 
 ### Measured values
 
 Development does not wait for these: the default in the last column applies until the step is done.
 
-| Value                                   | Result                                                               | Where it is used                                            | Default until measured                                  |
-| --------------------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------- |
-| Cross-border round trip `R` (p50 / p95) | not yet (Darkube). Dev machine via VPN, session pooler: 113 / 257 ms | § 17 query budgets; review gate if `R` > 150 ms             | assume 150 ms; budgets as written                       |
-| Ingress request timeout                 |                                                                      | § 20: if below 45 s, meal analysis moves to the job pattern | assume ≥ 60 s; meal analysis stays a server action      |
-| Ingress body limit                      |                                                                      | § 11                                                        | assume ≥ 10 MB; device downscaling keeps uploads < 1 MB |
-| DeepSeek field that disables thinking   |                                                                      | `services/ai/deepseek.ts`                                   | `thinking: { type: 'disabled' }`                        |
-| Supabase Postgres major version         | 17 (17.6.1)                                                          | `Dockerfile` (`postgresql-client` version)                  | 17                                                      |
+| Value                                   | Result                                                                                                                                                      | Where it is used                                            | Default until measured                                  |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------- |
+| Cross-border round trip `R` (p50 / p95) | VPS: none (Postgres on the same box, decision 026). Vercel `fra1` ↔ Supabase `eu-central-1`: same region. Dev machine via VPN, session pooler: 113 / 257 ms | § 17 query budgets; review gate if `R` > 150 ms             | assume 150 ms; budgets as written                       |
+| Ingress request timeout                 | VPS: Caddy sets none, Node default 300 s (not measured). Vercel: Fluid compute, up to 300 s                                                                 | § 20: if below 45 s, meal analysis moves to the job pattern | assume ≥ 60 s; meal analysis stays a server action      |
+| Ingress body limit                      | VPS: 12 MB (`deploy/vps/Caddyfile`, not measured). Vercel: 4.5 MB (platform)                                                                                | § 11                                                        | assume ≥ 10 MB; device downscaling keeps uploads < 1 MB |
+| DeepSeek field that disables thinking   | `thinking: { type: 'disabled' }` accepted by the real API (smoke 2026-09-17, 10/10)                                                                         | `services/ai/deepseek.ts`                                   | `thinking: { type: 'disabled' }`                        |
+| Supabase Postgres major version         | 17 (17.6.1); VPS `postgres:17-alpine`                                                                                                                       | `Dockerfile` (`postgresql-client` version)                  | 17                                                      |
 
 ### Real-provider smoke (implementation plan task 5.0)
 
@@ -149,19 +149,48 @@ enabling Prisma `relationJoins` (decision 020):
 Today's fourth statement is the profile read (`requireProfile`) the page does before the day; the
 session lookup in `requireAuth` adds one more per request. The "before" numbers came from Prisma
 loading each relation level in its own statement, mostly sequentially, so with the measured
-cross-border `R` (113–257 ms) a Today render would have cost 1–3 s in round trips. Re-run the
-measurement from Darkube once step 2 gives the real `R`; the 150 ms default still applies until
-then.
+cross-border `R` (113–257 ms) a Today render would have cost 1–3 s in round trips. On the VPS the
+database is on the same box (decision 026), so `R` is a local hop; the 150 ms assumption only
+matters for the Vercel/Supabase pair, which shares a region.
 
 ## Environments
 
-| Name         | Where                  | Database                                  | Storage                                     | Notes                                          |
-| ------------ | ---------------------- | ----------------------------------------- | ------------------------------------------- | ---------------------------------------------- |
-| Local        | `npm run dev`          | docker-compose Postgres (`npm run db:up`) | MinIO `dietyaar-dev` (`npm run storage:up`) | `SKIP_AUTH=true` for UI-only work              |
-| Production   | VPS `85.198.48.114`    | Postgres 17 container on the box          | MinIO container, bucket `dietyaar`, `prod/` | `https://85-198-48-114.sslip.io`; decision 026 |
-| Darkube      | Darkube app `dietyaar` | Supabase project `uhevhxxyjhgldbmxyfmg`   | Supabase bucket `dietyaar`, prefix `prod/`  | Not created yet; `DARKUBE_ENABLED` gates CI    |
-| Restore test | local app              | second Supabase project                   | —                                           | Used only for step 5 rehearsals                |
-| Staging      | Vercel `dietyaar`      | same Supabase project                     | same bucket, prefix `vercel/`               | `https://dietyaar.vercel.app`; decision 021    |
+| Name         | Where                     | Database                                    | Storage                                                | Notes                                                                   |
+| ------------ | ------------------------- | ------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------- |
+| Local        | `npm run dev`             | docker-compose Postgres (`npm run db:up`)   | MinIO `dietyaar-dev` (`npm run storage:up`), `dev/`    | `SKIP_AUTH=true` for UI-only work                                       |
+| CI e2e       | GitHub Actions `e2e` job  | `postgres:16-alpine` service container      | the same MinIO from `docker-compose.yml`, prefix `ci/` | `.github/workflows/ci.yml`; see "CI" below                              |
+| Production   | VPS `85.198.48.114`       | Postgres 17 container on the box            | MinIO container, bucket `dietyaar`, `prod/`            | `https://85-198-48-114.sslip.io`; decision 026                          |
+| Staging      | Vercel `dietyaar`         | Supabase project `uhevhxxyjhgldbmxyfmg`     | Supabase bucket `dietyaar`, prefix `vercel/`           | `https://dietyaar.vercel.app`; decision 021                             |
+| Darkube      | Darkube app `dietyaar`    | same Supabase project                       | same Supabase bucket, prefix `prod/`                   | Never created; superseded by the VPS for launch. `DARKUBE_ENABLED` gate |
+| Restore test | local app or a scratch db | `npm run db:up` (or a container on the box) | local MinIO (or the VPS MinIO)                         | Used only for the step 5 rehearsal, see "Backups"                       |
+
+### Environment variables by target
+
+Every variable is validated by `src/lib/env.ts` and listed in `.env.example`; this table records
+where each photo-storage and flag value lives per target, because the answer differs: on the VPS
+the five `S3_*` values are written by `deploy/vps/docker-compose.yml` itself (they point at the
+MinIO service on the compose network and must not be repeated in `/opt/dietyaar/.env`), on Vercel
+they are project environment variables (Production and Preview, secrets marked sensitive), locally
+and in CI they are the MinIO defaults from `.env.example` / the `e2e` job's `env:` block.
+
+| Variable                   | Local (`.env`)              | CI e2e (`ci.yml`)             | Vercel (project env)                                             | VPS (`/opt/dietyaar`)                               |
+| -------------------------- | --------------------------- | ----------------------------- | ---------------------------------------------------------------- | --------------------------------------------------- |
+| `S3_ENDPOINT`              | `http://localhost:9000`     | `http://localhost:9000`       | `https://uhevhxxyjhgldbmxyfmg.storage.supabase.co/storage/v1/s3` | `http://minio:9000` (compose file)                  |
+| `S3_REGION`                | `us-east-1`                 | `us-east-1`                   | `eu-central-1`                                                   | `us-east-1` (compose file)                          |
+| `S3_BUCKET`                | `dietyaar-dev`              | `dietyaar-dev`                | `dietyaar`                                                       | `dietyaar` (compose file; `minio-init` creates it)  |
+| `S3_ACCESS_KEY_ID`         | `dietyaar`                  | `dietyaar`                    | Supabase S3 key `dietyaar-app` (dashboard)                       | `${MINIO_ROOT_USER}` from `.env` (compose file)     |
+| `S3_SECRET_ACCESS_KEY`     | `dietyaar-dev-secret`       | `dietyaar-dev-secret`         | secret of that key                                               | `${MINIO_ROOT_PASSWORD}` from `.env` (compose file) |
+| `S3_KEY_PREFIX`            | `dev/`                      | `ci/`                         | `vercel/`                                                        | `prod/` (compose file)                              |
+| `STORAGE_SOFT_LIMIT_BYTES` | default (700 MB)            | default                       | default                                                          | `734003200` in `.env`; raise when the disk allows   |
+| `PHOTO_LOGGING_ENABLED`    | `false` (`true` to try it)  | `true` (job env + Playwright) | `true` (staging shows the photo path)                            | `false` in `.env` until the photo evaluation passes |
+| `SCHEDULER_ENABLED`        | `true`                      | `true`                        | `false` (`CRON_SECRET` + `vercel.json` cron instead)             | `true` in `.env`, no `CRON_SECRET`                  |
+| `BACKUP_ENABLED`           | `true` (no-op without keys) | not set                       | `false` (no `pg_dump` in a function)                             | `false` in `.env` until the Hamravesh bucket exists |
+
+Changing a value: locally edit `.env`; in CI edit the job's `env:` block (and `docker-compose.yml`
+if the MinIO credentials change); on Vercel `vercel env add` or the dashboard, then redeploy; on
+the VPS edit `/opt/dietyaar/.env` and `docker compose up -d app` (the `S3_*` lines are in the
+compose file, so a bucket or credential change there is a compose-file edit plus
+`docker compose up -d`).
 
 ### Local AI
 
@@ -223,6 +252,27 @@ Notes from setup:
 
 ## Deploy and rollback
 
+### CI (`.github/workflows/ci.yml`)
+
+Every push and pull request runs `quality` (lint, typecheck, unit tests with coverage, build),
+`integration` (`scripts/test-integration.mjs` against a Postgres service container), `e2e` and
+`migrations` (`scripts/check-migrations.mjs`); `docker` then builds the image, smoke-tests
+`/api/health`, `/api/live` and `pg_dump --version` in a container, and on a push to `main` pushes
+`ghcr.io/amirmhp98/dietyaar:<short sha>` and `:latest`, after which `deploy-vps` restarts the VPS
+stack (below). The Darkube push and deploy stay in the file but are skipped until
+`HAMDOCKER_ORG` / `DARKUBE_ENABLED` exist.
+
+The `e2e` job runs every Playwright project (setup, auth, chromium, mobile) against the stub AI
+server with `PHOTO_LOGGING_ENABLED=true` and the five `S3_*` values of `.env.example` (prefix
+`ci/`). Photo storage comes from the repo's own `docker-compose.yml`: a step runs
+`npm run storage:up` (MinIO plus the one-shot `minio-init` that creates `dietyaar-dev`) and waits
+for `docker wait dietyaar-minio-init` to return 0 before `npm run test:e2e`, so `e2e/photo.spec.ts`
+uploads for real, exactly as it does locally. MinIO is not a `services:` container because those
+cannot set the `server /data` command. `docker compose up -d minio minio-init` works without a
+`.env` in the checkout (compose only resolves the `web` service's `env_file` when `web` is
+selected; verified with Compose 2.40, the runner has 2.38). Failed runs upload
+`playwright-report` for 7 days.
+
 ### Vercel (staging, decision 021)
 
 Project `dietyaar` in team `amirmhps-projects` (Hobby), created 2026-09-19 with `vercel link`,
@@ -253,28 +303,38 @@ key is the one in the dev `.env`). Caddy holds a Let's Encrypt certificate for
 CI: `docker` pushes `ghcr.io/amirmhp98/dietyaar:<short sha>` and `:latest`; `deploy-vps` SSHes in
 with the deploy key (GitHub secrets `VPS_SSH_KEY`, `VPS_KNOWN_HOSTS`, `VPS_HOST`; the public key is
 in the server's `authorized_keys` as `github-actions@dietyaar`), logs the server in to GHCR with the
-job token, pins the tag in `.env`, pulls, restarts and waits for `/api/health` over HTTPS.
+job token, pins the tag in `.env`, pulls, restarts and waits for `/api/health` over HTTPS. The
+first push to `main` after 2026-09-19 is the first time the job runs; until then the stack on the
+box was started by hand.
 
 **Rollback.** `ssh dietyaar`, then in `/opt/dietyaar`: set `IMAGE=ghcr.io/amirmhp98/dietyaar:<previous
 short sha>` in `.env`, `docker login ghcr.io` with a token that can read packages,
-`docker compose pull app && docker compose up -d app`. The same migration caveats as Darkube apply.
+`docker compose pull app && docker compose up -d app`. Migrations are backward compatible with
+the previous release (tech spec § 13: add nullable, backfill, tighten later) and the migration gate
+refuses `DROP` / `ALTER … TYPE` without a decision record, so the older image runs against the
+newer schema; if that migration must go, restore from the last dump instead ("Backups").
 
 **Operating.** `docker compose logs -f app`; `docker compose exec db psql -U postgres app`;
 `docker system df` for disk. Upgrade the plan when `free -h` shows available memory under 500 MB
 for more than a few minutes, load average stays above the vCPU count, or `df -h /` passes 80%.
-Open items: `BACKUP_ENABLED=false` until the Hamravesh backup bucket and key exist (decision 018);
+Open items: `BACKUP_ENABLED=false` until the Hamravesh backup bucket and key exist (decision 018;
+until then the box holds the only copy of the data, so this comes before real users);
 `PHOTO_LOGGING_ENABLED=false` until the vision evaluation passes (§ 19.4).
 
-### Darkube (pending)
+**Ingress.** Caddy terminates TLS and proxies to `app:3000` with no proxy timeout of its own
+(none is set in `Caddyfile`; Node's default `requestTimeout` is 300 s), so the 45 s meal-analysis
+deadline is not cut short; `request_body max_size 12MB` is the body limit. Neither has been
+measured through the public domain yet (setup checklist steps 2–3).
 
-CI (`.github/workflows/ci.yml`) runs `quality`, `integration`, `e2e` (desktop and mobile
-Playwright projects against the stub AI server) and `migrations` (`scripts/check-migrations.mjs`);
-`docker` builds the image, smoke-tests `/api/health`, `/api/live` and `pg_dump --version`, and on a
-push to `main` pushes `registry.hamdocker.ir/<org>/dietyaar:<short sha>`; `deploy` then runs
-`darkube deploy` inside the `hamravesh.hamdocker.ir/public/darkube-cli:v1.1` container.
+### Darkube (not created; superseded for launch)
 
-GitHub secrets: `HAMDOCKER_ORG`, `HAMDOCKER_USERNAME`, `HAMDOCKER_PASSWORD` (container registry
-page of the Hamravesh console), `DARKUBE_DEPLOY_TOKEN`, `DARKUBE_APP_ID` (app profile page).
+Decisions 021 and 026 replaced Darkube as the launch target; the `deploy` job and the
+`registry.hamdocker.ir` push stay in `ci.yml` behind the repository variable `DARKUBE_ENABLED`
+and the `HAMDOCKER_*` secrets so the pipeline is green without them. If it is ever revived: create
+the namespace and web app per tech spec § 13, set the GitHub secrets `HAMDOCKER_ORG`,
+`HAMDOCKER_USERNAME`, `HAMDOCKER_PASSWORD` (container registry page of the Hamravesh console),
+`DARKUBE_DEPLOY_TOKEN`, `DARKUBE_APP_ID` (app profile page), the app env from the table above with
+the Supabase values of the Vercel column and `S3_KEY_PREFIX=prod/`, then set `DARKUBE_ENABLED=true`.
 
 **Rollback.** Every release image stays in the registry under its short SHA. To go back:
 
@@ -284,11 +344,8 @@ docker run --rm hamravesh.hamdocker.ir/public/darkube-cli:v1.1 \
   --image-tag <previous short sha> --job-id manual-rollback --stateless-app true
 ```
 
-Safe because migrations are backward compatible with the previous release (tech spec § 13: add
-nullable, backfill, tighten later) and the migration gate refuses `DROP` / `ALTER … TYPE` without
-a decision record. The rolled-back pod does not undo the newer migration; if that migration must
-go, restore from the last dump instead (below). _Verify once the first deploy has run:_ the exact
-`darkube deploy` flags and the `--stateless-app` value against the Darkube console; the same
+The same migration caveat as the VPS rollback applies. _Verify once a first deploy has run:_ the
+exact `darkube deploy` flags and the `--stateless-app` value against the Darkube console; the same
 `PUT https://api.console.hamravesh.ir/api/v1/darkube/apps/update_from_cli/` endpoint with
 `{ "trigger_deploy_token", "app_id", "image_tag" }` is the documented `curl` alternative.
 
@@ -302,46 +359,90 @@ runs `pg_dump --format=custom` against `DIRECT_DATABASE_URL`, gzips it, encrypts
 `BACKUP_RETENTION_DAYS` (30) are deleted; the newest is always kept. The account purge deletes a
 user's `photos/{key}` copies, so with the 30-day retention every trace of a deleted account is gone
 from the backups within 30 days (product spec § 15). Success logs one `backup finished` line with
-`dumpBytes` and `durationMs`; failure logs `backup_failed` (alert on it in Grafana, § 16).
+`dumpBytes` and `durationMs`; failure logs `backup_failed` (on the VPS:
+`docker compose logs --since 24h app | grep backup`; Grafana alert when a Loki stack exists, § 16).
+
+**Status (2026-09-21).** The job is built and unit-tested but has never run against a real
+bucket: the Hamravesh bucket `dietyaar-backup` and its key do not exist yet, so `BACKUP_ENABLED`
+is `false` on the VPS and on Vercel (Vercel functions have no `pg_dump`; decision 021). On the
+VPS this means the Postgres and MinIO volumes on the box are the only copy of user data. Order
+of work: create the bucket and key (Hamravesh console), put `BACKUP_S3_*`, `BACKUP_ENCRYPTION_KEY`
+and `BACKUP_ENABLED=true` in `/opt/dietyaar/.env`, `docker compose up -d app`, wait for the
+03:00 UTC run (nothing on the box triggers it earlier; the manual path below takes a copy
+without the bucket), confirm `backup finished` in `docker compose logs app` and the object in
+the bucket, then do the restore rehearsal.
 
 **Encryption key.** `BACKUP_ENCRYPTION_KEY` is a long random passphrase generated once
-(`openssl rand -base64 48`), stored as a Darkube secret env and in the owner's password manager.
-Losing it makes every dump unreadable; rotating it does not re-encrypt old dumps, so keep the
-previous key until those have expired.
+(`openssl rand -base64 48`), stored in `/opt/dietyaar/.env` on the VPS (a Darkube secret env if
+that target is revived) and in the owner's password manager. Losing it makes every dump
+unreadable; rotating it does not re-encrypt old dumps, so keep the previous key until those have
+expired.
 
-**Manual backup** (before a destructive migration, or for the rehearsal):
+**Manual backup** (before a destructive migration, or for the rehearsal). From a machine that can
+reach the database, the script runs the nightly pipeline once:
 
 ```sh
 DOTENV_CONFIG_PATH=.env.production.local npm run db:backup   # needs pg_dump 17, gzip, openssl on PATH
 ```
 
 Prints the result JSON (`dumpKey`, `dumpBytes`, `photosCopied`, `dumpsDeleted`) and exits 1 on
-failure. The same command works from the Darkube web terminal with the app's env already set.
+failure. That path fits Vercel/Supabase. On the VPS the database is not published outside the
+compose network and the image has `pg_dump` but not `tsx`, so a manual copy is taken on the box
+and encrypted the same way the job does:
+
+```sh
+ssh dietyaar
+cd /opt/dietyaar && export BACKUP_ENCRYPTION_KEY="$(grep '^BACKUP_ENCRYPTION_KEY=' .env | cut -d= -f2-)"
+docker compose exec -T db pg_dump -U postgres --format=custom app | gzip -c \
+  | openssl enc -aes-256-cbc -pbkdf2 -pass env:BACKUP_ENCRYPTION_KEY \
+  > "/root/manual-$(date -u +%F).dump.gz.enc"
+# Photos: the MinIO volume, as a tarball next to it.
+docker run --rm -v dietyaar_minio-data:/data -v /root:/out alpine \
+  tar czf "/out/manual-$(date -u +%F)-photos.tgz" -C /data .
+```
+
+Copy both files off the box (`scp dietyaar:/root/manual-*.{enc,tgz} .`) and delete them there.
+The scheduled task itself only fires during the 03:00 UTC hour (`atUtcHour: 3` in
+`backup.job.ts`, once per day per process), so restarting the app outside that hour does not
+produce a dump; the `pg_dump` path above is the one that needs nothing but the box.
 
 **Restore** (setup checklist step 5, and the incident path):
 
 ```sh
-# 1. Fetch the dump (any S3 client with the BACKUP_S3_* key), then decrypt and unpack.
+# 1. Fetch the dump (any S3 client with the BACKUP_S3_* key, or the manual file above),
+#    then decrypt and unpack.
 BACKUP_ENCRYPTION_KEY=... openssl enc -d -aes-256-cbc -pbkdf2 -pass env:BACKUP_ENCRYPTION_KEY \
   -in 2026-09-17.dump.gz.enc | gunzip -c > 2026-09-17.dump
 pg_restore --list 2026-09-17.dump | head          # sanity: the table list
 
-# 2. Into an empty database (the second Supabase project, or local Postgres):
-pg_restore --no-owner --no-privileges --dbname "$TARGET_DIRECT_DATABASE_URL" 2026-09-17.dump
+# 2. Into an empty database. Locally: `npm run db:up`, then create one beside `app`:
+docker compose exec db createdb -U postgres app_restore
+pg_restore --no-owner --no-privileges \
+  --dbname "postgresql://postgres:postgres@localhost:5433/app_restore" 2026-09-17.dump
+#    On the box after data loss: `docker compose stop app`, `createdb` a fresh database the
+#    same way inside `dietyaar-db`, restore into it, then point DATABASE_URL at it (or rename).
 
 # 3. Photos: copy the backup bucket's photos/{key} objects back to the photo bucket under
 #    the same key (without the photos/ prefix); the Upload rows in the dump reference them.
+#    With the MinIO client: mc alias set backup <BACKUP_S3_ENDPOINT> <key> <secret>;
+#    mc alias set photos http://localhost:9000 dietyaar dietyaar-dev-secret;
+#    mc mirror backup/dietyaar-backup/photos/ photos/dietyaar-dev/
 ```
 
-Then point a local app at the restored database, sign in as a test user, open the plan, open a
-restored photo and confirm a day's totals. Record the time taken in checklist step 5.
+Then point a local app at the restored database (`DATABASE_URL=...app_restore`, `S3_*` at the
+bucket the photos went to, `S3_KEY_PREFIX` matching the keys), sign in as a test user, open the
+plan, open a restored photo and confirm a day's totals. Record the time taken in checklist step 5.
+_Not rehearsed yet_ (blocked on the bucket); the restore commands above are written from the job
+and adapter code, not from a run.
 
 ## Postgres major version
 
 Supabase runs Postgres 17 (17.6.1, "Measured values"). The image installs
 `postgresql-client-17` from `apt.postgresql.org` (Dockerfile `ARG PG_MAJOR=17`) because
-`pg_dump` must be at least the server's major version. When Supabase upgrades the project, bump
-`PG_MAJOR`, rebuild, and update the "Measured values" row.
+`pg_dump` must be at least the server's major version; the VPS pins the same major
+(`postgres:17-alpine` in `deploy/vps/docker-compose.yml`). When either server moves to a newer
+major, bump `PG_MAJOR`, rebuild, and update the "Measured values" row (a Postgres major upgrade on
+the VPS is a dump-and-restore of the `db-data` volume, not an image bump).
 
 ## Weekly analytics SQL
 
@@ -402,12 +503,17 @@ select pg_size_pretty(pg_database_size(current_database())) as database_size,
 
 ## Observability
 
-- **Logs.** pino JSON on stdout → Loki. `task`, `event` and `durationMs` fields carry the § 16
-  metrics: `backup finished` / `backup_failed`, `prune finished`, `purge finished`.
+- **Logs.** pino JSON on stdout. On the VPS Docker keeps them in the container's `json-file` log
+  (20 MB × 5 per service, `deploy/vps/docker-compose.yml`): `docker compose logs -f app`,
+  `docker compose logs --since 24h app | grep '"level":50'` for errors. On Vercel: the project's
+  Logs tab (Hobby retains one hour; nothing is shipped elsewhere). Loki only exists on Darkube.
+  `task`, `event` and `durationMs` fields carry the § 16 metrics: `backup finished` /
+  `backup_failed`, `prune finished`, `purge finished`.
 - **No error tracker (owner decision, 2026-09-17).** Sentry is not used: no new tools. Unexpected
   errors are logged by `fromError` (`src/lib/action-result.ts`) through pino with the health-data
-  redaction and reach Loki like every other line; `/api/live` and `/api/health` feed the Darkube
-  probes. `@/lib/logger` stays the seam if an error tracker is ever wanted (tech spec § 16).
+  redaction like every other line; `/api/health` feeds the image `HEALTHCHECK`, the `deploy-vps`
+  post-deploy check and (with `/api/live`) the Darkube probes. `@/lib/logger` stays the seam if an
+  error tracker is ever wanted (tech spec § 16).
 
 ## Incidents
 

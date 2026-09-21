@@ -46,7 +46,8 @@ const schema = z
     LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
     PRISMA_LOG_QUERIES: booleanString('false'),
 
-    // ── Photo storage (Supabase Storage through S3). All or none. ───────
+    // ── Photo storage: any S3 endpoint (MinIO locally, in CI and on the VPS;
+    //    Supabase Storage on Vercel). All five or none. ─────────────────────
     S3_ENDPOINT: optionalString,
     S3_REGION: optionalString,
     S3_BUCKET: optionalString,

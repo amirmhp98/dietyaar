@@ -13,11 +13,12 @@ import { logger } from '@/lib/logger';
 import { photo } from '@/messages/sections/photo';
 
 /**
- * S3 adapter with two targets (tech spec § 13, decisions 016 and 018):
- * `photos` is the private Supabase bucket behind `S3_*`, `backup` the
- * Hamravesh bucket behind `BACKUP_S3_*`. `forcePathStyle` because Supabase's
- * S3 endpoint is path-based. Keys are built by `uploadKey` / `userPrefix` so
- * the prefix rule lives in one place.
+ * S3 adapter with two targets (tech spec § 13, decisions 016, 018, 021, 026):
+ * `photos` is the private photo bucket behind `S3_*` (MinIO locally, in CI and
+ * on the VPS; Supabase Storage on Vercel), `backup` the Hamravesh bucket behind
+ * `BACKUP_S3_*`. `forcePathStyle` because MinIO's and Supabase's S3 endpoints
+ * are path-based. Keys are built by `uploadKey` / `userPrefix` so the prefix
+ * rule lives in one place.
  */
 
 export type StorageTarget = 'photos' | 'backup';
