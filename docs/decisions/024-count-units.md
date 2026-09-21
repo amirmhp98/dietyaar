@@ -9,11 +9,11 @@ the user wrote it (سیب کوچک); the grams of one unit are an attribute of t
 for every counted item it quantifies, from a hint table the prompts still receive
 (`FOOD_WEIGHT_HINTS`: medium apple ≈ 180 g, date ≈ 8 g, slice of sangak ≈ 80 g, egg ≈ 50 g,
 walnut kernel ≈ 4 g, …) or its own estimate, assuming a medium size when none is stated; the user
-can edit it on review ("grams each").
+can edit it on review ("Grams each", with a −/+ stepper on the count).
 
 Removed unit keys: `medium_apple, small_banana, medium_banana, date, slice_sangak, slice_barbari,
 slice_lavash, slice_taftoon, slice_toast, egg, medium_orange, medium_tomato, medium_cucumber,
-medium_potato, walnut, almond, skewer_kabab`. Migration `count_units` maps stored rows (and the
+medium_potato, walnut, almond, skewer_kabab`. Migration `20260919181822_count_units` maps stored rows (and the
 `basisUnit` inside their nutrition JSON) to the measure plus the old table weight; a pending
 draft that still names an old key is mapped on read (`legacyUnit()` in the item schemas'
 `preprocess`).
