@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ComponentProps } from 'react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button, FormField, Input } from '@/components/UiComponents';
 import { IconAction } from '@/components/product/IconAction';
@@ -297,19 +297,25 @@ function ItemEditor({
   );
 }
 
-/** Keeps the raw text while typing so "1." or Persian digits do not snap back. */
+/**
+ * Keeps the raw text while typing so "1." or Persian digits do not snap back.
+ * Always rendered inside a `FormField`, which injects the label's `id` and
+ * the `aria-*` wiring as props; they are passed through to the input.
+ */
 export function QuantityInput({
   value,
   onChange,
   onInvalid,
+  ...field
 }: {
   value: number | null;
   onChange: (value: number | null) => void;
   onInvalid?: (invalid: boolean) => void;
-}) {
+} & Pick<ComponentProps<typeof Input>, 'id' | 'aria-describedby' | 'aria-invalid'>) {
   const [raw, setRaw] = useState(numberText(value));
   return (
     <Input
+      {...field}
       inputMode="decimal"
       dir="auto"
       className="h-11"
