@@ -73,7 +73,7 @@ services:
     logging: *logging
 
   minio:
-    image: minio/minio
+    image: quay.io/minio/minio
     container_name: dietyaar-minio
     restart: unless-stopped
     # No console: the bucket is private and only the app talks to it.
@@ -97,7 +97,7 @@ services:
 
   # One-shot: creates the `dietyaar` bucket and exits.
   minio-init:
-    image: minio/mc
+    image: quay.io/minio/mc
     container_name: dietyaar-minio-init
     depends_on:
       minio:

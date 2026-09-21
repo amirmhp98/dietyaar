@@ -293,7 +293,7 @@ console errors. The MCP server `https://mcp.vercel.com` is listed in `.mcp.json`
 Server `85.198.48.114` (Ubuntu 24.04, 2 vCPU / 4 GB / 23 GB, UTC), set up 2026-09-19: 2 GB swap
 file, `ufw` allowing 22/80/443, `fail2ban` on sshd, key-only SSH (`~/.ssh/id_ed25519_dietyaar`,
 host alias `dietyaar` in `~/.ssh/config`), unattended security upgrades, Docker CE with
-`hub.hamdocker.ir` as the Docker Hub mirror (Hub refuses `minio/*` from this IP). The stack is
+`hub.hamdocker.ir` as the Docker Hub mirror; MinIO images come from `quay.io`. The stack is
 `deploy/vps/docker-compose.yml` copied to `/opt/dietyaar/` with `Caddyfile` and a `.env` filled
 from `deploy/vps/.env.example` (Postgres and MinIO passwords generated on the server; the DeepSeek
 key is the one in the dev `.env`). Caddy holds a Let's Encrypt certificate for

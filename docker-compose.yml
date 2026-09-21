@@ -23,7 +23,7 @@ services:
   # S3-compatible photo storage for local dev and e2e (improvement plan B26).
   # API on 9000, console on 9001 (same credentials).
   minio:
-    image: minio/minio
+    image: quay.io/minio/minio
     container_name: 'dietyaar-minio'
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -43,7 +43,7 @@ services:
 
   # One-shot: creates the `dietyaar-dev` bucket and exits.
   minio-init:
-    image: minio/mc
+    image: quay.io/minio/mc
     container_name: 'dietyaar-minio-init'
     depends_on:
       minio:

@@ -14,8 +14,9 @@ users in Iran reach it, every request stays on the box (no ~150 ms cross-border 
 query, tech spec § 17), and there is no free-tier pause or egress cap. One box with three
 containers is the simplest shape that meets that; the app already speaks S3 to MinIO locally and
 proxies photos through `/api/photos/[id]`, so the bucket never needs to be public. GHCR is used
-because Docker Hub blocks part of its namespace from this IP (`minio/*` fails, `library/*` works);
-the daemon uses `hub.hamdocker.ir` as its Docker Hub mirror for the same reason.
+because it is reachable from the server and needs no extra account; MinIO images come from
+`quay.io/minio/*` (MinIO no longer publishes to Docker Hub); the daemon uses `hub.hamdocker.ir` as
+its Docker Hub mirror as a fallback for the rest.
 
 **Consequences.** The database now lives on a disk the owner administers: the nightly backup to
 Hamravesh Object Storage (decision 018) is the only copy off the box and must be enabled before
