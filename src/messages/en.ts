@@ -164,8 +164,7 @@ export const en = {
   'onboarding.plan.placeholderBody': 'Plan import arrives in the next step of the build.',
   'onboarding.plan.continueToToday': 'Continue to Today',
   'onboarding.plan.noPlanYet': "I don't have a plan yet",
-  'onboarding.errors.incomplete':
-    'Age, sex, height, weight and time zone are needed before continuing.',
+  'onboarding.errors.incomplete': 'Age, sex, height and weight are needed before continuing.',
 
   // ── Home ───────────────────────────────────────────────────
   'home.title': 'Dashboard',

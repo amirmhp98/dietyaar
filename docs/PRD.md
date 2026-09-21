@@ -24,7 +24,8 @@ sees a focused Today view with an adherence score, a seven-day history, and a sh
 paragraph that reflects on yesterday. The product follows the user's plan: it never generates a
 diet, never infers a deficit, and never treats eating less as better. English UI, mobile-first web,
 DeepSeek as the AI provider, one plan per user edited in place. First release is unpaid and run by
-one person on Darkube with Supabase free tier.
+one person on a single VPS (app, Postgres and MinIO in one compose stack, decision 026), with a
+Vercel + Supabase staging deployment (decision 021).
 
 ## Users
 
@@ -218,7 +219,7 @@ authorise first (`requireAuth` / `requireOnboarded` / `requireAdmin`), validate 
 
 - Auth: httpOnly cookie sessions with hashed tokens, bcrypt (12 rounds), per-username login throttle, `SKIP_AUTH=true` for DB-less UI work (refused in production).
 - Security headers: HSTS, frame-deny, nosniff, referrer policy, permissions policy (`camera=(self)`), CSP per tech spec § 8 (`next.config.ts`).
-- Deployment: Docker standalone image (hamdocker mirror ARG, `TZ=UTC`, `postgresql-client-17`) with health check; migrations applied on container start; CI runs lint, unit, integration (real Postgres), e2e (desktop + Pixel 7, stub AI server), migration check, Docker build and the Darkube deploy job (decision 014). Database and storage on Supabase free tier through the pooler (016); encrypted backups to Hamravesh Object Storage by the backup job and `npm run db:backup` (018). A Vercel staging deployment (`https://dietyaar.vercel.app`, built from GitHub `main`) runs with the scheduler off and a daily platform cron calling `/api/cron/all` behind `CRON_SECRET` (decision 021).
+- Deployment: Docker standalone image (hamdocker mirror ARG, `TZ=UTC`, `postgresql-client-17`) with health check; migrations applied on container start. CI runs lint, unit, integration (real Postgres), e2e (desktop + Pixel 7, stub AI server, MinIO started by `npm run storage:up` so the photo spec runs), migration check, Docker build, then pushes the image to GHCR and the `deploy-vps` job SSHes into the VPS (`https://85-198-48-114.sslip.io`, Caddy TLS, Postgres 17 and MinIO on the box, decision 026); the Darkube deploy job stays gated behind `DARKUBE_ENABLED` (decision 014). A Vercel staging deployment (`https://dietyaar.vercel.app`, built from GitHub `main`) uses Supabase for the database and photo bucket (016), runs with the scheduler off and a daily platform cron calling `/api/cron/all` behind `CRON_SECRET` (decision 021). Encrypted backups to Hamravesh Object Storage by the backup job and `npm run db:backup` (018); the runbook's "Environment variables by target" table lists every `S3_*` and flag per target.
 - Reads: nested Prisma reads use `relationJoins`, so Today is three statements (decision 020).
 - AI: DeepSeek through a fetch-based adapter with one deadline per operation, one retry on network/5xx, zod-validated responses, per-user daily caps per kind and a global token budget (`AI_DAILY_TOKEN_BUDGET`). Stub server `e2e/stub-ai/server.mjs` for dev and e2e; `npm run ai:smoke` and `npm run ai:eval` against the real provider (results in `docs/runbook.md`).
 - Observability: pino JSON logs with redaction, `/api/live` and `/api/health`, weekly analytics SQL in the runbook. No error tracker (owner decision: no new tools).
@@ -227,8 +228,9 @@ authorise first (`requireAuth` / `requireOnboarded` / `requireAdmin`), validate 
 
 ## Not done yet
 
-- Tech spec § 13 setup on the cluster: Darkube app, Supabase project and buckets, the cross-border round trip `R`, ingress timeout and body limit; the runbook's measured-values table is filled from a developer machine only.
-- A restore rehearsal of the backup job.
+- The Hamravesh backup bucket `dietyaar-backup` and its key do not exist yet, so `BACKUP_ENABLED=false` on the VPS and the box holds the only copy of the data; decision 026 requires the bucket before real users sign up. The ingress timeout has never been measured with a long (50 s) analysis request (Caddy sets none, Node's default is 300 s). The Darkube items of tech spec § 13 (app, round trip `R`) are obsolete for launch (decision 026); the rest of the setup checklist is recorded in the runbook.
+- The `deploy-vps` job and the CI MinIO step have not yet run on GitHub: `main` is ahead of `origin/main`, and the first push exercises both.
+- A restore rehearsal of the backup job (the runbook's "Backups" section has the VPS-shaped steps; blocked on the bucket).
 - `PHOTO_LOGGING_ENABLED` stays `false` in production until the photo evaluation (20 photos) passes; the `ai:eval` meal set is unreviewed (`reviewed: false`), so the runbook's recall number is not yet the reviewed one the improvement plan's gate A asks for.
 - The owner's phone walkthrough (`docs/pilot-checklist.md`: iOS Safari and Android Chrome, light and dark) has not been run; every step is green before users are invited (improvement plan E4).
 
@@ -240,7 +242,7 @@ blocked; binding until the owner revises them.
 - Rubric v1 weights and thresholds and the three-block Today layout exactly as product-spec § 8–9.
 - Visual language: design.md tokens on the local shadcn kit, 44 px touch targets (decision 019); since decision 025 the `design.md` "Product UI" section sets the consumer character — three surfaces (`hero` / `list` / `note`), icon + title section headers, a neutral status glyph set, icon-first actions, Manrope for headings and the score numeral, pills, a `--tint-1/2/3` ladder, top-centre toasts, a 2 px offset focus ring. Today adopted them in D1 (`ScoreCard`, `PlanSlotRow`, `ReflectionCard`, `NutritionDetails` + `MeterBar`, `ImportStatusBanner`, `CompletenessCheckbox`); D3 re-skinned History (one note-surface summary with the pattern sentence in the display face and glyph count lines, day rows with band glyph + word + number, the seven-day sentence split into "different food" and "skipped" variants), My plan (plan header with icon actions, slot cards with clock/flame sublines, options as pills, slots folded after two behind "Show all N meals", targets as a two-column list, notes as a note surface), the plan review screens, Meal details (photo strip first, compact item rows, chips, icon actions), Settings (section headers, no duplicate h1, privacy note behind a disclosure, "Delete account" as a text-destructive ghost), onboarding (28 px display question, note-surface hints, `ready` illustration) and the sign-in / sign-up pages (one value line under the logo); D2 re-skinned the composer (intent-aware blocks, pill chips with status glyphs, native photo actions, pinned footer) and the review (compact item rows, pill questions, the slot sentence and Save in a pinned footer).
 - Photo logging is built but ships with `PHOTO_LOGGING_ENABLED=false` until the evaluation passes; e2e and local dev run with it on.
-- Supabase region `eu-central-1`; domain `dietyaar.darkube.app`; session lifetime 90 days.
+- Supabase region `eu-central-1` (staging); production is reached at `https://85-198-48-114.sslip.io` until a domain is chosen; session lifetime 90 days.
 - No numeric accuracy claim anywhere; nutrition values are labelled "Estimated".
 - `User.fullName` is optional (sign-up has no name field); greeting uses display name, then username.
 - Photo capacity: 1280 px uploads; on the free storage tier the photo flag is for a pilot of at most ~30 users; the target workload needs the storage upgrade.
